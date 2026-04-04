@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Clicker 2.0 | Combo Update</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .click-animation:active { transform: scale(0.9); }
+        .gradient-bg { background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); }
+        
+        /* Animace pro létající čísla */
+        @keyframes float-up {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-100px); }
+        }
+        .floating-number {
+            position: absolute;
+            pointer-events: none;
+            animation: float-up 0.8s ease-out forwards;
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body class="gradient-bg text-white min-h-screen flex items-center justify-center font-sans overflow-hidden">
+
+    <div id="app" class="relative w-full max-w-md p-8 bg-gray-900 bg-opacity-80 rounded-3xl shadow-2xl border border-blue-500/30 backdrop-blur-sm">
+        
+        <!-- Combo Indicator -->
+        <div class="absolute -top-4 left-1/2 -translate-x-1/2 w-3/4">
+            <div class="text-center text-xs font-bold uppercase tracking-tighter text-blue-400 mb-1">
+                Combo Multiplier: x{{ currentMultiplier.toFixed(1) }}
+            </div>
+            <div class="h-3 w-full bg-gray-800 rounded-full overflow-hidden border border-gray-700">
+                <div class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-100"
+                     :style="{ width: comboMeter + '%' }"></div>
+            </div>
+        </div>
+
+        <!-- Statistiky -->
+        <div class="text-center mb-8 mt-4">
+            <div class="text-5xl font-black my-2 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                {{ Math.floor(coins) }} <span class="text-2xl text-yellow-500">🪙</span>
+            </div>
+            <p class="text-gray-400 text-sm">Základní příjem: {{ (pps * currentMultiplier).toFixed(1) }} / s</p>
+        </div>
+
+        <!-- Hlavní tlačítko s efekty -->
+        <div class="relative flex justify-center mb-10" id="click-area">
+            <button @click="clickCoin($event)" 
+                class="click-animation w-44 h-44 rounded-full bg-blue-600 hover:bg-blue-500 shadow-xl flex flex-col items-center justify-center transition-all duration-75 border-b-8 border-blue-800">
+                <span class="text-6xl">⚡</span>
+                <span v-if="comboMeter > 50" class="text-xs font-bold mt-2 animate-pulse text-cyan-200">SUPERCHARGE</span>
+            </button>
+
+            <!-- Plovoucí čísla (vytvářena dynamicky) -->
+            <div v-for="n in numbers" :key="n.id" 
+                 class="floating-number" 
+                 :class="n.isCrit ? 'text-red-500 text-3xl' : 'text-yellow-400'"
+                 :style="{ left: n.x + 'px', top: n.y + 'px' }">
+                +{{ n.val }}{{ n.isCrit ? '!' : '' }}
+            </div>
+        </div>
+
+        <!-- Obchod -->
+        <div class="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+            <div v-for="(item, key) in upgrades" :key="key" 
+                 @click="buyUpgrade(key)"
+                 class="group flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all"
+                 :class="coins >= item.cost ? 'bg-gray-800 border-gray-600 hover:border-blue-400' : 'bg-gray-950 border-gray-800 opacity-50'">
+                
+                <div>
+                    <div class="font-bold group-hover:text-blue-300 transition-colors">{{ item.name }}</div>
+                    <div class="text-[10px] text-gray-500 uppercase font-bold">Level {{ item.count }} • +{{ item.pps }} PPS</div>
+                </div>
+
+                <div class="text-right font-mono font-bold text-green-400">
+                    {{ Math.ceil(item.cost) }} 🪙
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    coins: 0,
+                    pps: 0,
+                    comboMeter: 0,
+                    numbers: [],
+                    nextId: 0,
+                    upgrades: {
+                        cursor: { name: 'Auto-Clicker v1', cost: 15, pps: 0.5, count: 0 },
+                        gpu: { name: 'Mining Rig', cost: 100, pps: 4, count: 0 },
+                        quantum: { name: 'Quantum CPU', cost: 1200, pps: 25, count: 0 }
+                    }
+                }
+            },
+            computed: {
+                currentMultiplier() {
+                    // Multiplikátor od x1.0 do x2.0 podle comboMeteru
+                    return 1 + (this.comboMeter / 100);
+                }
+            },
+            methods: {
+                clickCoin(event) {
+                    // Kritický zásah (10% šance)
+                    const isCrit = Math.random() < 0.1;
+                    const baseGain = 1;
+                    const critMultiplier = isCrit ? 5 : 1;
+                    const totalGain = baseGain * critMultiplier * this.currentMultiplier;
+
+                    this.coins += totalGain;
+                    
+                    // Zvýšení comba
+                    this.comboMeter = Math.min(this.comboMeter + 5, 100);
+
+                    // Animace čísla
+                    this.spawnNumber(event.clientX, event.clientY, Math.floor(totalGain), isCrit);
+                },
+                spawnNumber(x, y, val, isCrit) {
+                    const id = this.nextId++;
+                    // Náhodný rozptyl pozice
+                    const rx = x - 20 + Math.random() * 40;
+                    const ry = y - 50;
+                    
+                    this.numbers.push({ id, x: rx, y: ry, val, isCrit });
+                    
+                    // Odstranění z pole po dojetí animace
+                    setTimeout(() => {
+                        this.numbers = this.numbers.filter(n => n.id !== id);
+                    }, 800);
+                },
+                buyUpgrade(key) {
+                    const upgrade = this.upgrades[key];
+                    if (this.coins >= upgrade.cost) {
+                        this.coins -= upgrade.cost;
+                        upgrade.count++;
+                        this.pps += upgrade.pps;
+                        upgrade.cost *= 1.25;
+                    }
+                }
+            },
+            mounted() {
+                // Hlavní smyčka
+                setInterval(() => {
+                    // Pasivní příjem ovlivněný combem
+                    this.coins += (this.pps * this.currentMultiplier) / 10;
+                    
+                    // Combo pomalu klesá
+                    if (this.comboMeter > 0) {
+                        const decay = 0.8; // Rychlost klesání
+                        this.comboMeter = Math.max(this.comboMeter - decay, 0);
+                    }
+                }, 100);
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
