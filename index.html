@@ -3,79 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Clicker | Vue.js</title>
+    <title>Crypto Clicker Pro | Vizuální Update</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .click-animation:active { transform: scale(0.95); }
-        .gradient-bg { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+        /* Definice vlastních animací */
+        @keyframes float-up {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-100px); opacity: 0; }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px 0px rgba(59, 130, 246, 0.5); }
+            50% { box-shadow: 0 0 40px 10px rgba(59, 130, 246, 0.7); }
+        }
+
+        .floating-number {
+            position: absolute;
+            animation: float-up 1s ease-out forwards;
+            pointer-events: none; /* Čísla neblokují klikání */
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: #4ade80; /* Zelená */
+        }
+
+        .click-button {
+            transition: transform 0.05s ease-in-out;
+            animation: pulse-glow 3s infinite;
+        }
+
+        .click-button:active {
+            transform: scale(0.9) rotate(2deg); /* Zmenšení a lehké otočení */
+        }
+
+        .gradient-bg {
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
     </style>
 </head>
-<body class="gradient-bg text-white min-h-screen flex items-center justify-center font-sans">
+<body class="gradient-bg text-white min-h-screen flex items-center justify-center font-sans overflow-hidden">
 
-    <div id="app" class="w-full max-w-md p-8 bg-gray-900 bg-opacity-50 rounded-3xl shadow-2xl border border-gray-800">
+    <div id="app" class="w-full max-w-md p-8 bg-gray-950 bg-opacity-80 rounded-3xl shadow-2xl border border-gray-800 relative">
         
-        <!-- Statistiky -->
-        <div class="text-center mb-8">
+        <div class="mb-6">
+            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                <span>Úroveň {{ level }}</span>
+                <span>{{ clicksToLevel - clicksThisLevel }} kliků do další úrovně</span>
+            </div>
+            <div class="w-full bg-gray-800 rounded-full h-1.5 relative overflow-hidden">
+                <div class="bg-blue-500 h-full rounded-full transition-all duration-100" 
+                     :style="{ width: (clicksThisLevel / clicksToLevel) * 100 + '%' }"></div>
+            </div>
+        </div>
+
+        <div class="text-center mb-8 relative">
             <h1 class="text-sm uppercase tracking-widest text-blue-400 font-bold">Kryptoměna Balance</h1>
-            <div class="text-5xl font-black my-2">{{ Math.floor(coins) }} 🪙</div>
+            <div class="text-5xl font-black my-2 tabular-nums">{{ Math.floor(coins) }} 🪙</div>
             <p class="text-gray-400">Příjem: <span class="text-green-400 font-semibold">{{ pps.toFixed(1) }}</span> / s</p>
         </div>
 
-        <!-- Hlavní klikací tlačítko -->
-        <div class="flex justify-center mb-10">
-            <button @click="clickCoin" 
-                class="click-animation w-40 h-40 rounded-full bg-blue-600 hover:bg-blue-500 shadow-[0_0_50px_-12px_rgba(59,130,246,0.5)] flex items-center justify-center text-6xl transition-all duration-100 border-8 border-blue-700">
+        <div class="flex justify-center mb-10 relative">
+            <button @click="handleMainClick" 
+                ref="clickerButton"
+                class="click-button w-40 h-40 rounded-full bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-7xl transition-colors duration-100 border-8 border-blue-700 relative z-10">
                 ⚡
             </button>
+            
+            <div v-for="click in floatingClicks" :key="click.id" 
+                 class="floating-number"
+                 :style="{ left: click.x + 'px', top: click.y + 'px' }">
+                +{{ click.value }}
+            </div>
         </div>
 
-        <!-- Obchod s vylepšeními -->
         <div class="space-y-4">
             <h2 class="text-xl font-bold mb-2">Mining Rig Obchod</h2>
             
             <div v-for="(item, key) in upgrades" :key="key" 
-                 class="flex items-center justify-between p-4 rounded-xl border transition-all"
-                 :class="coins >= item.cost ? 'bg-gray-800 border-gray-700' : 'bg-gray-950 border-gray-900 opacity-60'">
+                 class="flex items-center justify-between p-4 rounded-xl border transition-all duration-300"
+                 :class="coins >= item.cost ? 'bg-gray-800 border-gray-700 shadow-md' : 'bg-gray-950 border-gray-900 opacity-60'">
                 
                 <div>
-                    <div class="font-bold">{{ item.name }}</div>
-                    <div class="text-xs text-gray-400">+{{ item.pps }} PPS | Vlastníš: {{ item.count }}</div>
+                    <div class="font-bold flex items-center gap-2">
+                        {{ item.name }}
+                        <span class="text-xs bg-blue-900 text-blue-300 px-2 py-0.5 rounded-full">{{ item.count }}x</span>
+                    </div>
+                    <div class="text-xs text-gray-400">+{{ item.pps }} PPS</div>
                 </div>
 
                 <button @click="buyUpgrade(key)" 
                     :disabled="coins < item.cost"
-                    class="px-4 py-2 rounded-lg font-bold text-sm transition-colors"
-                    :class="coins >= item.cost ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-700 cursor-not-allowed'">
+                    class="px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150 active:scale-95"
+                    :class="coins >= item.cost ? 'bg-green-600 hover:bg-green-500 shadow-lg' : 'bg-gray-700 cursor-not-allowed'">
                     {{ Math.ceil(item.cost) }} 🪙
                 </button>
             </div>
         </div>
 
-        <!-- Reset Progress (jen pro testování) -->
-        <button @click="resetGame" class="mt-8 text-xs text-gray-600 hover:text-red-400 block mx-auto underline">
+        <button @click="resetGame" class="mt-10 text-xs text-gray-600 hover:text-red-400 block mx-auto underline transition-colors">
             Resetovat postup
         </button>
     </div>
 
     <script>
-        const { createApp } = Vue;
+        const { createApp, ref } = Vue;
 
         createApp({
             data() {
                 return {
                     coins: 0,
-                    pps: 0, // Points Per Second
+                    pps: 0,
+                    clickPower: 1, // Kolik dává jedno kliknutí
+                    floatingClicks: [], // Pole pro animované kliky
+                    
+                    // Progress systém
+                    level: 1,
+                    clicksThisLevel: 0,
+                    clicksToLevel: 10, // Kolik kliků na první level
+
                     upgrades: {
-                        cursor: { name: 'Autoclicker', cost: 15, pps: 0.5, count: 0 },
+                        cursor: { name: 'Autoclicker Prst', cost: 15, pps: 0.5, count: 0 },
                         gpu: { name: 'Nvidia RTX 5090', cost: 100, pps: 3, count: 0 },
                         server: { name: 'Datacentrum', cost: 1100, pps: 20, count: 0 }
-                    }
+                    },
+                    // clickSound: new Audio('https://www.soundjay.com/buttons/button-16.mp3') // Příklad zvuku
                 }
             },
             methods: {
-                clickCoin() {
-                    this.coins += 1;
+                handleMainClick(event) {
+                    // 1. Přičíst peníze
+                    this.coins += this.clickPower;
+                    
+                    // 2. Progres systém
+                    this.clicksThisLevel++;
+                    if (this.clicksThisLevel >= this.clicksToLevel) {
+                        this.levelUp();
+                    }
+
+                    // 3. Vizuální efekt (Vyskakující číslo)
+                    // Získat souřadnice relativně k tlačítku, abychom číslo umístili na střed
+                    const rect = event.target.getBoundingClientRect();
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+
+                    // Přidat náhodnou odchylku, aby čísla nelétala přesně stejně
+                    const offsetX = (Math.random() - 0.5) * 40;
+                    const offsetY = (Math.random() - 0.5) * 40;
+
+                    const id = Date.now(); // Unikátní ID pro v-for
+                    this.floatingClicks.push({
+                        id,
+                        x: centerX + offsetX,
+                        y: centerY + offsetY,
+                        value: this.clickPower
+                    });
+
+                    // 4. Odstranit číslo z pole po skončení animace (1s), aby se nehltila paměť
+                    setTimeout(() => {
+                        this.floatingClicks = this.floatingClicks.filter(c => c.id !== id);
+                    }, 1000);
+
+                    // 5. Volitelně: Přehrát zvuk
+                    // this.clickSound.currentTime = 0;
+                    // this.clickSound.play();
+                },
+                levelUp() {
+                    this.level++;
+                    this.clicksThisLevel = 0;
+                    this.clicksToLevel = Math.round(this.clicksToLevel * 1.5);
+                    this.clickPower += 1; // Zvýšíme sílu kliku za odměnu
                 },
                 buyUpgrade(key) {
                     const upgrade = this.upgrades[key];
@@ -83,8 +179,7 @@
                         this.coins -= upgrade.cost;
                         upgrade.count++;
                         this.pps += upgrade.pps;
-                        // Zvýšení ceny pro další nákup (exponenciálně)
-                        upgrade.cost *= 1.2;
+                        upgrade.cost *= 1.25; // Trochu agresivnější zdražování
                         this.saveGame();
                     }
                 },
@@ -92,33 +187,44 @@
                     const data = {
                         coins: this.coins,
                         pps: this.pps,
+                        clickPower: this.clickPower,
+                        level: this.level,
+                        clicksThisLevel: this.clicksThisLevel,
+                        clicksToLevel: this.clicksToLevel,
                         upgrades: this.upgrades
                     };
-                    localStorage.setItem('clickerSave', JSON.stringify(data));
+                    localStorage.setItem('clickerSavePro', JSON.stringify(data));
                 },
                 loadGame() {
-                    const saved = localStorage.getItem('clickerSave');
+                    const saved = localStorage.getItem('clickerSavePro');
                     if (saved) {
                         const parsed = JSON.parse(saved);
                         this.coins = parsed.coins;
                         this.pps = parsed.pps;
-                        this.upgrades = parsed.upgrades;
+                        this.clickPower = parsed.clickPower || 1;
+                        this.level = parsed.level || 1;
+                        this.clicksThisLevel = parsed.clicksThisLevel || 0;
+                        this.clicksToLevel = parsed.clicksToLevel || 10;
+                        // Hluboké kopírování upgradů, aby se zachovaly nové struktury, pokud by byly
+                        Object.keys(parsed.upgrades).forEach(key => {
+                            if(this.upgrades[key]) this.upgrades[key] = parsed.upgrades[key];
+                        });
                     }
                 },
                 resetGame() {
-                    if(confirm("Opravdu chceš smazat celý postup?")) {
-                        localStorage.removeItem('clickerSave');
+                    if(confirm("Opravdu chceš smazat celý postup a začít znova?")) {
+                        localStorage.removeItem('clickerSavePro');
                         location.reload();
                     }
                 }
             },
             mounted() {
                 this.loadGame();
-                // Hlavní smyčka hry (běží každých 100ms pro plynulost)
+                // Game loop (10 FPS)
                 setInterval(() => {
                     this.coins += this.pps / 10;
-                    // Ukládání každých 5 sekund
-                    if (Math.random() < 0.02) this.saveGame();
+                    // Automatické ukládání každých 10 sekund
+                    if (Math.random() < 0.01) this.saveGame();
                 }, 100);
             }
         }).mount('#app');
