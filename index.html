@@ -3,30 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <title>Mé Portfolio</title>
+    <title>Crypto Clicker | Vue.js</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .click-animation:active { transform: scale(0.95); }
+        .gradient-bg { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+    </style>
 </head>
-<body>
-    <header>
-        <h1>Mé Portfolio</h1>
-    </header>
+<body class="gradient-bg text-white min-h-screen flex items-center justify-center font-sans">
 
-    <section class="project">
-        <img src="projekt1.jpg" alt="Projekt 1">
-        <h2>Projekt 1</h2>
-        <p>Popis projektu 1.</p>
-    </section>
+    <div id="app" class="w-full max-w-md p-8 bg-gray-900 bg-opacity-50 rounded-3xl shadow-2xl border border-gray-800">
+        
+        <!-- Statistiky -->
+        <div class="text-center mb-8">
+            <h1 class="text-sm uppercase tracking-widest text-blue-400 font-bold">Kryptoměna Balance</h1>
+            <div class="text-5xl font-black my-2">{{ Math.floor(coins) }} 🪙</div>
+            <p class="text-gray-400">Příjem: <span class="text-green-400 font-semibold">{{ pps.toFixed(1) }}</span> / s</p>
+        </div>
 
-    <section class="project">
-        <img src="projekt2.jpg" alt="Projekt 2">
-        <h2>Projekt 2</h2>
-        <p>Popis projektu 2.</p>
-    </section>
+        <!-- Hlavní klikací tlačítko -->
+        <div class="flex justify-center mb-10">
+            <button @click="clickCoin" 
+                class="click-animation w-40 h-40 rounded-full bg-blue-600 hover:bg-blue-500 shadow-[0_0_50px_-12px_rgba(59,130,246,0.5)] flex items-center justify-center text-6xl transition-all duration-100 border-8 border-blue-700">
+                ⚡
+            </button>
+        </div>
 
-    <!-- Další projekty můžete přidávat podobným způsobem -->
+        <!-- Obchod s vylepšeními -->
+        <div class="space-y-4">
+            <h2 class="text-xl font-bold mb-2">Mining Rig Obchod</h2>
+            
+            <div v-for="(item, key) in upgrades" :key="key" 
+                 class="flex items-center justify-between p-4 rounded-xl border transition-all"
+                 :class="coins >= item.cost ? 'bg-gray-800 border-gray-700' : 'bg-gray-950 border-gray-900 opacity-60'">
+                
+                <div>
+                    <div class="font-bold">{{ item.name }}</div>
+                    <div class="text-xs text-gray-400">+{{ item.pps }} PPS | Vlastníš: {{ item.count }}</div>
+                </div>
 
-    <footer>
-        &copy; 2023 Vaše Jméno
-    </footer>
+                <button @click="buyUpgrade(key)" 
+                    :disabled="coins < item.cost"
+                    class="px-4 py-2 rounded-lg font-bold text-sm transition-colors"
+                    :class="coins >= item.cost ? 'bg-green-600 hover:bg-green-500' : 'bg-gray-700 cursor-not-allowed'">
+                    {{ Math.ceil(item.cost) }} 🪙
+                </button>
+            </div>
+        </div>
+
+        <!-- Reset Progress (jen pro testování) -->
+        <button @click="resetGame" class="mt-8 text-xs text-gray-600 hover:text-red-400 block mx-auto underline">
+            Resetovat postup
+        </button>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    coins: 0,
+                    pps: 0, // Points Per Second
+                    upgrades: {
+                        cursor: { name: 'Autoclicker', cost: 15, pps: 0.5, count: 0 },
+                        gpu: { name: 'Nvidia RTX 5090', cost: 100, pps: 3, count: 0 },
+                        server: { name: 'Datacentrum', cost: 1100, pps: 20, count: 0 }
+                    }
+                }
+            },
+            methods: {
+                clickCoin() {
+                    this.coins += 1;
+                },
+                buyUpgrade(key) {
+                    const upgrade = this.upgrades[key];
+                    if (this.coins >= upgrade.cost) {
+                        this.coins -= upgrade.cost;
+                        upgrade.count++;
+                        this.pps += upgrade.pps;
+                        // Zvýšení ceny pro další nákup (exponenciálně)
+                        upgrade.cost *= 1.2;
+                        this.saveGame();
+                    }
+                },
+                saveGame() {
+                    const data = {
+                        coins: this.coins,
+                        pps: this.pps,
+                        upgrades: this.upgrades
+                    };
+                    localStorage.setItem('clickerSave', JSON.stringify(data));
+                },
+                loadGame() {
+                    const saved = localStorage.getItem('clickerSave');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        this.coins = parsed.coins;
+                        this.pps = parsed.pps;
+                        this.upgrades = parsed.upgrades;
+                    }
+                },
+                resetGame() {
+                    if(confirm("Opravdu chceš smazat celý postup?")) {
+                        localStorage.removeItem('clickerSave');
+                        location.reload();
+                    }
+                }
+            },
+            mounted() {
+                this.loadGame();
+                // Hlavní smyčka hry (běží každých 100ms pro plynulost)
+                setInterval(() => {
+                    this.coins += this.pps / 10;
+                    // Ukládání každých 5 sekund
+                    if (Math.random() < 0.02) this.saveGame();
+                }, 100);
+            }
+        }).mount('#app');
+    </script>
 </body>
 </html>
