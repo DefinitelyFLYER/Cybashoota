@@ -93,6 +93,13 @@ export default class Game {
             ctx.textBaseline = 'middle';
             
             ctx.fillText('CRITICAL FAILURE', w / 2, h / 2 - 20);
+
+            const ui = this.getModule('ui');
+            if (ui) {
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '24px "Courier New"';
+                ctx.fillText(`FINAL SCORE: ${ui.score}`, w / 2, h / 2 + 20);
+            }
             
             // Podnadpis bez stínu
             ctx.shadowBlur = 0;

@@ -80,6 +80,11 @@ export default class EnemyManager {
 
             // Odstranění mrtvých nepřátel
             if (e.hp <= 0) {
+                // Přidání bodů přes UIManager
+                const ui = this.game.getModule('ui');
+                if (ui) {
+                    ui.addScore(100); // 100 bodů za sestřel
+                }
                 this.enemies.splice(i, 1);
             }
         }
