@@ -45,9 +45,11 @@ export default class Game {
         if (!this.isPaused) {
             this._update(deltaTime);
             this._draw();
+            requestAnimationFrame(this._gameLoop.bind(this));
+        } else {
+            // Pokud je pauza (Game Over), už jen čekáme, smyčka se zastaví
+            console.log("Game loop halted.");
         }
-
-        requestAnimationFrame(this._gameLoop.bind(this));
     }
 
     _update(deltaTime) {
@@ -75,17 +77,30 @@ export default class Game {
     gameOver() {
         this.isPaused = true;
         
-        // Jednoduché UI přes Canvas
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        this.ctx.fillStyle = '#ff0000';
-        this.ctx.font = 'bold 72px Orbitron, sans-serif'; // Předpokládáme moderní font
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('SYSTEM FAILURE', this.canvas.width / 2, this.canvas.height / 2);
-        
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = '24px Arial';
-        this.ctx.fillText('Press F5 to Reboot', this.canvas.width / 2, this.canvas.height / 2 + 60);
+        setTimeout(() => {
+            const ctx = this.ctx;
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+
+            ctx.fillStyle = 'rgba(10, 10, 25, 0.85)';
+            ctx.fillRect(0, 0, w, h);
+            
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#ff0055';
+            ctx.fillStyle = '#ff0055';
+            ctx.font = 'bold 60px "Courier New", Courier, monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            ctx.fillText('CRITICAL FAILURE', w / 2, h / 2 - 20);
+            
+            // Podnadpis bez stínu
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#00ffcc';
+            ctx.font = '20px "Courier New", Courier, monospace';
+            ctx.fillText('REBOOT REQUIRED (PRESS F5)', w / 2, h / 2 + 60);
+            
+            console.log("Game Over screen rendered.");
+        }, 20);
     }
 }
