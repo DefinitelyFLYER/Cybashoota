@@ -96,14 +96,16 @@ export default class EnemyManager {
     }
 
     draw(ctx) {
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#ff0000';
-        ctx.fillStyle = '#660000';
-        ctx.strokeStyle = '#ff0000';
-        ctx.lineWidth = 3;
-
         for (const e of this.enemies) {
-            // 1. Vykreslení těla nepřítele
+            ctx.save(); // ULOŽÍME STAV pro každého nepřítele zvlášť
+
+            // 1. Nastavení stylu pro TĚLO nepřítele
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff0000';
+            ctx.fillStyle = '#660000';
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 3;
+
             ctx.beginPath();
             ctx.moveTo(e.x, e.y - 20);
             ctx.lineTo(e.x + 20, e.y + 20);
@@ -112,28 +114,29 @@ export default class EnemyManager {
             ctx.fill();
             ctx.stroke();
 
-            // 2. Vykreslení HP Baru (pouze pokud nepřítel ztratil HP)
+            // 2. Vykreslení HP Baru (pokud je poškozen)
             if (e.hp < this.maxEnemyHP) {
                 this._drawHealthBar(ctx, e);
             }
+
+            ctx.restore(); // VRÁTÍME STAV - barvy se nepřenáší na dalšího
         }
-        ctx.shadowBlur = 0;
     }
 
-    // Pomocná soukromá metoda pro vykreslení baru
     _drawHealthBar(ctx, e) {
         const barWidth = 40;
         const barHeight = 4;
         const x = e.x - barWidth / 2;
-        const y = e.y - 35; // Pozice nad nepřítelem
+        const y = e.y - 35;
 
-        // Pozadí baru (tmavé)
-        ctx.shadowBlur = 0; // Vypneme stín pro bar, aby byl čitelný
+        // Pozadí baru
+        ctx.shadowBlur = 0; 
         ctx.fillStyle = '#333';
         ctx.fillRect(x, y, barWidth, barHeight);
 
-        // Výplň baru (červená/zelená podle HP)
+        // Výplň baru
         const hpPercent = e.hp / this.maxEnemyHP;
+        // Logika barev zůstává, ale díky ctx.save() v draw() už neuteče jinam
         ctx.fillStyle = hpPercent > 0.5 ? '#00ffcc' : '#ff0055'; 
         ctx.fillRect(x, y, barWidth * hpPercent, barHeight);
     }

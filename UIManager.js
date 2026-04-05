@@ -39,10 +39,11 @@ export default class UIManager {
         // ŽIVOTY (Nové)
         if (player) {
             let healthText = "HP: ";
-            for(let i=0; i < 1; i++) {
-                healthText += (i < player.hp) ? "▮" : "▯"; // Plné vs prázdné políčko
+            for(let i=0; i < 3; i++) { // Pořád počítáme se 3 sloty pro budoucí vylepšení
+                healthText += (i < player.hp) ? "▮" : "▯";
             }
-            ctx.fillStyle = player.hp <= 1 ? '#ff0055' : '#00ffcc'; // Zčervená při posledním životě
+            // Změna: Teď bude barva vždy neonově azurová, dokud je hráč naživu
+            ctx.fillStyle = '#00ffcc'; 
             ctx.fillText(healthText, 20, 75);
         }
 
