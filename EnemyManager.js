@@ -5,7 +5,8 @@ export default class EnemyManager {
     constructor() {
         this.enemies = [];
         this.spawnTimer = 0;
-        this.spawnRate = 1500; // Nový nepřítel každých 1.5 sekundy
+        this.spawnRate = 1500;
+        this.maxEnemyHP = 2; // Základní životy nepřítele
     }
 
     init(game) {
@@ -103,15 +104,38 @@ export default class EnemyManager {
         ctx.lineWidth = 3;
 
         for (const e of this.enemies) {
+            // 1. Vykreslení těla nepřítele
             ctx.beginPath();
-            // Trojúhelníkový "stíhač" tvar
             ctx.moveTo(e.x, e.y - 20);
             ctx.lineTo(e.x + 20, e.y + 20);
             ctx.lineTo(e.x - 20, e.y + 20);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
+
+            // 2. Vykreslení HP Baru (pouze pokud nepřítel ztratil HP)
+            if (e.hp < this.maxEnemyHP) {
+                this._drawHealthBar(ctx, e);
+            }
         }
         ctx.shadowBlur = 0;
+    }
+
+    // Pomocná soukromá metoda pro vykreslení baru
+    _drawHealthBar(ctx, e) {
+        const barWidth = 40;
+        const barHeight = 4;
+        const x = e.x - barWidth / 2;
+        const y = e.y - 35; // Pozice nad nepřítelem
+
+        // Pozadí baru (tmavé)
+        ctx.shadowBlur = 0; // Vypneme stín pro bar, aby byl čitelný
+        ctx.fillStyle = '#333';
+        ctx.fillRect(x, y, barWidth, barHeight);
+
+        // Výplň baru (červená/zelená podle HP)
+        const hpPercent = e.hp / this.maxEnemyHP;
+        ctx.fillStyle = hpPercent > 0.5 ? '#00ffcc' : '#ff0055'; 
+        ctx.fillRect(x, y, barWidth * hpPercent, barHeight);
     }
 }
