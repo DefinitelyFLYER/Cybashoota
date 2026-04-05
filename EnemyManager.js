@@ -1,0 +1,107 @@
+/**
+ * EnemyManager.js - Správa nepřátel a AI
+ */
+export default class EnemyManager {
+    constructor() {
+        this.enemies = [];
+        this.spawnTimer = 0;
+        this.spawnRate = 1500; // Nový nepřítel každých 1.5 sekundy
+    }
+
+    init(game) {
+        this.game = game;
+    }
+
+    spawnEnemy() {
+        const canvas = this.game.canvas;
+        let x, y;
+
+        // Náhodný spawn na okraji obrazovky
+        if (Math.random() < 0.5) {
+            x = Math.random() < 0.5 ? -30 : canvas.width + 30;
+            y = Math.random() * canvas.height;
+        } else {
+            x = Math.random() * canvas.width;
+            y = Math.random() < 0.5 ? -30 : canvas.height + 30;
+        }
+
+        this.enemies.push({
+            x: x,
+            y: y,
+            size: 40,
+            speed: 0.15,
+            hp: 2
+        });
+    }
+
+    update(deltaTime) {
+        const player = this.game.getModule('player');
+        if (!player) return;
+
+        // Časovač pro spawn
+        this.spawnTimer += deltaTime;
+        if (this.spawnTimer > this.spawnRate) {
+            this.spawnEnemy();
+            this.spawnTimer = 0;
+            // Postupné zrychlování hry
+            if (this.spawnRate > 500) this.spawnRate -= 10;
+        }
+
+        // Pohyb nepřátel směrem k hráči
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            const e = this.enemies[i];
+            
+            const dx = (player.pos.x + player.size / 2) - e.x;
+            const dy = (player.pos.y + player.size / 2) - e.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Normalizace směru a pohyb
+            if (dist > 1) {
+                e.x += (dx / dist) * e.speed * deltaTime;
+                e.y += (dy / dist) * e.speed * deltaTime;
+            }
+
+            // Kolize s projektily (přístup přes Core)
+            const pm = this.game.getModule('projectiles');
+            if (pm) {
+                for (let j = pm.projectiles.length - 1; j >= 0; j--) {
+                    const p = pm.projectiles[j];
+                    const pdx = p.x - e.x;
+                    const pdy = p.y - e.y;
+                    const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
+
+                    if (pDist < e.size / 2) {
+                        e.hp--;
+                        pm.projectiles.splice(j, 1); // Odstranit kulku
+                        if (e.hp <= 0) break;
+                    }
+                }
+            }
+
+            // Odstranění mrtvých nepřátel
+            if (e.hp <= 0) {
+                this.enemies.splice(i, 1);
+            }
+        }
+    }
+
+    draw(ctx) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#ff0000';
+        ctx.fillStyle = '#660000';
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 3;
+
+        for (const e of this.enemies) {
+            ctx.beginPath();
+            // Trojúhelníkový "stíhač" tvar
+            ctx.moveTo(e.x, e.y - 20);
+            ctx.lineTo(e.x + 20, e.y + 20);
+            ctx.lineTo(e.x - 20, e.y + 20);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+    }
+}
