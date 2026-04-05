@@ -62,16 +62,17 @@ export default class Player {
     }
 
     draw(ctx) {
-        // Pokud je hráč nesmrtelný, necháme ho blikat
-        if (this.invulnerable > 0 && Math.floor(Date.now() / 100) % 2 === 0) {
-            return; 
-        }
+        // Hráč je v herním světě kdekoli, ale na obrazovce je VŽDY uprostřed
+        const screenX = this.game.center.x - this.size / 2;
+        const screenY = this.game.center.y - this.size / 2;
+
+        if (this.invulnerable > 0 && Math.floor(Date.now() / 100) % 2 === 0) return;
 
         if (this.isLoaded) {
-            ctx.drawImage(this.sprite, this.pos.x, this.pos.y, this.size, this.size);
+            ctx.drawImage(this.sprite, screenX, screenY, this.size, this.size);
         } else {
             ctx.fillStyle = '#00ffcc';
-            ctx.fillRect(this.pos.x, this.pos.y, this.size, this.size);
+            ctx.fillRect(screenX, screenY, this.size, this.size);
         }
     }
 }

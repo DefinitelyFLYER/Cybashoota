@@ -96,10 +96,18 @@ export default class EnemyManager {
     }
 
     draw(ctx) {
-        for (const e of this.enemies) {
-            ctx.save(); // ULOŽÍME STAV pro každého nepřítele zvlášť
+        const player = this.game.getModule('player');
+        const center = this.game.center; // Střed z Core.js
+        if (!player) return;
 
-            // 1. Nastavení stylu pro TĚLO nepřítele
+        for (const e of this.enemies) {
+            ctx.save();
+
+            // VÝPOČET RELATIVNÍ POZICE NA OBRAZOVCE
+            const drawX = e.x - player.pos.x + center.x;
+            const drawY = e.y - player.pos.y + center.y;
+
+            // 1. Tělo nepřítele (používáme drawX/drawY)
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#ff0000';
             ctx.fillStyle = '#660000';
@@ -107,37 +115,35 @@ export default class EnemyManager {
             ctx.lineWidth = 3;
 
             ctx.beginPath();
-            ctx.moveTo(e.x, e.y - 20);
-            ctx.lineTo(e.x + 20, e.y + 20);
-            ctx.lineTo(e.x - 20, e.y + 20);
+            ctx.moveTo(drawX, drawY - 20);
+            ctx.lineTo(drawX + 20, drawY + 20);
+            ctx.lineTo(drawX - 20, drawY + 20);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
 
-            // 2. Vykreslení HP Baru (pokud je poškozen)
+            // 2. HP Bar (předáme drawX/drawY do pomocné metody)
             if (e.hp < this.maxEnemyHP) {
-                this._drawHealthBar(ctx, e);
+                this._drawHealthBar(ctx, drawX, drawY, e.hp);
             }
 
-            ctx.restore(); // VRÁTÍME STAV - barvy se nepřenáší na dalšího
+            ctx.restore();
         }
     }
 
-    _drawHealthBar(ctx, e) {
+    // Pomocnou metodu upravíme, aby brala už vypočítané souřadnice
+    _drawHealthBar(ctx, x, y, currentHp) {
         const barWidth = 40;
         const barHeight = 4;
-        const x = e.x - barWidth / 2;
-        const y = e.y - 35;
+        const drawX = x - barWidth / 2;
+        const drawY = y - 35;
 
-        // Pozadí baru
         ctx.shadowBlur = 0; 
         ctx.fillStyle = '#333';
-        ctx.fillRect(x, y, barWidth, barHeight);
+        ctx.fillRect(drawX, drawY, barWidth, barHeight);
 
-        // Výplň baru
-        const hpPercent = e.hp / this.maxEnemyHP;
-        // Logika barev zůstává, ale díky ctx.save() v draw() už neuteče jinam
+        const hpPercent = currentHp / this.maxEnemyHP;
         ctx.fillStyle = hpPercent > 0.5 ? '#00ffcc' : '#ff0055'; 
-        ctx.fillRect(x, y, barWidth * hpPercent, barHeight);
+        ctx.fillRect(drawX, drawY, barWidth * hpPercent, barHeight);
     }
 }

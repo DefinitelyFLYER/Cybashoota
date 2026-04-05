@@ -34,7 +34,11 @@ export default class ProjectileManager {
 
         const originX = player.pos.x + player.size / 2;
         const originY = player.pos.y + player.size / 2;
-        const angle = Math.atan2(this.mouseY - originY, this.mouseX - originX);
+
+        const worldMouseX = this.mouseX + player.pos.x - this.game.center.x;
+        const worldMouseY = this.mouseY + player.pos.y - this.game.center.y;
+
+        const angle = Math.atan2(worldMouseY - originY, worldMouseX - originX);
         
         this.projectiles.push({
             x: originX,
@@ -67,13 +71,22 @@ export default class ProjectileManager {
     }
 
     draw(ctx) {
+        const player = this.game.getModule('player');
+        const center = this.game.center;
+        if (!player) return;
+
         ctx.save();
         ctx.fillStyle = '#ff00ff';
         ctx.shadowBlur = 10;
         ctx.shadowColor = '#ff00ff';
+
         for (const p of this.projectiles) {
+            // PŘEPOČET NA OBRAZOVKU
+            const drawX = p.x - player.pos.x + center.x;
+            const drawY = p.y - player.pos.y + center.y;
+
             ctx.beginPath();
-            ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+            ctx.arc(drawX, drawY, 3, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.restore();

@@ -12,6 +12,11 @@ export default class Game {
 
         this._resizeCanvas();
         window.addEventListener('resize', () => this._resizeCanvas());
+
+        this.center = {
+        x: this.canvas.width / 2,
+        y: this.canvas.height / 2
+        };
     }
 
     // Metoda pro přidání modulu (např. Player, Input, Renderer)
@@ -31,6 +36,7 @@ export default class Game {
     _resizeCanvas() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        this.center = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
     }
 
     // Hlavní herní smyčka

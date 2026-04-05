@@ -16,13 +16,10 @@ export default class Background {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        /**
-         * Trik pro nekonečné pozadí:
-         * Mřížku posouváme proti pohybu hráče, ale udržujeme ji 
-         * v rozmezí jedné buňky (modulo gridSize).
-         */
-        this.offsetX = (-player.pos.x) % this.gridSize;
-        this.offsetY = (-player.pos.y) % this.gridSize;
+        // Offset je přesný zbytek po dělení pozice hráče velikostí mřížky
+        // Musíme odečíst pozici od středu, aby mřížka lícovala
+        this.offsetX = (this.game.center.x - player.pos.x) % this.gridSize;
+        this.offsetY = (this.game.center.y - player.pos.y) % this.gridSize;
     }
 
     draw(ctx) {

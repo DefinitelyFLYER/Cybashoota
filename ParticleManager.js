@@ -51,17 +51,22 @@ export default class ParticleManager {
     }
 
     draw(ctx) {
-        ctx.save(); // Uložíme stav kontextu
+        const player = this.game.getModule('player');
+        const center = this.game.center;
+        if (!player) return;
+
+        ctx.save();
         for (const p of this.particles) {
-            ctx.globalAlpha = p.life; // Částice postupně zprůhlední
+            // PŘEPOČET NA OBRAZOVKU
+            const drawX = p.x - player.pos.x + center.x;
+            const drawY = p.y - player.pos.y + center.y;
+
+            ctx.globalAlpha = p.life;
             ctx.fillStyle = p.color;
-            ctx.shadowBlur = 5;
-            ctx.shadowColor = p.color;
-            
             ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.arc(drawX, drawY, p.size, 0, Math.PI * 2);
             ctx.fill();
         }
-        ctx.restore(); // Vrátíme stav (reset alpha a stínů)
+        ctx.restore();
     }
 }
