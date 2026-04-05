@@ -6,7 +6,7 @@ export default class EnemyManager {
         this.enemies = [];
         this.spawnTimer = 0;
         this.spawnRate = 1500;
-        this.maxEnemyHP = 2; // Základní životy nepřítele
+        this.maxEnemyHP = 3; // Základní životy nepřítele
     }
 
     init(game) {
