@@ -39,11 +39,14 @@ export default class UIManager {
         // ŽIVOTY (Nové)
         if (player) {
             let healthText = "HP: ";
-            for(let i=0; i < 3; i++) { // Pořád počítáme se 3 sloty pro budoucí vylepšení
+            // Cyklus běží jen tolikrát, kolik má hráč maximálně životů
+            for(let i = 0; i < player.maxHp; i++) {
                 healthText += (i < player.hp) ? "▮" : "▯";
             }
-            // Změna: Teď bude barva vždy neonově azurová, dokud je hráč naživu
+            
             ctx.fillStyle = '#00ffcc'; 
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#00ffcc';
             ctx.fillText(healthText, 20, 75);
         }
 

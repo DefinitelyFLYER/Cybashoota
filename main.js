@@ -5,9 +5,11 @@ import ProjectileManager from './ProjectileManager.js';
 import EnemyManager from './EnemyManager.js';
 import UIManager from './UIManager.js';
 import ParticleManager from './ParticleManager.js';
+import Background from './Background.js';
 
 const game = new Game('gameCanvas');
 
+game.addModule('background', new Background());
 game.addModule('input', new InputHandler());
 game.addModule('ui', new UIManager());
 game.addModule('projectiles', new ProjectileManager());

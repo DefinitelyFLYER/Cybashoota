@@ -6,7 +6,8 @@ export default class Player {
         this.pos = { x: x, y: y };
         this.speed = 0.2;
         this.size = 64;
-        this.hp = 1;
+        this.hp = 1;      // Aktuální životy
+        this.maxHp = 1;   // Maximální možná kapacita (pro UI)
         this.invulnerable = 0;
         
         this.sprite = new Image();
