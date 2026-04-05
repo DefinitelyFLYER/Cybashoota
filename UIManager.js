@@ -26,18 +26,27 @@ export default class UIManager {
 
     draw(ctx) {
         const w = this.game.canvas.width;
+        const player = this.game.getModule('player');
         
-        // Styl pro skóre
+        // SKÓRE (stávající)
         ctx.fillStyle = '#00ffcc';
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
         ctx.shadowBlur = 8;
         ctx.shadowColor = '#00ffcc';
-        
-        // Výpis v levém horním rohu
         ctx.fillText(`SCORE: ${this.score.toString().padStart(6, '0')}`, 20, 40);
         
-        // High Score v pravém horním rohu
+        // ŽIVOTY (Nové)
+        if (player) {
+            let healthText = "HP: ";
+            for(let i=0; i < 3; i++) {
+                healthText += (i < player.hp) ? "▮" : "▯"; // Plné vs prázdné políčko
+            }
+            ctx.fillStyle = player.hp <= 1 ? '#ff0055' : '#00ffcc'; // Zčervená při posledním životě
+            ctx.fillText(healthText, 20, 75);
+        }
+
+        // HIGH SCORE
         ctx.textAlign = 'right';
         ctx.font = '16px "Courier New", monospace';
         ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, w - 20, 40);
