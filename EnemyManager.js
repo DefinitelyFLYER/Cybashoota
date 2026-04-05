@@ -14,23 +14,37 @@ export default class EnemyManager {
     }
 
     spawnEnemy() {
+        const player = this.game.getModule('player');
+        if (!player) return;
+
         const canvas = this.game.canvas;
-        let x, y;
+        const center = this.game.center;
+        
+        // Určíme náhodný bod na okraji VIDITELNÉ oblasti
+        let spawnX, spawnY;
+        const margin = 100; // Jak daleko za okrajem obrazovky se mají objevit
 
         if (Math.random() < 0.5) {
-            x = Math.random() < 0.5 ? -30 : canvas.width + 30;
-            y = Math.random() * canvas.height;
+            // Spawn vlevo nebo vpravo od hráče
+            spawnX = Math.random() < 0.5 ? -margin : canvas.width + margin;
+            spawnY = Math.random() * canvas.height;
         } else {
-            x = Math.random() * canvas.width;
-            y = Math.random() < 0.5 ? -30 : canvas.height + 30;
+            // Spawn nad nebo pod hráčem
+            spawnX = Math.random() * canvas.width;
+            spawnY = Math.random() < 0.5 ? -margin : canvas.height + margin;
         }
 
+        // KLÍČOVÝ KROK: Převod ze souřadnic obrazovky do souřadnic SVĚTA
+        // Vezmeme bod na obrazovce a přičteme k němu aktuální posun hráče
+        const worldX = spawnX + player.pos.x - center.x;
+        const worldY = spawnY + player.pos.y - center.y;
+
         this.enemies.push({
-            x: x,
-            y: y,
+            x: worldX,
+            y: worldY,
             size: 40,
             speed: 0.15,
-            hp: this.maxEnemyHP // Teď se spawnují se 3 HP
+            hp: this.maxEnemyHP
         });
     }
 
@@ -38,30 +52,35 @@ export default class EnemyManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        // Časovač pro spawn
-        this.spawnTimer += deltaTime;
-        if (this.spawnTimer > this.spawnRate) {
-            this.spawnEnemy();
-            this.spawnTimer = 0;
-            // Postupné zrychlování hry
-            if (this.spawnRate > 500) this.spawnRate -= 10;
-        }
+        // Parametry pro pohyb
+        const catchUpSpeed = player.speed * 2; // 2x rychlejší než hráč (cca 0.4)
+        const normalSpeed = 0.15;              // Původní rychlost
+        const screenThreshold = 1000;          // Vzdálenost, kdy se považuje za "mimo obrazovku"
 
-        // Pohyb nepřátel směrem k hráči
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
             
-            const dx = (player.pos.x + player.size / 2) - e.x;
-            const dy = (player.pos.y + player.size / 2) - e.y;
+            // Logický výpočet směru k hráči ve světě
+            const dx = player.pos.x - e.x;
+            const dy = player.pos.y - e.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            // Normalizace směru a pohyb
+            // --- DYNAMICKÁ RYCHLOST ---
+            // Pokud je nepřítel moc daleko, zapne "turbo"
+            if (dist > screenThreshold) {
+                e.speed = catchUpSpeed;
+            } else {
+                // Jakmile se přiblíží, zpomalí na útočnou rychlost
+                e.speed = normalSpeed;
+            }
+
+            // Pohyb (normalizace vektoru a aplikace rychlosti)
             if (dist > 1) {
                 e.x += (dx / dist) * e.speed * deltaTime;
                 e.y += (dy / dist) * e.speed * deltaTime;
             }
 
-            // Kolize s projektily (přístup přes Core)
+            // --- KOLIZE S PROJEKTILY (stávající kód) ---
             const pm = this.game.getModule('projectiles');
             if (pm) {
                 for (let j = pm.projectiles.length - 1; j >= 0; j--) {
@@ -72,24 +91,18 @@ export default class EnemyManager {
 
                     if (pDist < e.size / 2) {
                         e.hp--;
-                        pm.projectiles.splice(j, 1); // Odstranit kulku
+                        pm.projectiles.splice(j, 1);
                         if (e.hp <= 0) break;
                     }
                 }
             }
 
-            // Odstranění mrtvých nepřátel
+            // --- SMRT NEPŘÍTELE ---
             if (e.hp <= 0) {
                 const ui = this.game.getModule('ui');
-                const particles = this.game.getModule('particles'); // Získáme přístup k částicím
-                
+                const particles = this.game.getModule('particles');
                 if (ui) ui.addScore(100);
-                
-                // VYTVOŘENÍ EXPLOZE
-                if (particles) {
-                    particles.emit(e.x, e.y, '#ff0000', 15); // Červená exploze pro nepřítele
-                }
-
+                if (particles) particles.emit(e.x, e.y, '#ff0000', 15);
                 this.enemies.splice(i, 1);
             }
         }
