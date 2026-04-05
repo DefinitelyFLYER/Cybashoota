@@ -23,10 +23,22 @@ export default class Player {
     }
 
     update(deltaTime) {
-        /** 
-         * Tady bude logika pohybu. 
-         * Zatím necháme prázdné, dokud nevytvoříme InputHandler.
-         */
+        const input = this.game.getModule('input');
+        if (!input) return;
+
+        // Pohyb WASD nebo šipky
+        if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) {
+            this.pos.y -= this.speed * deltaTime;
+        }
+        if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) {
+            this.pos.y += this.speed * deltaTime;
+        }
+        if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) {
+            this.pos.x -= this.speed * deltaTime;
+        }
+        if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) {
+            this.pos.x += this.speed * deltaTime;
+        }
     }
 
     draw(ctx) {
