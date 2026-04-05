@@ -31,7 +31,7 @@ export default class EnemyManager {
             y: y,
             size: 40,
             speed: 0.15,
-            hp: 2
+            hp: 3
         });
     }
 

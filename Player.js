@@ -4,9 +4,9 @@
 export default class Player {
     constructor(x, y) {
         this.pos = { x: x, y: y };
-        this.speed = 0.3;
+        this.speed = 0.2;
         this.size = 64;
-        this.hp = 3; // Počáteční životy
+        this.hp = 1; // Počáteční životy
         this.invulnerable = 0; // Časovač nesmrtelnosti v ms
         
         this.sprite = new Image();
