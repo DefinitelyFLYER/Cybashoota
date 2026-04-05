@@ -24,22 +24,27 @@ export default class Player {
 
     update(deltaTime) {
         const input = this.game.getModule('input');
-        const enemyMgr = this.game.getModule('enemies');
+        const enemyMgr = this.game.getModule('enemies'); // Získáme přístup k nepřátelům
+        
         if (!input) return;
 
+        // 1. POHYB (to už máš)
         if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) this.pos.y -= this.speed * deltaTime;
         if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) this.pos.y += this.speed * deltaTime;
         if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) this.pos.x -= this.speed * deltaTime;
         if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) this.pos.x += this.speed * deltaTime;
 
-        if (enemyMgr) {
+        // 2. KONTROLA KOLIZE S NEPŘÁTELI
+        if (enemyMgr && enemyMgr.enemies) {
             for (const enemy of enemyMgr.enemies) {
+                // Výpočet vzdálenosti mezi středem hráče a středem nepřítele
                 const dx = (this.pos.x + this.size / 2) - enemy.x;
                 const dy = (this.pos.y + this.size / 2) - enemy.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                if (distance < (this.size / 2.5) + (enemy.size / 2)) {
-                    this.game.gameOver();
+                // Kolizní rádius (hráč cca 25px + nepřítel 20px)
+                if (distance < 45) {
+                    this.game.gameOver(); // Voláme metodu v Core.js
                 }
             }
         }

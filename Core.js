@@ -50,23 +50,6 @@ export default class Game {
         requestAnimationFrame(this._gameLoop.bind(this));
     }
 
-    gameOver() {
-        this.isPaused = true;
-        
-        // Jednoduché UI přes Canvas
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        this.ctx.fillStyle = '#ff0000';
-        this.ctx.font = 'bold 72px Orbitron, sans-serif'; // Předpokládáme moderní font
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('SYSTEM FAILURE', this.canvas.width / 2, this.canvas.height / 2);
-        
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = '24px Arial';
-        this.ctx.fillText('Press F5 to Reboot', this.canvas.width / 2, this.canvas.height / 2 + 60);
-    }
-
     _update(deltaTime) {
         // Každý modul může mít svou update metodu
         for (let module of this.modules.values()) {
@@ -87,5 +70,22 @@ export default class Game {
                 module.draw(this.ctx);
             }
         }
+    }
+
+    gameOver() {
+        this.isPaused = true;
+        
+        // Jednoduché UI přes Canvas
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        this.ctx.fillStyle = '#ff0000';
+        this.ctx.font = 'bold 72px Orbitron, sans-serif'; // Předpokládáme moderní font
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('SYSTEM FAILURE', this.canvas.width / 2, this.canvas.height / 2);
+        
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '24px Arial';
+        this.ctx.fillText('Press F5 to Reboot', this.canvas.width / 2, this.canvas.height / 2 + 60);
     }
 }
