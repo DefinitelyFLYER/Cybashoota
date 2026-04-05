@@ -6,7 +6,7 @@ export default class EnemyManager {
         this.enemies = [];
         this.spawnTimer = 0;
         this.spawnRate = 1500;
-        this.maxEnemyHP = 3; // Základní životy nepřítele
+        this.maxEnemyHP = 3; // Zvýšeno ze 2 na 3
     }
 
     init(game) {
@@ -17,7 +17,6 @@ export default class EnemyManager {
         const canvas = this.game.canvas;
         let x, y;
 
-        // Náhodný spawn na okraji obrazovky
         if (Math.random() < 0.5) {
             x = Math.random() < 0.5 ? -30 : canvas.width + 30;
             y = Math.random() * canvas.height;
@@ -31,7 +30,7 @@ export default class EnemyManager {
             y: y,
             size: 40,
             speed: 0.15,
-            hp: 3
+            hp: this.maxEnemyHP // Teď se spawnují se 3 HP
         });
     }
 

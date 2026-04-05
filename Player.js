@@ -6,8 +6,8 @@ export default class Player {
         this.pos = { x: x, y: y };
         this.speed = 0.2;
         this.size = 64;
-        this.hp = 1; // Počáteční životy
-        this.invulnerable = 0; // Časovač nesmrtelnosti v ms
+        this.hp = 1;
+        this.invulnerable = 0;
         
         this.sprite = new Image();
         this.sprite.src = 'player.png';
