@@ -60,8 +60,18 @@ export default class EnemyManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        const catchUpSpeed = player.speed * 2;
-        const screenThreshold = 600;
+        // 1. DYNAMICKÝ THRESHOLD (Okraj obrazovky + malá rezerva)
+        // Chceme, aby "přisvištěli" až k okraji. 
+        // Diagonální vzdálenost k rohu je nejbezpečnější limit.
+        const screenMargin = this.game.canvas.width / 40; 
+        const halfW = this.game.canvas.width / 2;
+        const halfH = this.game.canvas.height / 2;
+        
+        // Vzdálenost od středu k nejvzdálenějšímu viditelnému bodu (rohu)
+        const viewDistance = Math.sqrt(halfW * halfW + halfH * halfH) + screenMargin;
+        
+        // 5-ti násobná rychlost pro "přisvištění"
+        const turboMultiplier = 5;
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
@@ -89,15 +99,15 @@ export default class EnemyManager {
                 }
             }
 
-            // --- 2. POHYB K HRÁČI ---
             const dxP = player.pos.x - e.x;
             const dyP = player.pos.y - e.y;
             const distP = Math.sqrt(dxP * dxP + dyP * dyP);
             
-            let currentSpeed = (distP > screenThreshold) ? catchUpSpeed : e.speed;
+            // 2. LOGIKA RYCHLOSTI
+            // Pokud je nepřítel dál, než je vidět na obrazovce, zapne turbo
+            let currentSpeed = (distP > viewDistance) ? (player.speed * turboMultiplier) : e.speed;
 
             if (distP > 1) {
-                // Kombinujeme směr k hráči + separační sílu
                 const moveX = (dxP / distP) * currentSpeed + separationX;
                 const moveY = (dyP / distP) * currentSpeed + separationY;
                 
