@@ -128,11 +128,31 @@ export default class EnemyManager {
                 e.y += moveY * deltaTime;
             }
 
-            // --- KOLIZE S HRÁČEM  ----
+            // --- KOLIZE S HRÁČEM + KNOCKBACK NEPŘÍTELE ---
             const distToPlayer = Math.sqrt(dxP * dxP + dyP * dyP);
-            // Kolize nastane, pokud je vzdálenost menší než polovina součtu jejich velikostí
-            if (distToPlayer < (e.size + player.size) * 0.4) {
-                player.takeDamage(1); 
+            const collisionDist = (e.size + player.size) * 0.4; 
+
+            if (distToPlayer < collisionDist) {
+                // Knockback a poškození provedeme JEN pokud hráč není právě "nezranitelný"
+                // To slouží jako přirozený cooldown pro oba efekty.
+                if (player.invulnerable <= 0) {
+                    // 1. Hráč dostane DMG (v metodě takeDamage se mu nastaví invulnerable > 0)
+                    player.takeDamage(1);
+
+                    // 2. KNOCKBACK PRO NEPŘÍTELE (Směrem od hráče)
+                    const enemyKnockback = 80; // Trochu jsme přitvrdili
+                    
+                    if (distToPlayer > 0) {
+                        const dirX = (e.x - player.pos.x) / distToPlayer;
+                        const dirY = (e.y - player.pos.y) / distToPlayer;
+
+                        e.x += dirX * enemyKnockback;
+                        e.y += dirY * enemyKnockback;
+                        
+                        // Zmrazíme mu turbo, aby se hned nevrátil
+                        e.turboCooldown = 2000; 
+                    }
+                }
             }
 
             // Kolize s projektily
