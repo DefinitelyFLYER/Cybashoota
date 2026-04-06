@@ -32,9 +32,12 @@ export default class ProjectileManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        const originX = player.pos.x + player.size / 2;
-        const originY = player.pos.y + player.size / 2;
+        // POUŽITÍ NOVÉHO STŘEDU
+        const center = player.getCenter();
+        const originX = center.x;
+        const originY = center.y;
 
+        // Převod myši do světa (relativně ke středu)
         const worldMouseX = this.mouseX + player.pos.x - this.game.center.x;
         const worldMouseY = this.mouseY + player.pos.y - this.game.center.y;
 

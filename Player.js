@@ -16,6 +16,13 @@ export default class Player {
         this.sprite.onload = () => { this.isLoaded = true; };
     }
 
+    getCenter() {
+        return {
+            x: this.pos.x + this.size / 2,
+            y: this.pos.y + this.size / 2
+        };
+    }
+
     init(game) {
         this.game = game;
     }
@@ -34,33 +41,35 @@ export default class Player {
     update(deltaTime) {
         const input = this.game.getModule('input');
         const enemyMgr = this.game.getModule('enemies');
+        
         if (!input) return;
 
-        // Snižování počítadla nesmrtelnosti
-        if (this.invulnerable > 0) {
-            this.invulnerable -= deltaTime;
-        }
-
-        // POHYB (stávající)
+        // 1. POHYB (wasd/šipky) - ten zůstává stejný, hýbeme "rohem", to nevadí
         if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) this.pos.y -= this.speed * deltaTime;
         if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) this.pos.y += this.speed * deltaTime;
         if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) this.pos.x -= this.speed * deltaTime;
         if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) this.pos.x += this.speed * deltaTime;
 
-        // KOLIZE
+        // --- SNÍŽENÍ NESMRTELNOSTI ---
+        if (this.invulnerable > 0) {
+            this.invulnerable -= deltaTime;
+        }
+
+        // 2. DETEKCE KOLIZE - Tady je ta změna!
         if (enemyMgr && enemyMgr.enemies && this.hp > 0) {
-            // STŘED HRÁČE
-            const pCenterX = this.pos.x + this.size / 2;
-            const pCenterY = this.pos.y + this.size / 2;
+            // ZÍSKÁME STŘED HRÁČE
+            const center = this.getCenter(); 
 
             for (const enemy of enemyMgr.enemies) {
-                // Vzdálenost od středu hráče ke středu nepřítele
-                const dx = pCenterX - enemy.x;
-                const dy = pCenterY - enemy.y;
+                // Počítáme vzdálenost od STŘEDU ke STŘEDU
+                // (Nepřítel už svůj střed má v e.x a e.y z EnemyManageru)
+                const dx = center.x - enemy.x;
+                const dy = center.y - enemy.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                // Kolizní rádius (hráč cca 20px + nepřítel cca 20px)
-                if (distance < 40) { 
+                // Pokud je nepřítel blíž než 40 pixelů k našemu STŘEDU, dostaneme dmg
+                // (40px je cca polovina tvého 64px spritu + rezerva)
+                if (distance < 40) {
                     this.takeDamage();
                 }
             }

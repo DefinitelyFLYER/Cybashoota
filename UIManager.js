@@ -73,17 +73,16 @@ export default class UIManager {
                 let alpha = 1;
 
                 if (director.phaseChanged) {
-                    // Použijeme sinus pro pulzování
                     const elapsed = director.phaseTimer || 0;
+                    
                     const pulse = Math.sin(Date.now() / 200) * 0.05;
                     scale = 1.05 + pulse;
                     alpha = 0.7 + Math.abs(Math.sin(Date.now() / 400) * 0.3);
 
-                    // Po 3 sekundách efekt vypneme
-                    if (elapsed > 3000) {
+                    if (elapsed > 5000) {
                         director.phaseChanged = false;
                     }
-                    director.phaseTimer = (director.phaseTimer || 0) + 16;
+                    director.phaseTimer = elapsed + 16;
                 }
 
                 ctx.translate(w / 2, h - 40);
