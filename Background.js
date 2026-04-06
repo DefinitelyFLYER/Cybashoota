@@ -1,54 +1,62 @@
 /**
- * Background.js - Verze využívající ctx.translate pro eliminaci ghostingu
+ * Background.js - Cache verze (eliminace zdvojených čar)
  */
 export default class Background {
     constructor() {
         this.gridSize = 100;
+        this.offscreenCanvas = null;
     }
 
     init(game) {
         this.game = game;
+        this._createGridCache();
+    }
+
+    // Vytvoříme jeden velký čtverec mřížky do paměti
+    _createGridCache() {
+        this.offscreenCanvas = document.createElement('canvas');
+        // Velikost musí být gridSize + kousek na přesah
+        const size = this.gridSize;
+        this.offscreenCanvas.width = size;
+        this.offscreenCanvas.height = size;
+        
+        const osCtx = this.offscreenCanvas.getContext('2d');
+        osCtx.strokeStyle = 'rgba(0, 255, 204, 0.12)';
+        osCtx.lineWidth = 1;
+        
+        osCtx.beginPath();
+        // Nakreslíme jen dvě čáry (L tvar), které se budou opakovat
+        osCtx.moveTo(0.5, 0);
+        osCtx.lineTo(0.5, size);
+        osCtx.moveTo(0, 0.5);
+        osCtx.lineTo(size, 0.5);
+        osCtx.stroke();
     }
 
     draw(ctx) {
         const player = this.game.getModule('player');
-        if (!player) return;
+        if (!player || !this.offscreenCanvas) return;
 
         const w = this.game.canvas.width;
         const h = this.game.canvas.height;
 
-        ctx.save();
-        
-        /**
-         * 1. VYPOČTEME OFSET
-         * Chceme vědět, o kolik pixelů je hráč posunutý vůči mřížce.
-         * Použijeme modulo, ale s fixem pro záporná čísla.
-         */
+        // Přesný posun podle hráče
         const offsetX = ((-player.pos.x % this.gridSize) + this.gridSize) % this.gridSize;
         const offsetY = ((-player.pos.y % this.gridSize) + this.gridSize) % this.gridSize;
 
-        // 2. POSUNEME CELÉ PLÁTNO
-        // Tímto se vše, co nakreslíme potom, posune o tyto pixely
-        ctx.translate(Math.floor(offsetX), Math.floor(offsetY));
-
-        // 3. VYKRESLÍME MŘÍŽKU (o něco větší, aby pokryla přesah při posunu)
-        ctx.strokeStyle = 'rgba(0, 255, 204, 0.12)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-
-        // Kreslíme od -gridSize do Šířky + gridSize, abychom nikde neměli prázdno
-        for (let x = -this.gridSize; x <= w + this.gridSize; x += this.gridSize) {
-            ctx.moveTo(x + 0.5, -this.gridSize);
-            ctx.lineTo(x + 0.5, h + this.gridSize);
-        }
-
-        for (let y = -this.gridSize; y <= h + this.gridSize; y += this.gridSize) {
-            ctx.moveTo(-this.gridSize, y + 0.5);
-            ctx.lineTo(w + this.gridSize, y + 0.5);
-        }
-
-        ctx.stroke();
+        ctx.save();
         
-        ctx.restore(); // Tímto zrušíme ctx.translate pro další moduly
+        // Použijeme nativní funkci Canvasu pro opakování obrázku
+        // To je nejrychlejší a nejčistší cesta, jak zaplnit pozadí
+        const pattern = ctx.createPattern(this.offscreenCanvas, 'repeat');
+        
+        // Posuneme počátek kreslení patternu
+        ctx.translate(offsetX - this.gridSize, offsetY - this.gridSize);
+        
+        ctx.fillStyle = pattern;
+        // Vyplníme plochu o něco větší než je obrazovka
+        ctx.fillRect(0, 0, w + this.gridSize * 2, h + this.gridSize * 2);
+        
+        ctx.restore();
     }
 }
