@@ -110,15 +110,11 @@ export default class EnemyManager {
             let currentSpeed = e.speed;
 
             // LOGIKA TURBA:
-            // Zapne se jen pokud je venku A ZÁROVEŇ nemá cooldown
             if (isOutsideView && e.turboCooldown <= 0) {
-                currentSpeed = player.speed * turboMultiplier;
+                // Opraveno na player.stats.moveSpeed
+                currentSpeed = player.stats.moveSpeed * turboMultiplier; 
             } 
-            // OKAMŽIK ZPOMALENÍ:
-            // Pokud právě vletěl dovnitř (isOutsideView je false) a turbo běželo,
-            // nahodíme mu cooldown, aby nemohl hned zase sprintovat.
             else if (!isOutsideView && e.turboCooldown <= 0) {
-                // Tohle se aktivuje v momentě, kdy překročí hranici stopMargin směrem dovnitř
                 e.turboCooldown = COOLDOWN_TIME;
             }
 
@@ -130,6 +126,13 @@ export default class EnemyManager {
                 
                 e.x += moveX * deltaTime;
                 e.y += moveY * deltaTime;
+            }
+
+            // --- KOLIZE S HRÁČEM  ----
+            const distToPlayer = Math.sqrt(dxP * dxP + dyP * dyP);
+            // Kolize nastane, pokud je vzdálenost menší než polovina součtu jejich velikostí
+            if (distToPlayer < (e.size + player.size) * 0.4) {
+                player.takeDamage(1); 
             }
 
             // Kolize s projektily

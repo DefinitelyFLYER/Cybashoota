@@ -49,25 +49,32 @@ export default class Player {
         this.game = game;
     }
 
-    takeDamage(amount = 1) {
-        if (this.invulnerable > 0) return;
+takeDamage(amount = 1) {
+    if (this.invulnerable > 0) return;
 
-        // 1. Šance na Dodge
-        if (Math.random() < this.stats.dodgeChance) {
-            console.log("DODGED!");
-            this.invulnerable = 500; // Krátký i-frame za úskok
-            // Tady můžeme později přidat text "MISS" nad hráče
-            return;
-        }
-
-        // 2. Defense (Snížení poškození, minimum je 1, pokud nejsme nesmrtelní)
-        let finalDamage = Math.max(1, amount - this.stats.defense);
-        
-        this.hp -= finalDamage;
-        this.invulnerable = 1500;
-
-        if (this.hp <= 0) this.game.gameOver();
+    // 1. Kontrola Dodge
+    if (Math.random() < this.stats.dodgeChance) {
+        this.invulnerable = 500;
+        return;
     }
+
+    const finalDamage = Math.max(1, amount - this.stats.defense);
+    
+    this.stats.hp -= finalDamage;
+    
+    // Aktivace i-frames (nesmrtelnost po zásahu)
+    this.invulnerable = 1500;
+
+    // 4. Kontrola smrti
+    if (this.stats.hp <= 0) {
+        this.stats.hp = 0; // Zamezíme záporným číslům
+        if (this.game.gameOver) {
+            this.game.gameOver();
+        } else {
+            console.log("GAME OVER - Hráč zemřel");
+        }
+    }
+}
 
     addXp(amount) {
         this.xp += amount;
