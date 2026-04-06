@@ -20,8 +20,8 @@ export default class Player {
 
         this.shockwaveActive = false;
         this.shockwaveRadius = 0;
-        this.shockwaveMaxRadius = 500; // Dosah vlny
-        this.shockwaveDuration = 800;  // Jak dlouho vlna cestuje (ms)
+        this.shockwaveMaxRadius = 600; // Dosah vlny
+        this.shockwaveDuration = 1200;  // Jak dlouho vlna cestuje (ms)
         this.shockwaveTimer = 0;
     }
 
@@ -130,17 +130,20 @@ export default class Player {
 
             // INTERAKCE S ENEMÁKY
             const enemyMgr = this.game.getModule('enemies');
+
             if (enemyMgr) {
                 for (const e of enemyMgr.enemies) {
                     const dx = e.x - this.pos.x;
                     const dy = e.y - this.pos.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    // Pokud je nepřítel v úzkém pásmu čela vlny (tolerance např. 30px)
-                    if (Math.abs(dist - this.shockwaveRadius) < 30) {
-                        const pushForce = 0.5; // Síla "odfouknutí"
+                    if (Math.abs(dist - this.shockwaveRadius) < 40) { // Trochu širší detekce pro pomalejší vlnu
+                        const pushForce = 1.0; 
+                        
                         e.x += (dx / dist) * pushForce * deltaTime;
                         e.y += (dy / dist) * pushForce * deltaTime;
+                        
+                        e.turboCooldown = 2000; 
                     }
                 }
             }
