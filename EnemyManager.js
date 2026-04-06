@@ -94,8 +94,18 @@ export default class EnemyManager {
             if (e.currentHp <= 0) {
                 const ui = this.game.getModule('ui');
                 const particles = this.game.getModule('particles');
+                const xpMgr = this.game.getModule('experience'); // <--- PŘIDÁNO
+                const director = this.game.getModule('director'); // <--- PŘIDÁNO
+
                 if (ui) ui.addScore(e.scoreValue);
                 if (particles) particles.emit(e.x, e.y, e.color || '#ffffff', 15);
+
+                // DROP XP ORBU (Nové)
+                if (xpMgr && director && director.currentPhase) {
+                    const drop = director.currentPhase.xpDrop;
+                    xpMgr.spawnOrb(e.x, e.y, drop.value, drop.color);
+                }
+
                 this.enemies.splice(i, 1);
             }
         }
