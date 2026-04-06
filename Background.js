@@ -27,30 +27,30 @@ export default class Background {
         const h = this.game.canvas.height;
 
         ctx.save();
-        // Barva s nižší alpha, aby tolik nerušila
-        ctx.strokeStyle = 'rgba(0, 255, 204, 0.1)'; 
+        // Uděláme čáry ještě jemnější, aby nerušily při akci
+        ctx.strokeStyle = 'rgba(0, 255, 204, 0.08)'; 
         ctx.lineWidth = 1;
 
-        // Musíme zaokrouhlit offsety na celá čísla
-        const offX = Math.floor(this.offsetX);
-        const offY = Math.floor(this.offsetY);
+        // KLÍČ: Zaokrouhlení na celá čísla, aby čáry neskákaly mezi pixely
+        const offX = Math.round(this.offsetX);
+        const offY = Math.round(this.offsetY);
 
         // Svislé čáry
+        ctx.beginPath();
         for (let x = offX; x < w; x += this.gridSize) {
-            ctx.beginPath();
-            // Přidání 0.5 zajistí, že čára sedne přesně na pixel (ostrost)
+            // +0.5 je trik pro 1px čáry v Canvasu, aby byly ultra ostré
             ctx.moveTo(x + 0.5, 0);
             ctx.lineTo(x + 0.5, h);
-            ctx.stroke();
         }
+        ctx.stroke();
 
         // Vodorovné čáry
+        ctx.beginPath();
         for (let y = offY; y < h; y += this.gridSize) {
-            ctx.beginPath();
             ctx.moveTo(0, y + 0.5);
             ctx.lineTo(w, y + 0.5);
-            ctx.stroke();
         }
+        ctx.stroke();
 
         ctx.restore();
     }
