@@ -93,12 +93,18 @@ takeDamage(amount = 1) {
         this.level++;
         this.xpNextLevel = Math.floor(this.xpNextLevel * 1.2 + 50);
 
-        // Aktivace vlny
+        // Shockwave efekt
         this.shockwaveActive = true;
         this.shockwaveRadius = 0;
         this.shockwaveTimer = 0;
 
-        console.log("SHOCKWAVE DEPLOYED");
+        // OTEVŘENÍ UPGRADE MENU
+        const upgrades = this.game.getModule('upgrades');
+        if (upgrades) {
+            // Můžeme hru mírně zpozdit, aby doběhl efekt shockwave, 
+            // nebo menu otevřít hned:
+            setTimeout(() => upgrades.showSelection(), 200);
+        }
     }
 
     update(deltaTime) {

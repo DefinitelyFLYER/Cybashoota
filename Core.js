@@ -48,14 +48,25 @@ export default class Game {
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
 
-        if (!this.isPaused) {
-            this._update(deltaTime);
-            this._draw();
-            requestAnimationFrame(this._gameLoop.bind(this));
-        } else {
-            // Pokud je pauza (Game Over), už jen čekáme, smyčka se zastaví
-            console.log("Game loop halted.");
+        // 1. ÚPLNÉ ZASTAVENÍ (Game Over)
+        if (this.isPaused) {
+            return; 
         }
+
+        // 2. KONTROLA MENU (Level-up)
+        const upgrades = this.getModule('upgrades');
+        const isMenuOpen = upgrades && upgrades.isSelectionActive;
+
+        // Pokud menu NENÍ otevřené, aktualizujeme logiku (pohyb, střely, atd.)
+        if (!isMenuOpen) {
+            this._update(deltaTime);
+        }
+
+        // Vykreslování běží VŽDY (aby bylo vidět menu i scéna pod ním)
+        this._draw();
+
+        // Požádáme o další snímek
+        requestAnimationFrame(this._gameLoop.bind(this));
     }
 
     _update(deltaTime) {
@@ -68,15 +79,22 @@ export default class Game {
     }
 
     _draw() {
-        // Vyčištění plátna - "Neonové" černé pozadí
-        this.ctx.fillStyle = '#050505';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Vykreslení všech modulů
-        for (let module of this.modules.values()) {
-            if (typeof module.draw === 'function') {
+        // 1. Vykreslíme všechny běžné moduly (Hráč, Nepřátelé, Projektily, Částice, HUD)
+        // Tady proběhne všechno "herní" kreslení, včetně Data Shockwave.
+        for (const [key, module] of this.modules) {
+            // Kreslíme vše, kromě 'upgrades' modulu
+            if (module.draw && key !== 'upgrades') {
                 module.draw(this.ctx);
             }
+        }
+
+        // 2. Vykreslíme UPGRADE MENU (pokud je otevřené) - ZCELA NA KONEC
+        // To zaručí, že karty budou VŽDY nad vším ostatním.
+        const upgrades = this.getModule('upgrades');
+        if (upgrades && upgrades.isSelectionActive && upgrades.draw) {
+            upgrades.draw(this.ctx);
         }
     }
 
