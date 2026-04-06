@@ -25,6 +25,8 @@ export default class UIManager {
     }
 
     draw(ctx) {
+        const director = this.game.getModule('director');
+        if (!director) return; // Pokud director ještě neexistuje, nepokračuj ve vykreslování času        
         const w = this.game.canvas.width;
         const h = this.game.canvas.height;
         const player = this.game.getModule('player');

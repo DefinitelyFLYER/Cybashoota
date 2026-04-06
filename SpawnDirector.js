@@ -2,8 +2,10 @@ import { SPAWN_TIMELINE } from './SpawnTimeline.js';
 
 export default class SpawnDirector {
     constructor() {
-        this.gameTime = 0; // Čas v milisekundách
+        this.gameTime = 0;
         this.currentPhase = null;
+        this.phaseChanged = false;
+        this.phaseTimer = 0; // <--- Přidej tento řádek
     }
 
     init(game) {
