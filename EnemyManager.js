@@ -68,7 +68,6 @@ export default class EnemyManager {
             const dx = player.pos.x - e.x;
             const dy = player.pos.y - e.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-
             // Dynamická rychlost (vychází ze základní rychlosti daného typu)
             let currentSpeed = (dist > screenThreshold) ? catchUpSpeed : e.speed;
 

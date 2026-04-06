@@ -32,17 +32,17 @@ export default class ProjectileManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        // POUŽITÍ NOVÉHO STŘEDU
+        // V ProjectileManager.js v metodě _fire():
         const center = player.getCenter();
         const originX = center.x;
         const originY = center.y;
 
-        // Převod myši do světa (relativně ke středu)
+        // Myš z obrazovky do světa (teď je to přesné)
         const worldMouseX = this.mouseX + player.pos.x - this.game.center.x;
         const worldMouseY = this.mouseY + player.pos.y - this.game.center.y;
 
         const angle = Math.atan2(worldMouseY - originY, worldMouseX - originX);
-        
+
         this.projectiles.push({
             x: originX,
             y: originY,

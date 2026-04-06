@@ -6,8 +6,8 @@ export default class Player {
         this.pos = { x: x, y: y };
         this.speed = 0.2;
         this.size = 64;
-        this.hp = 1;      // Aktuální životy
-        this.maxHp = 1;   // Maximální možná kapacita (pro UI)
+        this.hp = 1;
+        this.maxHp = 1;
         this.invulnerable = 0;
         
         this.sprite = new Image();
@@ -17,10 +17,7 @@ export default class Player {
     }
 
     getCenter() {
-        return {
-            x: this.pos.x + this.size / 2,
-            y: this.pos.y + this.size / 2
-        };
+        return { x: this.pos.x, y: this.pos.y };
     }
 
     init(game) {
@@ -69,7 +66,7 @@ export default class Player {
 
                 // Pokud je nepřítel blíž než 40 pixelů k našemu STŘEDU, dostaneme dmg
                 // (40px je cca polovina tvého 64px spritu + rezerva)
-                if (distance < 40) {
+                if (distance < 35) {
                     this.takeDamage();
                 }
             }
@@ -77,13 +74,14 @@ export default class Player {
     }
 
     draw(ctx) {
-        // Hráč je v herním světě kdekoli, ale na obrazovce je VŽDY uprostřed
+        // Hráčův logický střed (this.pos) chceme vidět na středu obrazovky (game.center)
         const screenX = this.game.center.x - this.size / 2;
         const screenY = this.game.center.y - this.size / 2;
 
         if (this.invulnerable > 0 && Math.floor(Date.now() / 100) % 2 === 0) return;
 
         if (this.isLoaded) {
+            // Vykreslíme obrázek tak, aby jeho střed byl na screenX/Y
             ctx.drawImage(this.sprite, screenX, screenY, this.size, this.size);
         } else {
             ctx.fillStyle = '#00ffcc';
