@@ -4,14 +4,34 @@
 export default class Player {
     constructor(x, y) {
         this.pos = { x: x, y: y };
-        this.speed = 0.2;
         this.size = 64;
-        this.hp = 1;
-        this.maxHp = 1;
         this.invulnerable = 0;
         this.level = 1;
         this.xp = 0;
         this.xpNextLevel = 100; // Základní XP potřebné pro level 2
+        
+        this.stats = {
+            // POHYB A ŽIVOT
+            moveSpeed: 0.2,
+            maxHp: 3,
+            hp: 3,
+            defense: 0,      // Snižuje příchozí poškození (např. o fixní hodnotu)
+            dodgeChance: 0,  // Procentuální šance (0.1 = 10%)
+
+            // STŘELBA
+            fireRate: 400,          // Prodleva mezi výstřely v ms
+            bulletSpeed: 0.8,
+            projectileCount: 1,     // Počet střel naráz
+            projectileSpread: 15,   // Úhel rozptylu v stupních mezi střelami
+            
+            // DAMAGE
+            critChance: 0.05,       // 5% šance na kritický zásah
+            critMultiplier: 2.0     // 2x damage při kritickém zásahu
+        };
+
+        this.hp = this.stats.hp; 
+        this.maxHp = this.stats.maxHp;
+        this.speed = this.stats.moveSpeed;
         
         this.sprite = new Image();
         this.sprite.src = 'player.png';
@@ -33,15 +53,24 @@ export default class Player {
         this.game = game;
     }
 
-    takeDamage() {
-        if (this.invulnerable > 0) return; // Pokud je hráč v ochranné lhůtě, nic se neděje
+    takeDamage(amount = 1) {
+        if (this.invulnerable > 0) return;
 
-        this.hp--;
-        this.invulnerable = 1500; // 1.5 sekundy nesmrtelnosti po zásahu
-
-        if (this.hp <= 0) {
-            this.game.gameOver();
+        // 1. Šance na Dodge
+        if (Math.random() < this.stats.dodgeChance) {
+            console.log("DODGED!");
+            this.invulnerable = 500; // Krátký i-frame za úskok
+            // Tady můžeme později přidat text "MISS" nad hráče
+            return;
         }
+
+        // 2. Defense (Snížení poškození, minimum je 1, pokud nejsme nesmrtelní)
+        let finalDamage = Math.max(1, amount - this.stats.defense);
+        
+        this.hp -= finalDamage;
+        this.invulnerable = 1500;
+
+        if (this.hp <= 0) this.game.gameOver();
     }
 
     addXp(amount) {

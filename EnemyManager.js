@@ -140,7 +140,17 @@ export default class EnemyManager {
                     const pdx = p.x - e.x;
                     const pdy = p.y - e.y;
                     if (Math.sqrt(pdx * pdx + pdy * pdy) < e.size / 2) {
-                        e.currentHp--; // Úprava: používáme currentHp
+                        const player = this.game.getModule('player');
+                        let damage = 1;
+
+                        if (p.isCrit) {
+                            damage = 1 * player.stats.critMultiplier;
+                            // Tady můžeme vyvolat extra částice pro kritický zásah
+                            const particles = this.game.getModule('particles');
+                            if (particles) particles.emit(p.x, p.y, '#ffffff', 5); 
+                        }
+
+                        e.currentHp -= damage;
                         pm.projectiles.splice(j, 1);
                         if (e.currentHp <= 0) break;
                     }
@@ -150,8 +160,8 @@ export default class EnemyManager {
             if (e.currentHp <= 0) {
                 const ui = this.game.getModule('ui');
                 const particles = this.game.getModule('particles');
-                const xpMgr = this.game.getModule('experience'); // <--- PŘIDÁNO
-                const director = this.game.getModule('director'); // <--- PŘIDÁNO
+                const xpMgr = this.game.getModule('experience');
+                const director = this.game.getModule('director');
 
                 if (ui) ui.addScore(e.scoreValue);
                 if (particles) particles.emit(e.x, e.y, e.color || '#ffffff', 15);
