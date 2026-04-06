@@ -60,22 +60,21 @@ export default class EnemyManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        // 1. DYNAMICKÝ THRESHOLD (Okraj obrazovky + malá rezerva)
-        // Chceme, aby "přisvištěli" až k okraji. 
-        // Diagonální vzdálenost k rohu je nejbezpečnější limit.
-        const screenMargin = this.game.canvas.width / 40; 
-        const halfW = this.game.canvas.width / 2;
-        const halfH = this.game.canvas.height / 2;
+        // 1. DEFINICE VIDITELNÉHO "DOJEZDU"
+        // Nastavíme hranici Turbo režimu tak, aby končila uvnitř obrazovky.
+        // Např. 10 % šířky/výšky od okraje směrem ke středu.
+        const stopMargin = 80; // Pixely od okraje obrazovky, kde už enemy MUSÍ zpomalit
         
-        // Vzdálenost od středu k nejvzdálenějšímu viditelnému bodu (rohu)
-        const viewDistance = Math.sqrt(halfW * halfW + halfH * halfH) + screenMargin;
+        // Vypočítáme "bezpečnou zónu" (vnitřní obdélník), kde už se nepřátelé hýbou normálně
+        const innerW = (this.game.canvas.width / 2) - stopMargin;
+        const innerH = (this.game.canvas.height / 2) - stopMargin;
         
-        // 5-ti násobná rychlost pro "přisvištění"
-        const turboMultiplier = 5;
+        // Turbo násobič (můžeme ho dát ještě agresivnější, třeba 7x)
+        const turboMultiplier = 7;
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
-            
+                    
             // --- 1. SEPARACE (Aby nebyli v sobě) ---
             let separationX = 0;
             let separationY = 0;
@@ -99,14 +98,18 @@ export default class EnemyManager {
                 }
             }
 
+            // Relativní vzdálenost od hráče (středu obrazovky)
             const dxP = player.pos.x - e.x;
             const dyP = player.pos.y - e.y;
-            const distP = Math.sqrt(dxP * dxP + dyP * dyP);
             
-            // 2. LOGIKA RYCHLOSTI
-            // Pokud je nepřítel dál, než je vidět na obrazovce, zapne turbo
-            let currentSpeed = (distP > viewDistance) ? (player.speed * turboMultiplier) : e.speed;
+            // 2. LOGIKA VIDITELNÉHO ZPOMALENÍ
+            // Zkontrolujeme, zda je nepřítel "mimo" náš vnitřní obdélník (pohledovou zónu)
+            const isOutsideView = Math.abs(dxP) > innerW || Math.abs(dyP) > innerH;
+            
+            let currentSpeed = isOutsideView ? (player.speed * turboMultiplier) : e.speed;
 
+            // --- POHYB ---
+            const distP = Math.sqrt(dxP * dxP + dyP * dyP);
             if (distP > 1) {
                 const moveX = (dxP / distP) * currentSpeed + separationX;
                 const moveY = (dyP / distP) * currentSpeed + separationY;
