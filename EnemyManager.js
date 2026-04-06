@@ -60,20 +60,22 @@ export default class EnemyManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        // 1. DEFINICE VIDITELNÉHO "DOJEZDU"
-        // Nastavíme hranici Turbo režimu tak, aby končila uvnitř obrazovky.
-        // Např. 10 % šířky/výšky od okraje směrem ke středu.
-        const stopMargin = 80; // Pixely od okraje obrazovky, kde už enemy MUSÍ zpomalit
-        
-        // Vypočítáme "bezpečnou zónu" (vnitřní obdélník), kde už se nepřátelé hýbou normálně
+        const stopMargin = 80; 
         const innerW = (this.game.canvas.width / 2) - stopMargin;
         const innerH = (this.game.canvas.height / 2) - stopMargin;
-        
-        // Turbo násobič (můžeme ho dát ještě agresivnější, třeba 7x)
         const turboMultiplier = 7;
+        const COOLDOWN_TIME = 5000; // 5 sekund v milisekundách
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
+            
+            // Inicializace cooldownu, pokud neexistuje (pro jistotu)
+            if (e.turboCooldown === undefined) e.turboCooldown = 0;
+            
+            // Snižujeme cooldown v každém framu
+            if (e.turboCooldown > 0) {
+                e.turboCooldown -= deltaTime;
+            }
                     
             // --- 1. SEPARACE (Aby nebyli v sobě) ---
             let separationX = 0;
@@ -102,11 +104,23 @@ export default class EnemyManager {
             const dxP = player.pos.x - e.x;
             const dyP = player.pos.y - e.y;
             
-            // 2. LOGIKA VIDITELNÉHO ZPOMALENÍ
-            // Zkontrolujeme, zda je nepřítel "mimo" náš vnitřní obdélník (pohledovou zónu)
+            // Zjištění, zda je mimo vnitřní obdélník
             const isOutsideView = Math.abs(dxP) > innerW || Math.abs(dyP) > innerH;
             
-            let currentSpeed = isOutsideView ? (player.speed * turboMultiplier) : e.speed;
+            let currentSpeed = e.speed;
+
+            // LOGIKA TURBA:
+            // Zapne se jen pokud je venku A ZÁROVEŇ nemá cooldown
+            if (isOutsideView && e.turboCooldown <= 0) {
+                currentSpeed = player.speed * turboMultiplier;
+            } 
+            // OKAMŽIK ZPOMALENÍ:
+            // Pokud právě vletěl dovnitř (isOutsideView je false) a turbo běželo,
+            // nahodíme mu cooldown, aby nemohl hned zase sprintovat.
+            else if (!isOutsideView && e.turboCooldown <= 0) {
+                // Tohle se aktivuje v momentě, kdy překročí hranici stopMargin směrem dovnitř
+                e.turboCooldown = COOLDOWN_TIME;
+            }
 
             // --- POHYB ---
             const distP = Math.sqrt(dxP * dxP + dyP * dyP);
