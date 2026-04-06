@@ -6,6 +6,7 @@ import EnemyManager from './EnemyManager.js';
 import UIManager from './UIManager.js';
 import ParticleManager from './ParticleManager.js';
 import Background from './Background.js';
+import SpawnDirector from './SpawnDirector.js';
 
 const game = new Game('gameCanvas');
 
@@ -15,6 +16,7 @@ game.addModule('ui', new UIManager());
 game.addModule('projectiles', new ProjectileManager());
 game.addModule('enemies', new EnemyManager());
 game.addModule('particles', new ParticleManager());
+game.addModule('director', new SpawnDirector());
 
 const player = new Player(window.innerWidth / 2, window.innerHeight / 2);
 game.addModule('player', player);

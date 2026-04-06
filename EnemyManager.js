@@ -1,50 +1,58 @@
-/**
- * EnemyManager.js - Správa nepřátel a AI
- */
+import { ENEMY_TYPES } from './EnemyTypes.js';
+
 export default class EnemyManager {
     constructor() {
         this.enemies = [];
         this.spawnTimer = 0;
         this.spawnRate = 1500;
-        this.maxEnemyHP = 3; // Zvýšeno ze 2 na 3
+        this.sprites = new Map(); // Cache pro načtené obrázky
     }
 
     init(game) {
         this.game = game;
+        this._preloadSprites();
+    }
+
+    _preloadSprites() {
+        // Automaticky načte všechny obrázky definované v EnemyTypes
+        for (const key in ENEMY_TYPES) {
+            const config = ENEMY_TYPES[key];
+            if (config.renderType === 'sprite' && config.sprite) {
+                const img = new Image();
+                img.src = config.sprite;
+                this.sprites.set(config.type, img);
+            }
+        }
     }
 
     spawnEnemy() {
-        const player = this.game.getModule('player');
-        if (!player) return;
+        if (!this.activePhase) return;
 
-        const canvas = this.game.canvas;
+        const player = this.game.getModule('player');
         const center = this.game.center;
         
-        // Určíme náhodný bod na okraji VIDITELNÉ oblasti
-        let spawnX, spawnY;
-        const margin = 100; // Jak daleko za okrajem obrazovky se mají objevit
+        // 1. Výběr typu POUZE z povolených v aktuální fázi
+        const allowedTypes = this.activePhase.types;
+        const typeKey = allowedTypes[Math.floor(Math.random() * allowedTypes.length)];
+        const baseConfig = ENEMY_TYPES[typeKey];
 
-        if (Math.random() < 0.5) {
-            // Spawn vlevo nebo vpravo od hráče
-            spawnX = Math.random() < 0.5 ? -margin : canvas.width + margin;
-            spawnY = Math.random() * canvas.height;
-        } else {
-            // Spawn nad nebo pod hráčem
-            spawnX = Math.random() * canvas.width;
-            spawnY = Math.random() < 0.5 ? -margin : canvas.height + margin;
-        }
-
-        // KLÍČOVÝ KROK: Převod ze souřadnic obrazovky do souřadnic SVĚTA
-        // Vezmeme bod na obrazovce a přičteme k němu aktuální posun hráče
+        // 2. Výpočet pozice (stejné jako minule)
+        const margin = 100;
+        let spawnX = Math.random() < 0.5 ? -margin : this.game.canvas.width + margin;
+        let spawnY = Math.random() * this.game.canvas.height;
+        
         const worldX = spawnX + player.pos.x - center.x;
         const worldY = spawnY + player.pos.y - center.y;
 
+        // 3. Vytvoření nepřítele s násobiči z fáze
         this.enemies.push({
+            ...baseConfig,
             x: worldX,
             y: worldY,
-            size: 40,
-            speed: 0.15,
-            hp: this.maxEnemyHP
+            // Aplikujeme násobiče obtížnosti z Timeline
+            maxHp: Math.ceil(baseConfig.hp * this.activePhase.hpMultiplier),
+            currentHp: Math.ceil(baseConfig.hp * this.activePhase.hpMultiplier),
+            speed: baseConfig.speed * this.activePhase.speedMultiplier
         });
     }
 
@@ -52,111 +60,115 @@ export default class EnemyManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        // Parametry pro pohyb
-        const catchUpSpeed = player.speed * 2; // 2x rychlejší než hráč (cca 0.4)
-        const normalSpeed = 0.15;              // Původní rychlost
-        const screenThreshold = 1000;          // Vzdálenost, kdy se považuje za "mimo obrazovku"
+        const catchUpSpeed = player.speed * 2;
+        const screenThreshold = 1000;
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
-            
-            // Logický výpočet směru k hráči ve světě
             const dx = player.pos.x - e.x;
             const dy = player.pos.y - e.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            // --- DYNAMICKÁ RYCHLOST ---
-            // Pokud je nepřítel moc daleko, zapne "turbo"
-            if (dist > screenThreshold) {
-                e.speed = catchUpSpeed;
-            } else {
-                // Jakmile se přiblíží, zpomalí na útočnou rychlost
-                e.speed = normalSpeed;
-            }
+            // Dynamická rychlost (vychází ze základní rychlosti daného typu)
+            let currentSpeed = (dist > screenThreshold) ? catchUpSpeed : e.speed;
 
-            // Pohyb (normalizace vektoru a aplikace rychlosti)
             if (dist > 1) {
-                e.x += (dx / dist) * e.speed * deltaTime;
-                e.y += (dy / dist) * e.speed * deltaTime;
+                e.x += (dx / dist) * currentSpeed * deltaTime;
+                e.y += (dy / dist) * currentSpeed * deltaTime;
             }
 
-            // --- KOLIZE S PROJEKTILY (stávající kód) ---
+            // Kolize s projektily
             const pm = this.game.getModule('projectiles');
             if (pm) {
                 for (let j = pm.projectiles.length - 1; j >= 0; j--) {
                     const p = pm.projectiles[j];
                     const pdx = p.x - e.x;
                     const pdy = p.y - e.y;
-                    const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
-
-                    if (pDist < e.size / 2) {
-                        e.hp--;
+                    if (Math.sqrt(pdx * pdx + pdy * pdy) < e.size / 2) {
+                        e.currentHp--; // Úprava: používáme currentHp
                         pm.projectiles.splice(j, 1);
-                        if (e.hp <= 0) break;
+                        if (e.currentHp <= 0) break;
                     }
                 }
             }
 
-            // --- SMRT NEPŘÍTELE ---
-            if (e.hp <= 0) {
+            if (e.currentHp <= 0) {
                 const ui = this.game.getModule('ui');
                 const particles = this.game.getModule('particles');
-                if (ui) ui.addScore(100);
-                if (particles) particles.emit(e.x, e.y, '#ff0000', 15);
+                if (ui) ui.addScore(e.scoreValue);
+                if (particles) particles.emit(e.x, e.y, e.color || '#ffffff', 15);
                 this.enemies.splice(i, 1);
             }
+        }
+
+        this.spawnTimer += deltaTime;
+        if (this.spawnTimer > this.spawnRate) {
+            this.spawnEnemy();
+            this.spawnTimer = 0;
         }
     }
 
     draw(ctx) {
         const player = this.game.getModule('player');
-        const center = this.game.center; // Střed z Core.js
         if (!player) return;
 
         for (const e of this.enemies) {
+            const drawX = e.x - player.pos.x + this.game.center.x;
+            const drawY = e.y - player.pos.y + this.game.center.y;
+
             ctx.save();
+            
+            if (e.renderType === 'sprite' && this.sprites.has(e.type)) {
+                // Vykreslení obrázkem
+                const img = this.sprites.get(e.type);
+                ctx.drawImage(img, drawX - e.size/2, drawY - e.size/2, e.size, e.size);
+            } else {
+                // Vykreslení tvarem (fallback na tvůj kód)
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = e.color;
+                ctx.fillStyle = e.color + '66'; // Přidáme průhlednost
+                ctx.strokeStyle = e.color;
+                ctx.lineWidth = 3;
 
-            // VÝPOČET RELATIVNÍ POZICE NA OBRAZOVCE
-            const drawX = e.x - player.pos.x + center.x;
-            const drawY = e.y - player.pos.y + center.y;
-
-            // 1. Tělo nepřítele (používáme drawX/drawY)
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = '#ff0000';
-            ctx.fillStyle = '#660000';
-            ctx.strokeStyle = '#ff0000';
-            ctx.lineWidth = 3;
-
-            ctx.beginPath();
-            ctx.moveTo(drawX, drawY - 20);
-            ctx.lineTo(drawX + 20, drawY + 20);
-            ctx.lineTo(drawX - 20, drawY + 20);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // 2. HP Bar (předáme drawX/drawY do pomocné metody)
-            if (e.hp < this.maxEnemyHP) {
-                this._drawHealthBar(ctx, drawX, drawY, e.hp);
+                this._drawShape(ctx, drawX, drawY, e);
             }
 
+            if (e.currentHp < e.maxHp) {
+                this._drawHealthBar(ctx, drawX, drawY, e);
+            }
             ctx.restore();
         }
     }
 
-    // Pomocnou metodu upravíme, aby brala už vypočítané souřadnice
-    _drawHealthBar(ctx, x, y, currentHp) {
-        const barWidth = 40;
-        const barHeight = 4;
+    _drawShape(ctx, x, y, e) {
+        ctx.beginPath();
+        if (e.type === 'TRIANGLE') {
+            ctx.moveTo(x, y - e.size/2);
+            ctx.lineTo(x + e.size/2, y + e.size/2);
+            ctx.lineTo(x - e.size/2, y + e.size/2);
+        } else if (e.type === 'SQUARE') {
+            ctx.rect(x - e.size/2, y - e.size/2, e.size, e.size);
+        } else if (e.type === 'HEXAGON') {
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i;
+                const px = x + (e.size / 2) * Math.cos(angle);
+                const py = y + (e.size / 2) * Math.sin(angle);
+                i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            }
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    _drawHealthBar(ctx, x, y, e) {
+        const barWidth = e.size;
         const drawX = x - barWidth / 2;
-        const drawY = y - 35;
-
-        ctx.shadowBlur = 0; 
+        const drawY = y - (e.size / 2 + 15);
         ctx.fillStyle = '#333';
-        ctx.fillRect(drawX, drawY, barWidth, barHeight);
-
-        const hpPercent = currentHp / this.maxEnemyHP;
+        ctx.fillRect(drawX, drawY, barWidth, 4);
+        const hpPercent = e.currentHp / e.maxHp;
         ctx.fillStyle = hpPercent > 0.5 ? '#00ffcc' : '#ff0055'; 
-        ctx.fillRect(drawX, drawY, barWidth * hpPercent, barHeight);
+        ctx.fillRect(drawX, drawY, barWidth * hpPercent, 4);
     }
 }
