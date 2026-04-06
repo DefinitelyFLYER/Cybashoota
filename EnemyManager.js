@@ -128,7 +128,7 @@ export default class EnemyManager {
                 e.y += moveY * deltaTime;
             }
 
-            // --- KOLIZE S HRÁČEM (Chybělo) ---
+            // --- KOLIZE S HRÁČEM  ----
             const distToPlayer = Math.sqrt(dxP * dxP + dyP * dyP);
             // Kolize nastane, pokud je vzdálenost menší než polovina součtu jejich velikostí
             if (distToPlayer < (e.size + player.size) * 0.4) {
