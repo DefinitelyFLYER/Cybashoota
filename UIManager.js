@@ -25,8 +25,6 @@ export default class UIManager {
     }
 
     draw(ctx) {
-        const director = this.game.getModule('director');
-        if (!director) return;
         const w = this.game.canvas.width;
         const h = this.game.canvas.height;
         const player = this.game.getModule('player');
