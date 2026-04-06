@@ -49,13 +49,19 @@ export default class Player {
 
         // KOLIZE
         if (enemyMgr && enemyMgr.enemies && this.hp > 0) {
+            // STŘED HRÁČE
+            const pCenterX = this.pos.x + this.size / 2;
+            const pCenterY = this.pos.y + this.size / 2;
+
             for (const enemy of enemyMgr.enemies) {
-                const dx = (this.pos.x + this.size / 2) - enemy.x;
-                const dy = (this.pos.y + this.size / 2) - enemy.y;
+                // Vzdálenost od středu hráče ke středu nepřítele
+                const dx = pCenterX - enemy.x;
+                const dy = pCenterY - enemy.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                if (distance < 45) {
-                    this.takeDamage(); // Místo game over voláme ubrání životů
+                // Kolizní rádius (hráč cca 20px + nepřítel cca 20px)
+                if (distance < 40) { 
+                    this.takeDamage();
                 }
             }
         }

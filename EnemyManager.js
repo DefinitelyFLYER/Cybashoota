@@ -61,7 +61,7 @@ export default class EnemyManager {
         if (!player) return;
 
         const catchUpSpeed = player.speed * 2;
-        const screenThreshold = 1000;
+        const screenThreshold = 600;
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];

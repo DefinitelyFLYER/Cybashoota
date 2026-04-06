@@ -27,22 +27,28 @@ export default class Background {
         const h = this.game.canvas.height;
 
         ctx.save();
-        ctx.strokeStyle = 'rgba(0, 255, 204, 0.15)'; // Velmi jemná neonová barva
+        // Barva s nižší alpha, aby tolik nerušila
+        ctx.strokeStyle = 'rgba(0, 255, 204, 0.1)'; 
         ctx.lineWidth = 1;
 
+        // Musíme zaokrouhlit offsety na celá čísla
+        const offX = Math.floor(this.offsetX);
+        const offY = Math.floor(this.offsetY);
+
         // Svislé čáry
-        for (let x = this.offsetX; x < w; x += this.gridSize) {
+        for (let x = offX; x < w; x += this.gridSize) {
             ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, h);
+            // Přidání 0.5 zajistí, že čára sedne přesně na pixel (ostrost)
+            ctx.moveTo(x + 0.5, 0);
+            ctx.lineTo(x + 0.5, h);
             ctx.stroke();
         }
 
         // Vodorovné čáry
-        for (let y = this.offsetY; y < h; y += this.gridSize) {
+        for (let y = offY; y < h; y += this.gridSize) {
             ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(w, y);
+            ctx.moveTo(0, y + 0.5);
+            ctx.lineTo(w, y + 0.5);
             ctx.stroke();
         }
 
