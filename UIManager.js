@@ -26,7 +26,9 @@ export default class UIManager {
 
     draw(ctx) {
         const w = this.game.canvas.width;
+        const h = this.game.canvas.height;
         const player = this.game.getModule('player');
+        const director = this.game.getModule('director');
         
         // SKÓRE (stávající)
         ctx.fillStyle = '#00ffcc';
@@ -56,5 +58,52 @@ export default class UIManager {
         ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, w - 20, 40);
         
         ctx.shadowBlur = 0;
+
+        // --- INDIKÁTOR ČASU ---
+        if (director) {
+            const totalSeconds = Math.floor(director.gameTime / 1000);
+            const mins = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const secs = (totalSeconds % 60).toString().padStart(2, '0');
+            const timeStr = `${mins}:${secs}`;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            
+            // Logika pro efekt při změně fáze (trvá 3 sekundy)
+            let scale = 1;
+            let alpha = 1;
+
+            if (director.phaseChanged) {
+                // Použijeme sinus pro pulzování
+                const elapsed = director.phaseTimer || 0;
+                const pulse = Math.sin(Date.now() / 100) * 0.2; // Rychlé pulzování
+                scale = 1.2 + pulse;
+                alpha = 0.5 + Math.abs(Math.sin(Date.now() / 200) * 0.5); // Blikání
+
+                // Po 3 sekundách efekt vypneme
+                if (elapsed > 3000) {
+                    director.phaseChanged = false;
+                }
+                director.phaseTimer = (director.phaseTimer || 0) + 16; // Přibližný deltaTime
+            }
+
+            ctx.translate(w / 2, h - 40);
+            ctx.scale(scale, scale);
+            ctx.globalAlpha = alpha;
+
+            ctx.fillStyle = '#00ffcc';
+            ctx.shadowBlur = 15 * scale;
+            ctx.shadowColor = '#00ffcc';
+            ctx.font = 'bold 30px "Courier New", monospace';
+            ctx.fillText(timeStr, 0, 0);
+
+            // Volitelný název fáze pod časem
+            ctx.font = '12px "Courier New", monospace';
+            ctx.globalAlpha = alpha * 0.7;
+            ctx.fillText(director.getPhaseName().toUpperCase(), 0, 20);
+
+            ctx.restore();
+        }
     }
+}
 }

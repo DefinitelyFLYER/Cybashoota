@@ -14,17 +14,16 @@ export default class SpawnDirector {
         this.gameTime += deltaTime;
         const seconds = this.gameTime / 1000;
 
-        // Najdeme aktuální fázi podle času
         const phase = SPAWN_TIMELINE.find(p => seconds >= p.start && seconds < p.end);
 
-        if (phase) {
+        if (phase && phase !== this.currentPhase) {
             this.currentPhase = phase;
+            this.phaseChanged = true; // Signalizace pro UI
+            this.phaseTimer = 0;      // Reset vnitřního časovače pro efekt
             
-            // Aktualizujeme parametry v EnemyManageru dynamicky
             const enemyMgr = this.game.getModule('enemies');
             if (enemyMgr) {
                 enemyMgr.spawnRate = phase.rate;
-                // Předáme fázi do manageru pro další výpočty
                 enemyMgr.activePhase = phase; 
             }
         }
