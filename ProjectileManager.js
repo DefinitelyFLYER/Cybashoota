@@ -1,17 +1,18 @@
 /**
- * ProjectileManager.js - Opravená verze s autodetekcí myši
+ * ProjectileManager.js - Správa střelby (Mouse + Gamepad)
  */
 export default class ProjectileManager {
     constructor() {
         this.projectiles = [];
         this.lastFireTime = 0;
-        this.fireRate = 400; // Prodleva mezi výstřely v ms
+        this.fireRate = 150; // Rychlost střelby v ms
         
+        // Pomocné proměnné pro myš
         this.mouseX = 0;
         this.mouseY = 0;
         this.isMouseDown = false;
 
-        // Sledování myši přímo v modulu
+        // Listenery pro myš (zůstávají pro PC hráče)
         window.addEventListener('mousemove', (e) => {
             this.mouseX = e.clientX;
             this.mouseY = e.clientY;
@@ -24,43 +25,45 @@ export default class ProjectileManager {
         this.game = game;
     }
 
-    // Interní metoda pro vytvoření střely
-    _fire() {
-        const now = Date.now();
-        if (now - this.lastFireTime < this.fireRate) return;
-
+    update(deltaTime) {
         const player = this.game.getModule('player');
+        const gamepad = this.game.getModule('gamepad');
         if (!player) return;
 
-        // V ProjectileManager.js v metodě _fire():
         const center = player.getCenter();
-        const originX = center.x;
-        const originY = center.y;
 
-        // Myš z obrazovky do světa (teď je to přesné)
-        const worldMouseX = this.mouseX + player.pos.x - this.game.center.x;
-        const worldMouseY = this.mouseY + player.pos.y - this.game.center.y;
+        // --- 1. LOGIKA STŘELBY (VÝPOČET ÚHLU) ---
+        let targetAngle = null;
 
-        const angle = Math.atan2(worldMouseY - originY, worldMouseX - originX);
+        // Priorita 1: Gamepad (Pravá páčka nebo RT)
+        if (gamepad && gamepad.gamepadIndex !== null) {
+            const rx = gamepad.axes[2]; // Pravá páčka X
+            const ry = gamepad.axes[3]; // Pravá páčka Y
 
-        this.projectiles.push({
-            x: originX,
-            y: originY,
-            vx: Math.cos(angle) * 0.8,
-            vy: Math.sin(angle) * 0.8,
-            life: 2000 
-        });
-
-        this.lastFireTime = now;
-    }
-
-    update(deltaTime) {
-        // Pokud hráč drží myš (nebo jen klikne), zkusíme vystřelit
-        if (this.isMouseDown) {
-            this._fire();
+            // Pokud pohneme pravou páčkou (deadzone 0.5 pro střelbu)
+            if (Math.abs(rx) > 0.5 || Math.abs(ry) > 0.5) {
+                targetAngle = Math.atan2(ry, rx);
+            } 
+            // Nebo pokud držíme RT, střílíme ve směru, kam postava kouká (nebo kam míří páčka)
+            else if (gamepad.buttons.RT) {
+                // Pokud nemíříme páčkou, ale držíme RT, střílíme před sebe (default úhel)
+                targetAngle = Math.atan2(ry, rx); 
+            }
         }
 
-        // Pohyb střel
+        // Priorita 2: Myš (pokud není aktivní gamepad střelba)
+        if (targetAngle === null && this.isMouseDown) {
+            const worldMouseX = this.mouseX + player.pos.x - this.game.center.x;
+            const worldMouseY = this.mouseY + player.pos.y - this.game.center.y;
+            targetAngle = Math.atan2(worldMouseY - center.y, worldMouseX - center.x);
+        }
+
+        // --- 2. SAMOTNÝ VÝSTŘEL ---
+        if (targetAngle !== null) {
+            this._fire(center.x, center.y, targetAngle);
+        }
+
+        // --- 3. POHYB PROJEKTILŮ ---
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.x += p.vx * deltaTime;
@@ -73,23 +76,36 @@ export default class ProjectileManager {
         }
     }
 
+    _fire(x, y, angle) {
+        const now = Date.now();
+        if (now - this.lastFireTime < this.fireRate) return;
+
+        this.projectiles.push({
+            x: x,
+            y: y,
+            vx: Math.cos(angle) * 0.8,
+            vy: Math.sin(angle) * 0.8,
+            life: 2000
+        });
+
+        this.lastFireTime = now;
+    }
+
     draw(ctx) {
         const player = this.game.getModule('player');
-        const center = this.game.center;
         if (!player) return;
 
         ctx.save();
-        ctx.fillStyle = '#ff00ff';
+        ctx.fillStyle = '#ffff00';
         ctx.shadowBlur = 10;
-        ctx.shadowColor = '#ff00ff';
+        ctx.shadowColor = '#ffff00';
 
         for (const p of this.projectiles) {
-            // PŘEPOČET NA OBRAZOVKU
-            const drawX = p.x - player.pos.x + center.x;
-            const drawY = p.y - player.pos.y + center.y;
+            const screenX = p.x - player.pos.x + this.game.center.x;
+            const screenY = p.y - player.pos.y + this.game.center.y;
 
             ctx.beginPath();
-            ctx.arc(drawX, drawY, 3, 0, Math.PI * 2);
+            ctx.arc(screenX, screenY, 4, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.restore();

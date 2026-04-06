@@ -37,31 +37,37 @@ export default class Player {
 
     update(deltaTime) {
         const input = this.game.getModule('input');
-        if (!input) return;
-
+        const gamepad = this.game.getModule('gamepad');
+        
         let moveX = 0;
         let moveY = 0;
 
-        // 1. SBĚR VSTUPU
-        if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) moveY -= 1;
-        if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) moveY += 1;
-        if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) moveX -= 1;
-        if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) moveX += 1;
-
-        // 2. NORMALIZACE
-        if (moveX !== 0 || moveY !== 0) {
-            // Vypočítáme délku vektoru: sqrt(x^2 + y^2)
-            const length = Math.sqrt(moveX * moveX + moveY * moveY);
-            
-            // Vydělíme komponenty délkou, aby výsledná délka byla 1
-            // (U přímého směru to bude 1/1=1, u diagonály 1/1.41=0.707)
-            moveX /= length;
-            moveY /= length;
-
-            // 3. APLIKACE POHYBU
-            this.pos.x += moveX * this.speed * deltaTime;
-            this.pos.y += moveY * this.speed * deltaTime;
+        // --- LOGIKA KLÁVESNICE ---
+        if (input) {
+            if (input.isKeyDown('KeyW')) moveY -= 1;
+            if (input.isKeyDown('KeyS')) moveY += 1;
+            if (input.isKeyDown('KeyA')) moveX -= 1;
+            if (input.isKeyDown('KeyD')) moveX += 1;
         }
+
+        // --- LOGIKA GAMEPADU (Levá páčka) ---
+        if (gamepad && gamepad.gamepadIndex !== null) {
+            // Pokud pohneme páčkou, přepíšeme hodnoty z klávesnice
+            if (Math.abs(gamepad.axes[0]) > 0.1 || Math.abs(gamepad.axes[1]) > 0.1) {
+                moveX = gamepad.axes[0];
+                moveY = gamepad.axes[1];
+            }
+        }
+
+        // Normalizace (potřeba hlavně pro klávesnici, páčka se normalizuje fyzicky)
+        const mag = Math.sqrt(moveX * moveX + moveY * moveY);
+        if (mag > 1) { // Ošetříme jen pokud "přestřelíme" (diagonála na klávesnici)
+            moveX /= mag;
+            moveY /= mag;
+        }
+
+        this.pos.x += moveX * this.speed * deltaTime;
+        this.pos.y += moveY * this.speed * deltaTime;
 
         // --- ZBYTEK KÓDU (Invis frames, Kolize) ---
         if (this.invulnerable > 0) {
