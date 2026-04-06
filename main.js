@@ -8,6 +8,7 @@ import ParticleManager from './ParticleManager.js';
 import Background from './Background.js';
 import SpawnDirector from './SpawnDirector.js';
 import ExperienceManager from './ExperienceManager.js';
+import UpgradeManager from './UpgradeManager.js';
 
 const game = new Game('gameCanvas');
 
@@ -18,7 +19,9 @@ game.addModule('projectiles', new ProjectileManager());
 game.addModule('experience', new ExperienceManager());
 game.addModule('enemies', new EnemyManager());
 game.addModule('particles', new ParticleManager());
+game.addModule('upgrades', new UpgradeManager());
 game.addModule('director', new SpawnDirector());
+
 
 const player = new Player(window.innerWidth / 2, window.innerHeight / 2);
 game.addModule('player', player);

@@ -133,25 +133,40 @@ export default class EnemyManager {
             const collisionDist = (e.size + player.size) * 0.4; 
 
             if (distToPlayer < collisionDist) {
+                if (player.invulnerable <= 0) {
+                    player.takeDamage(1);
+                    
+                    // SPECIÁLNÍ MECHANIKA: Pokud je to křehký enemy, po zásahu hráče se zničí
+                    if (e.maxHp <= 1) {
+                        e.currentHp = 0; // To zajistí, že ho EnemyManager v příštím kroku smaže a vyvolá částice
+                    } else {
+                        // 2. KNOCKBACK PRO NEPŘÍTELE (Směrem od hráče)
+                        const enemyKnockback = 80; // Trochu jsme přitvrdili
+                        
+                        if (distToPlayer > 0) {
+                            const dirX = (e.x - player.pos.x) / distToPlayer;
+                            const dirY = (e.y - player.pos.y) / distToPlayer;
+
+                            e.x += dirX * enemyKnockback;
+                            e.y += dirY * enemyKnockback;
+                            
+                            // Zmrazíme mu turbo, aby se hned nevrátil
+                            e.turboCooldown = 2000; 
+                        }
+                    }
+                }
+            }
+
+
+
+            if (distToPlayer < collisionDist) {
                 // Knockback a poškození provedeme JEN pokud hráč není právě "nezranitelný"
                 // To slouží jako přirozený cooldown pro oba efekty.
                 if (player.invulnerable <= 0) {
                     // 1. Hráč dostane DMG (v metodě takeDamage se mu nastaví invulnerable > 0)
                     player.takeDamage(1);
 
-                    // 2. KNOCKBACK PRO NEPŘÍTELE (Směrem od hráče)
-                    const enemyKnockback = 80; // Trochu jsme přitvrdili
-                    
-                    if (distToPlayer > 0) {
-                        const dirX = (e.x - player.pos.x) / distToPlayer;
-                        const dirY = (e.y - player.pos.y) / distToPlayer;
 
-                        e.x += dirX * enemyKnockback;
-                        e.y += dirY * enemyKnockback;
-                        
-                        // Zmrazíme mu turbo, aby se hned nevrátil
-                        e.turboCooldown = 2000; 
-                    }
                 }
             }
 
@@ -164,7 +179,7 @@ export default class EnemyManager {
                     const pdy = p.y - e.y;
                     if (Math.sqrt(pdx * pdx + pdy * pdy) < e.size / 2) {
                         const player = this.game.getModule('player');
-                        let damage = 1;
+                        let damage = player.stats.damage;
 
                         if (p.isCrit) {
                             damage = 1 * player.stats.critMultiplier;

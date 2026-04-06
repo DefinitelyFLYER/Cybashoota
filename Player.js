@@ -26,7 +26,10 @@ export default class Player {
             
             // DAMAGE
             critChance: 0.05,       // 5% šance na kritický zásah
-            critMultiplier: 2.0     // 2x damage při kritickém zásahu
+            critMultiplier: 2.0,     // 2x damage při kritickém zásahu
+
+            damage: 1,           // Základní poškození projektilu
+            luck: 1.0           // Násobič štěstí (1.0 = základ, 1.5 = o 50% vyšší šance na vzácné věci)
         };
         
         this.sprite = new Image();
@@ -90,12 +93,18 @@ takeDamage(amount = 1) {
         this.level++;
         this.xpNextLevel = Math.floor(this.xpNextLevel * 1.2 + 50);
 
-        // Aktivace vlny
+        // Shockwave efekt
         this.shockwaveActive = true;
         this.shockwaveRadius = 0;
         this.shockwaveTimer = 0;
 
-        console.log("SHOCKWAVE DEPLOYED");
+        // OTEVŘENÍ UPGRADE MENU
+        const upgrades = this.game.getModule('upgrades');
+        if (upgrades) {
+            // Můžeme hru mírně zpozdit, aby doběhl efekt shockwave, 
+            // nebo menu otevřít hned:
+            setTimeout(() => upgrades.showSelection(), 200);
+        }
     }
 
     update(deltaTime) {
