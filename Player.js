@@ -165,15 +165,22 @@ export default class Player {
         if (this.shockwaveActive) {
             const progress = this.shockwaveTimer / this.shockwaveDuration;
             ctx.save();
+            
+            // --- NASTAVENÍ STYLU ---
             ctx.beginPath();
             ctx.arc(this.game.center.x, this.game.center.y, this.shockwaveRadius, 0, Math.PI * 2);
             
-            // Čím dál vlna je, tím je průhlednější
             ctx.strokeStyle = `rgba(0, 255, 204, ${1 - progress})`;
-            ctx.lineWidth = 15 * (1 - progress); // Vlna se postupně ztenčuje
+            ctx.lineWidth = 15 * (1 - progress);
             ctx.shadowBlur = 25;
             ctx.shadowColor = '#00ffcc';
+
+            ctx.setLineDash([20, 15]);
+            
             ctx.stroke();
+
+            ctx.setLineDash([]); 
+            
             ctx.restore();
         }
     }
