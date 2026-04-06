@@ -30,23 +30,34 @@ export default class ProjectileManager {
         // STŘELBA MYŠÍ
         if (this.isMouseDown) {
             const now = Date.now();
-            if (now - this.lastFireTime >= this.fireRate) {
+            // Používáme fireRate z Player statistik
+            if (now - this.lastFireTime >= player.stats.fireRate) {
                 const center = player.getCenter();
-                
-                // Převod myši do souřadnic světa
                 const worldMouseX = this.mouseX + player.pos.x - this.game.center.x;
                 const worldMouseY = this.mouseY + player.pos.y - this.game.center.y;
+                const baseAngle = Math.atan2(worldMouseY - center.y, worldMouseX - center.x);
 
-                const angle = Math.atan2(worldMouseY - center.y, worldMouseX - center.x);
-                
-                this.projectiles.push({
-                    x: center.x,
-                    y: center.y,
-                    vx: Math.cos(angle) * 0.8,
-                    vy: Math.sin(angle) * 0.8,
-                    life: 2000 
-                });
+                const count = player.stats.projectileCount;
+                const spread = player.stats.projectileSpread * (Math.PI / 180); // Převod na radiány
 
+                for (let i = 0; i < count; i++) {
+                    // Výpočet úhlu pro každou střelu (vycentrovaný rozptyl)
+                    let offset = 0;
+                    if (count > 1) {
+                        offset = (i - (count - 1) / 2) * spread;
+                    }
+                    const finalAngle = baseAngle + offset;
+
+                    this.projectiles.push({
+                        x: center.x,
+                        y: center.y,
+                        vx: Math.cos(finalAngle) * player.stats.bulletSpeed,
+                        vy: Math.sin(finalAngle) * player.stats.bulletSpeed,
+                        life: 2000,
+                        // Přidáme informaci o kritickém zásahu přímo k projektilu
+                        isCrit: Math.random() < player.stats.critChance
+                    });
+                }
                 this.lastFireTime = now;
             }
         }
