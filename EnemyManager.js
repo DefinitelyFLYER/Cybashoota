@@ -164,7 +164,7 @@ export default class EnemyManager {
                     const pdy = p.y - e.y;
                     if (Math.sqrt(pdx * pdx + pdy * pdy) < e.size / 2) {
                         const player = this.game.getModule('player');
-                        let damage = 1;
+                        let damage = player.stats.damage;
 
                         if (p.isCrit) {
                             damage = 1 * player.stats.critMultiplier;

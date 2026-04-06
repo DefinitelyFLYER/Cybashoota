@@ -26,7 +26,10 @@ export default class Player {
             
             // DAMAGE
             critChance: 0.05,       // 5% šance na kritický zásah
-            critMultiplier: 2.0     // 2x damage při kritickém zásahu
+            critMultiplier: 2.0,     // 2x damage při kritickém zásahu
+
+            damage: 1,           // Základní poškození projektilu
+            luck: 1.0           // Násobič štěstí (1.0 = základ, 1.5 = o 50% vyšší šance na vzácné věci)
         };
         
         this.sprite = new Image();
