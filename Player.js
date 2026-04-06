@@ -28,10 +28,6 @@ export default class Player {
             critChance: 0.05,       // 5% šance na kritický zásah
             critMultiplier: 2.0     // 2x damage při kritickém zásahu
         };
-
-        this.hp = this.stats.hp; 
-        this.maxHp = this.stats.maxHp;
-        this.speed = this.stats.moveSpeed;
         
         this.sprite = new Image();
         this.sprite.src = 'player.png';
@@ -126,8 +122,8 @@ export default class Player {
             moveY /= mag;
         }
 
-        this.pos.x += moveX * this.speed * deltaTime;
-        this.pos.y += moveY * this.speed * deltaTime;
+        this.pos.x += moveX * this.stats.moveSpeed * deltaTime;
+        this.pos.y += moveY * this.stats.moveSpeed * deltaTime;
 
         // --- ZBYTEK KÓDU (Invis frames, Kolize) ---
         if (this.invulnerable > 0) {

@@ -76,9 +76,9 @@ export default class UIManager {
         // ŽIVOTY (Nové)
         if (player) {
             let healthText = "HP: ";
-            // Cyklus běží jen tolikrát, kolik má hráč maximálně životů
-            for(let i = 0; i < player.maxHp; i++) {
-                healthText += (i < player.hp) ? "▮" : "▯";
+
+            for(let i = 0; i < player.stats.maxHp; i++) {
+                healthText += (i < player.stats.hp) ? "▮" : "▯";
             }
             
             ctx.fillStyle = '#00ffcc'; 
