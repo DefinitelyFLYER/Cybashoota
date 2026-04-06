@@ -63,7 +63,7 @@ export default class EnemyManager {
         const stopMargin = 80; 
         const innerW = (this.game.canvas.width / 2) - stopMargin;
         const innerH = (this.game.canvas.height / 2) - stopMargin;
-        const turboMultiplier = 7;
+        const turboMultiplier = 3;
         const COOLDOWN_TIME = 5000; // 5 sekund v milisekundách
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
