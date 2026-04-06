@@ -17,7 +17,12 @@ export default class Player {
         this.sprite.src = 'player.png';
         this.isLoaded = false;
         this.sprite.onload = () => { this.isLoaded = true; };
-        
+
+        this.shockwaveActive = false;
+        this.shockwaveRadius = 0;
+        this.shockwaveMaxRadius = 500; // Dosah vlny
+        this.shockwaveDuration = 800;  // Jak dlouho vlna cestuje (ms)
+        this.shockwaveTimer = 0;
     }
 
     getCenter() {
@@ -51,12 +56,14 @@ export default class Player {
     levelUp() {
         this.xp -= this.xpNextLevel;
         this.level++;
-        
-        // Zvýšíme náročnost pro další level (např. o 20 %)
         this.xpNextLevel = Math.floor(this.xpNextLevel * 1.2 + 50);
-        
-        console.log(`LEVEL UP! Now at level ${this.level}`);
-        // Tady později vyvoláme UI pro výběr upgradů
+
+        // Aktivace vlny
+        this.shockwaveActive = true;
+        this.shockwaveRadius = 0;
+        this.shockwaveTimer = 0;
+
+        console.log("SHOCKWAVE DEPLOYED");
     }
 
     update(deltaTime) {
@@ -109,6 +116,35 @@ export default class Player {
                 }
             }
         }
+
+        if (this.shockwaveActive) {
+            this.shockwaveTimer += deltaTime;
+            // Plynulé zvětšování rádiusu
+            const progress = this.shockwaveTimer / this.shockwaveDuration;
+            this.shockwaveRadius = progress * this.shockwaveMaxRadius;
+
+            // Pokud vlna dojela na konec, vypneme ji
+            if (progress >= 1) {
+                this.shockwaveActive = false;
+            }
+
+            // INTERAKCE S ENEMÁKY
+            const enemyMgr = this.game.getModule('enemies');
+            if (enemyMgr) {
+                for (const e of enemyMgr.enemies) {
+                    const dx = e.x - this.pos.x;
+                    const dy = e.y - this.pos.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    // Pokud je nepřítel v úzkém pásmu čela vlny (tolerance např. 30px)
+                    if (Math.abs(dist - this.shockwaveRadius) < 30) {
+                        const pushForce = 0.5; // Síla "odfouknutí"
+                        e.x += (dx / dist) * pushForce * deltaTime;
+                        e.y += (dy / dist) * pushForce * deltaTime;
+                    }
+                }
+            }
+        }
     }
 
     draw(ctx) {
@@ -124,6 +160,21 @@ export default class Player {
         } else {
             ctx.fillStyle = '#00ffcc';
             ctx.fillRect(screenX, screenY, this.size, this.size);
+        }
+
+        if (this.shockwaveActive) {
+            const progress = this.shockwaveTimer / this.shockwaveDuration;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(this.game.center.x, this.game.center.y, this.shockwaveRadius, 0, Math.PI * 2);
+            
+            // Čím dál vlna je, tím je průhlednější
+            ctx.strokeStyle = `rgba(0, 255, 204, ${1 - progress})`;
+            ctx.lineWidth = 15 * (1 - progress); // Vlna se postupně ztenčuje
+            ctx.shadowBlur = 25;
+            ctx.shadowColor = '#00ffcc';
+            ctx.stroke();
+            ctx.restore();
         }
     }
 }
