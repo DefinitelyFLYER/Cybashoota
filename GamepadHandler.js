@@ -1,35 +1,22 @@
-/**
- * GamepadHandler.js - Podpora pro Xbox a DualSense
- */
 export default class GamepadHandler {
     constructor() {
         this.gamepadIndex = null;
-        this.axes = [0, 0, 0, 0]; // [LX, LY, RX, RY]
-        this.buttons = {};
+        this.axes = [0, 0, 0, 0];
+        this.buttons = { RT: false };
         
         window.addEventListener("gamepadconnected", (e) => {
-            console.log("Gamepad připojen:", e.gamepad.id);
             this.gamepadIndex = e.gamepad.index;
-        });
-
-        window.addEventListener("gamepaddisconnected", () => {
-            console.log("Gamepad odpojen");
-            this.gamepadIndex = null;
         });
     }
 
     update() {
         if (this.gamepadIndex === null) return;
-
+        // Získání aktuálního stavu z prohlížeče
         const gp = navigator.getGamepads()[this.gamepadIndex];
         if (!gp) return;
 
-        // Páčky (Xbox i DualSense mají obvykle indexy 0,1 a 2,3)
-        // Deadzone 0.1 zabrání samovolnému pohybu při opotřebených páčkách
-        this.axes = gp.axes.map(a => Math.abs(a) < 0.1 ? 0 : a);
-
-        // Tlačítka (RT/R2 je obvykle index 7)
+        this.axes = [gp.axes[0], gp.axes[1], gp.axes[2], gp.axes[3]];
+        // RT je většinou index 7 u Xbox i DualSense
         this.buttons.RT = gp.buttons[7].pressed;
-        this.buttons.A = gp.buttons[0].pressed; // Pro budoucí dash
     }
 }
