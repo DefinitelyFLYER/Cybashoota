@@ -65,15 +65,44 @@ export default class EnemyManager {
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
-            const dx = player.pos.x - e.x;
-            const dy = player.pos.y - e.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            // Dynamická rychlost (vychází ze základní rychlosti daného typu)
-            let currentSpeed = (dist > screenThreshold) ? catchUpSpeed : e.speed;
+            
+            // --- 1. SEPARACE (Aby nebyli v sobě) ---
+            let separationX = 0;
+            let separationY = 0;
 
-            if (dist > 1) {
-                e.x += (dx / dist) * currentSpeed * deltaTime;
-                e.y += (dy / dist) * currentSpeed * deltaTime;
+            for (let j = 0; j < this.enemies.length; j++) {
+                if (i === j) continue; // Nepočítáme kolizi sám se sebou
+                
+                const other = this.enemies[j];
+                const dx = e.x - other.x;
+                const dy = e.y - other.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // Minimální vzdálenost, kterou mezi sebou chtějí mít (podle jejich velikosti)
+                const minDist = (e.size + other.size) * 0.8; 
+
+                if (dist < minDist && dist > 0) {
+                    // Odpudivá síla: čím blíž jsou, tím víc se odtlačují
+                    const force = (minDist - dist) / minDist;
+                    separationX += (dx / dist) * force * 0.1; // 0.1 je citlivost odtlačení
+                    separationY += (dy / dist) * force * 0.1;
+                }
+            }
+
+            // --- 2. POHYB K HRÁČI ---
+            const dxP = player.pos.x - e.x;
+            const dyP = player.pos.y - e.y;
+            const distP = Math.sqrt(dxP * dxP + dyP * dyP);
+            
+            let currentSpeed = (distP > screenThreshold) ? catchUpSpeed : e.speed;
+
+            if (distP > 1) {
+                // Kombinujeme směr k hráči + separační sílu
+                const moveX = (dxP / distP) * currentSpeed + separationX;
+                const moveY = (dyP / distP) * currentSpeed + separationY;
+                
+                e.x += moveX * deltaTime;
+                e.y += moveY * deltaTime;
             }
 
             // Kolize s projektily
