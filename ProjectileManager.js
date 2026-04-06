@@ -1,11 +1,11 @@
 /**
- * ProjectileManager.js - Opravená verze se všemi fixy a podporou gamepadu
+ * ProjectileManager.js - Obnovená stabilní verze
  */
 export default class ProjectileManager {
     constructor() {
         this.projectiles = [];
         this.lastFireTime = 0;
-        this.fireRate = 150; // Limit střelby (ms)
+        this.fireRate = 400; // VRÁCENO: 2.5 střely za vteřinu (1000/2.5 = 400)
         
         this.mouseX = 0;
         this.mouseY = 0;
@@ -25,70 +25,43 @@ export default class ProjectileManager {
 
     update(deltaTime) {
         const player = this.game.getModule('player');
-        const gamepad = this.game.getModule('gamepad');
         if (!player) return;
 
-        // VŽDY používáme střed hráče (Fix z kroku 51)
-        const center = player.getCenter();
-        let targetAngle = null;
-
-        // 1. Logika Gamepadu
-        if (gamepad && gamepad.gamepadIndex !== null) {
-            // Update gamepadu musí proběhnout (pokud ho nemáš v Core.js, zavoláme ho zde)
-            gamepad.update(); 
-
-            const rx = gamepad.axes[2]; 
-            const ry = gamepad.axes[3];
-
-            // Střelba pravou páčkou (Twin-stick)
-            if (Math.abs(rx) > 0.4 || Math.abs(ry) > 0.4) {
-                targetAngle = Math.atan2(ry, rx);
-            } 
-            // Střelba pomocí RT (R2)
-            else if (gamepad.buttons.RT) {
-                // Pokud jen držíme RT, střílíme ve směru pohybu nebo k myši
+        // STŘELBA MYŠÍ
+        if (this.isMouseDown) {
+            const now = Date.now();
+            if (now - this.lastFireTime >= this.fireRate) {
+                const center = player.getCenter();
+                
+                // Převod myši do souřadnic světa
                 const worldMouseX = this.mouseX + player.pos.x - this.game.center.x;
                 const worldMouseY = this.mouseY + player.pos.y - this.game.center.y;
-                targetAngle = Math.atan2(worldMouseY - center.y, worldMouseX - center.x);
+
+                const angle = Math.atan2(worldMouseY - center.y, worldMouseX - center.x);
+                
+                this.projectiles.push({
+                    x: center.x,
+                    y: center.y,
+                    vx: Math.cos(angle) * 0.8,
+                    vy: Math.sin(angle) * 0.8,
+                    life: 2000 
+                });
+
+                this.lastFireTime = now;
             }
         }
 
-        // 2. Logika Myši (pokud gamepad nemíří)
-        if (targetAngle === null && this.isMouseDown) {
-            const worldMouseX = this.mouseX + player.pos.x - this.game.center.x;
-            const worldMouseY = this.mouseY + player.pos.y - this.game.center.y;
-            targetAngle = Math.atan2(worldMouseY - center.y, worldMouseX - center.x);
-        }
-
-        // 3. Výstřel s limitem fireRate
-        if (targetAngle !== null) {
-            this._fire(center.x, center.y, targetAngle);
-        }
-
-        // 4. Update pozic projektilů
+        // POHYB PROJEKTILŮ
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.x += p.vx * deltaTime;
             p.y += p.vy * deltaTime;
             p.life -= deltaTime;
 
-            if (p.life <= 0) this.projectiles.splice(i, 1);
+            if (p.life <= 0) {
+                this.projectiles.splice(i, 1);
+            }
         }
-    }
-
-    _fire(x, y, angle) {
-        const now = Date.now();
-        if (now - this.lastFireTime < this.fireRate) return;
-
-        this.projectiles.push({
-            x: x,
-            y: y,
-            vx: Math.cos(angle) * 0.8, // Rychlost střely
-            vy: Math.sin(angle) * 0.8,
-            life: 2000
-        });
-
-        this.lastFireTime = now;
     }
 
     draw(ctx) {
@@ -96,13 +69,12 @@ export default class ProjectileManager {
         if (!player) return;
 
         ctx.save();
-        // VRÁCENÁ BARVA: Neonová azurová/zelená (jako mřížka)
-        ctx.fillStyle = '#00ffcc'; 
+        ctx.fillStyle = '#00ffcc'; // VRÁCENO: Neonová azurová
         ctx.shadowBlur = 15;
         ctx.shadowColor = '#00ffcc';
 
         for (const p of this.projectiles) {
-            // Převod ze světa na obrazovku (Fix z kroku 51)
+            // Správné vykreslení relativně k hráči (střed obrazovky)
             const screenX = p.x - player.pos.x + this.game.center.x;
             const screenY = p.y - player.pos.y + this.game.center.y;
 
