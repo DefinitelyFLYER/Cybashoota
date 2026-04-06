@@ -37,36 +37,44 @@ export default class Player {
 
     update(deltaTime) {
         const input = this.game.getModule('input');
-        const enemyMgr = this.game.getModule('enemies');
-        
         if (!input) return;
 
-        // 1. POHYB (wasd/šipky) - ten zůstává stejný, hýbeme "rohem", to nevadí
-        if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) this.pos.y -= this.speed * deltaTime;
-        if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) this.pos.y += this.speed * deltaTime;
-        if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) this.pos.x -= this.speed * deltaTime;
-        if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) this.pos.x += this.speed * deltaTime;
+        let moveX = 0;
+        let moveY = 0;
 
-        // --- SNÍŽENÍ NESMRTELNOSTI ---
+        // 1. SBĚR VSTUPU
+        if (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp')) moveY -= 1;
+        if (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown')) moveY += 1;
+        if (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft')) moveX -= 1;
+        if (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight')) moveX += 1;
+
+        // 2. NORMALIZACE
+        if (moveX !== 0 || moveY !== 0) {
+            // Vypočítáme délku vektoru: sqrt(x^2 + y^2)
+            const length = Math.sqrt(moveX * moveX + moveY * moveY);
+            
+            // Vydělíme komponenty délkou, aby výsledná délka byla 1
+            // (U přímého směru to bude 1/1=1, u diagonály 1/1.41=0.707)
+            moveX /= length;
+            moveY /= length;
+
+            // 3. APLIKACE POHYBU
+            this.pos.x += moveX * this.speed * deltaTime;
+            this.pos.y += moveY * this.speed * deltaTime;
+        }
+
+        // --- ZBYTEK KÓDU (Invis frames, Kolize) ---
         if (this.invulnerable > 0) {
             this.invulnerable -= deltaTime;
         }
 
-        // 2. DETEKCE KOLIZE - Tady je ta změna!
+        const enemyMgr = this.game.getModule('enemies');
         if (enemyMgr && enemyMgr.enemies && this.hp > 0) {
-            // ZÍSKÁME STŘED HRÁČE
-            const center = this.getCenter(); 
-
             for (const enemy of enemyMgr.enemies) {
-                // Počítáme vzdálenost od STŘEDU ke STŘEDU
-                // (Nepřítel už svůj střed má v e.x a e.y z EnemyManageru)
-                const dx = center.x - enemy.x;
-                const dy = center.y - enemy.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                // Pokud je nepřítel blíž než 40 pixelů k našemu STŘEDU, dostaneme dmg
-                // (40px je cca polovina tvého 64px spritu + rezerva)
-                if (distance < 35) {
+                const dx = this.pos.x - enemy.x;
+                const dy = this.pos.y - enemy.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 35) { 
                     this.takeDamage();
                 }
             }
