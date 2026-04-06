@@ -27,12 +27,21 @@ export default class ExperienceManager {
     }
 
     update(deltaTime) {
-        // Zatím jen animujeme pulzování orbů
-        for (let orb of this.orbs) {
-            orb.pulse += deltaTime * 0.005;
-        }
+        const player = this.game.getModule('player');
+        if (!player) return;
 
-        // Tady později přibude logika magnetu k hráči
+        for (let i = this.orbs.length - 1; i >= 0; i--) {
+            const orb = this.orbs[i];
+            orb.pulse += deltaTime * 0.005;
+
+            // --- TADY BUDE LOGIKA MAGNETU A SBĚRU ---
+            // Zatím jen placeholder:
+            // const dist = výpočet vzdálenosti k hráči...
+            // if (dist < 20) { 
+            //    player.addXp(orb.value); 
+            //    this.orbs.splice(i, 1); 
+            // }
+        }
     }
 
     draw(ctx) {

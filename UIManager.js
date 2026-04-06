@@ -20,6 +20,41 @@ export default class UIManager {
         }
     }
 
+    _drawXpBar(ctx) {
+        const player = this.game.getModule('player');
+        if (!player) return;
+
+        const w = this.game.canvas.width;
+        const barHeight = 6; // Výška XP lišty
+        
+        // 1. Pozadí lišty (tmavý neonový podklad)
+        ctx.fillStyle = 'rgba(0, 20, 20, 0.8)';
+        ctx.fillRect(0, 0, w, barHeight);
+
+        // 2. Výpočet šířky podle postupu k dalšímu levelu
+        const progress = Math.min(player.xp / player.xpNextLevel, 1);
+        const barWidth = w * progress;
+
+        if (barWidth > 0) {
+            ctx.save();
+            ctx.fillStyle = '#00ffcc';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00ffcc';
+            ctx.fillRect(0, 0, barWidth, barHeight);
+            ctx.restore();
+        }
+
+        // 3. Text s aktuálním levelem pod lištou
+        ctx.save();
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.textAlign = 'right';
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = '#00ffcc';
+        ctx.fillText(`LVL ${player.level}`, w - 20, barHeight + 20);
+        ctx.restore();
+    }
+
     update(deltaTime) {
         // Zde můžeme řešit animace textu, pokud budeme chtít
     }
@@ -102,5 +137,7 @@ export default class UIManager {
 
                 ctx.restore();
         }
+
+        this._drawXpBar(ctx);
     }
 }

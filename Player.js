@@ -9,11 +9,15 @@ export default class Player {
         this.hp = 1;
         this.maxHp = 1;
         this.invulnerable = 0;
+        this.level = 1;
+        this.xp = 0;
+        this.xpNextLevel = 100; // Základní XP potřebné pro level 2
         
         this.sprite = new Image();
         this.sprite.src = 'player.png';
         this.isLoaded = false;
         this.sprite.onload = () => { this.isLoaded = true; };
+        
     }
 
     getCenter() {
@@ -33,6 +37,26 @@ export default class Player {
         if (this.hp <= 0) {
             this.game.gameOver();
         }
+    }
+
+    addXp(amount) {
+        this.xp += amount;
+        
+        // Check na level up
+        if (this.xp >= this.xpNextLevel) {
+            this.levelUp();
+        }
+    }
+
+    levelUp() {
+        this.xp -= this.xpNextLevel;
+        this.level++;
+        
+        // Zvýšíme náročnost pro další level (např. o 20 %)
+        this.xpNextLevel = Math.floor(this.xpNextLevel * 1.2 + 50);
+        
+        console.log(`LEVEL UP! Now at level ${this.level}`);
+        // Tady později vyvoláme UI pro výběr upgradů
     }
 
     update(deltaTime) {
