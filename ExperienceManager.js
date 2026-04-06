@@ -30,17 +30,33 @@ export default class ExperienceManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
+        const center = player.getCenter();
+        const magnetRange = 150; // Vzdálenost, kdy orb začne reagovat
+        const pickupRange = 25;  // Vzdálenost pro samotný sběr
+        const magnetSpeed = 0.5; // Síla přitažlivosti
+
         for (let i = this.orbs.length - 1; i >= 0; i--) {
             const orb = this.orbs[i];
             orb.pulse += deltaTime * 0.005;
 
-            // --- TADY BUDE LOGIKA MAGNETU A SBĚRU ---
-            // Zatím jen placeholder:
-            // const dist = výpočet vzdálenosti k hráči...
-            // if (dist < 20) { 
-            //    player.addXp(orb.value); 
-            //    this.orbs.splice(i, 1); 
-            // }
+            // Výpočet vektoru k hráči
+            const dx = center.x - orb.x;
+            const dy = center.y - orb.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // 1. Logika magnetismu
+            if (dist < magnetRange) {
+                // Orb zrychluje směrem k hráči
+                orb.x += (dx / dist) * magnetSpeed * deltaTime;
+                orb.y += (dy / dist) * magnetSpeed * deltaTime;
+            }
+
+            // 2. Logika sběru
+            if (dist < pickupRange) {
+                // Přidáme XP hráči a odstraníme orb
+                player.addXp(orb.value);
+                this.orbs.splice(i, 1);
+            }
         }
     }
 
