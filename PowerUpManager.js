@@ -3,12 +3,33 @@ import { POWER_UPS } from './PowerUpData.js';
 
 export default class PowerUpManager {
     constructor() {
-        this.drops = [];          // Předměty na zemi
-        this.activeEffects = [];  // To, co právě teď boostuje hráče
+        this.drops = [];
+        this.activeEffects = [];
+        this.sprites = new Map(); // Cache pro obrázky
     }
 
     init(game) {
         this.game = game;
+        this._preloadSprites();
+    }
+
+    _preloadSprites() {
+        for (const key in POWER_UPS) {
+            const config = POWER_UPS[key];
+            if (config.sprite) {
+                const img = new Image();
+                img.src = config.sprite;
+                
+                img.isReady = false; 
+                img.onload = () => { img.isReady = true; };
+                img.onerror = () => { 
+                    console.warn(`Chyba při načítání spritu pro: ${config.id}`);
+                    img.isError = true; 
+                };
+                
+                this.sprites.set(config.id, img);
+            }
+        }
     }
 
     // Volá se z EnemyManageru, když někdo umře
@@ -99,19 +120,40 @@ export default class PowerUpManager {
 
     draw(ctx) {
         const player = this.game.getModule('player');
+        if (!player) return;
+
         for (const d of this.drops) {
             const drawX = d.x - player.pos.x + this.game.center.x;
-            const drawY = d.y - player.pos.y + this.game.center.y + Math.sin(d.bobbing) * 5;
+            const drawY = d.y - player.pos.y + this.game.center.y + Math.sin(d.bobbing) * 8;
 
-            ctx.fillStyle = d.color;
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = d.color;
+            ctx.save();
             
-            // Nakreslíme kosočtverec nebo ikonu
-            ctx.beginPath();
-            ctx.arc(drawX, drawY, 10, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
+            // Efekt záře pod power-upem
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = d.color;
+
+            const img = this.sprites.get(d.id);
+
+            // KONTROLA: Máme obrázek? Je načtený? Nemá chybu?
+            if (img && img.isReady && !img.isError) {
+                // Vykreslení SPRITU (pokud je vše OK)
+                const size = 32;
+                ctx.drawImage(img, drawX - size/2, drawY - size/2, size, size);
+            } else {
+                // FALLBACK: Vykreslení ORBU (pokud sprite chybí nebo se ještě nenačetl)
+                ctx.fillStyle = d.color;
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, 10, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Skleněný odlesk
+                ctx.fillStyle = "rgba(255,255,255,0.5)";
+                ctx.beginPath();
+                ctx.arc(drawX - 3, drawY - 3, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
         }
     }
 }
