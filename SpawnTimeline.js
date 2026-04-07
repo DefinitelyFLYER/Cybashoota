@@ -43,11 +43,11 @@ export const SPAWN_TIMELINE = [
         xpDrop: { value: 30, color: '#bc00ff' }
     },
     {
-        name: "It's suspiciously calm, isn't it?",
+        name: "Triangles... everywhere.",
         start: 120, end: 180,
         types: ["TRIANGLE"],
-        rate: 1000,
-        hpMultiplier: 1, speedMultiplier: 1,
+        rate: 200,
+        hpMultiplier: 1, speedMultiplier: 0.8,
         xpDrop: { value: 10, color: '#6e6cff' } 
     },
     {
@@ -70,7 +70,7 @@ export const SPAWN_TIMELINE = [
         name: "The real Elite arrives..",
         start: 220, end: 300,
         types: ["SQUARE", "RHOMBUS", "HEXAGON"],
-        rate: 8000,
+        rate: 2000,
         hpMultiplier: 2.2, speedMultiplier: 1.2,
         xpDrop: { value: 50, color: '#ffffff' }
     }

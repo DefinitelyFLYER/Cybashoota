@@ -12,31 +12,53 @@ export default class UpgradeManager {
         this.game = game;
     }
 
-    // Hlavní funkce pro výběr karet k zobrazení
     getAvailableUpgrades(count = 3) {
         const player = this.game.getModule('player');
-        
-        // 1. Filtrování podle podmínek (requirements, maxStack, unique)
+        const luck = player.stats.luck || 1.0; // Základní luck je 1.0
+
+        // 1. Filtrování validních karet (requirements, maxStack, unique)
         let pool = UPGRADES.filter(upgrade => {
-            // Kontrola stackování
             const currentCount = this.inventory[upgrade.id] || 0;
             if (upgrade.unique && currentCount > 0) return false;
             if (upgrade.maxStack && currentCount >= upgrade.maxStack) return false;
-
-            // Kontrola prerekvizit (pokud existují)
             if (upgrade.requirements && !upgrade.requirements(player)) return false;
-
             return true;
         });
 
-        // 2. Výběr náhodných karet (pro teď jednoduchý random, později zapojíme Luck a Weight)
         const selected = [];
-        const poolCopy = [...pool];
-
+        
+        // Provádíme výběr X-krát (podle počtu karet, co chceme ukázat)
         for (let i = 0; i < count; i++) {
-            if (poolCopy.length === 0) break;
-            const index = Math.floor(Math.random() * poolCopy.length);
-            selected.push(poolCopy.splice(index, 1)[0]);
+            if (pool.length === 0) break;
+
+            // 2. Výpočet dynamických vah na základě Lucku
+            let totalWeight = 0;
+            const weightedPool = pool.map(upgrade => {
+                let weight = upgrade.weight || 100;
+
+                // MATEMATIKA ŠTĚSTÍ:
+                // Rare (váha 40-50) se s luckem 2.0 změní na 80-100
+                // Common (váha 100) zůstane víceméně stejná
+                if (upgrade.rarity === 'Rare') weight *= luck;
+                if (upgrade.rarity === 'Epic') weight *= (luck * 1.5);
+                if (upgrade.rarity === 'Legendary') weight *= (luck * 2.5);
+
+                totalWeight += weight;
+                return { upgrade, weight };
+            });
+
+            // 3. Samotný vážený výběr (Random Pick)
+            let random = Math.random() * totalWeight;
+            for (let j = 0; j < weightedPool.length; j++) {
+                random -= weightedPool[j].weight;
+                if (random <= 0) {
+                    const picked = weightedPool[j].upgrade;
+                    selected.push(picked);
+                    // Odstraníme z poolu, aby se stejná karta neobjevila v jedné nabídce 2x
+                    pool = pool.filter(u => u.id !== picked.id);
+                    break;
+                }
+            }
         }
 
         return selected;
