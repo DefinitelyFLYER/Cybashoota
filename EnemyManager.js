@@ -136,27 +136,22 @@ export default class EnemyManager {
                 if (player.invulnerable <= 0) {
                     player.takeDamage(1);
                     
-                    // SPECIÁLNÍ MECHANIKA: Pokud je to křehký enemy, po zásahu hráče se zničí
-                    if (e.maxHp <= 1) {
-                        e.currentHp = 0; // To zajistí, že ho EnemyManager v příštím kroku smaže a vyvolá částice
+                    // Díváme se na vlastnost isSuicidal definovanou v EnemyTypes
+                    if (e.isSuicidal) {
+                        e.currentHp = 0; // Sebevrah se zničí (spustí to tvůj efekt částic a drop XP)
                     } else {
-                        // 2. KNOCKBACK PRO NEPŘÍTELE (Směrem od hráče)
-                        const enemyKnockback = 80; // Trochu jsme přitvrdili
-                        
+                        // Klasický knockback pro ty, co mají přežít
+                        const enemyKnockback = 80;
                         if (distToPlayer > 0) {
                             const dirX = (e.x - player.pos.x) / distToPlayer;
                             const dirY = (e.y - player.pos.y) / distToPlayer;
-
                             e.x += dirX * enemyKnockback;
                             e.y += dirY * enemyKnockback;
-                            
-                            // Zmrazíme mu turbo, aby se hned nevrátil
                             e.turboCooldown = 2000; 
                         }
                     }
                 }
             }
-
 
 
             if (distToPlayer < collisionDist) {
@@ -255,20 +250,34 @@ export default class EnemyManager {
 
     _drawShape(ctx, x, y, e) {
         ctx.beginPath();
+        
         if (e.type === 'TRIANGLE') {
-            ctx.moveTo(x, y - e.size/2);
-            ctx.lineTo(x + e.size/2, y + e.size/2);
-            ctx.lineTo(x - e.size/2, y + e.size/2);
-        } else if (e.type === 'SQUARE') {
-            ctx.rect(x - e.size/2, y - e.size/2, e.size, e.size);
-        } else if (e.type === 'HEXAGON') {
+            ctx.moveTo(x, y - e.size / 2);
+            ctx.lineTo(x + e.size / 2, y + e.size / 2);
+            ctx.lineTo(x - e.size / 2, y + e.size / 2);
+        } 
+        else if (e.type === 'SQUARE') {
+            ctx.rect(x - e.size / 2, y - e.size / 2, e.size, e.size);
+        } 
+        else if (e.type === 'HEXAGON') {
             for (let i = 0; i < 6; i++) {
                 const angle = (Math.PI / 3) * i;
                 const px = x + (e.size / 2) * Math.cos(angle);
                 const py = y + (e.size / 2) * Math.sin(angle);
                 i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
             }
+        } 
+        // --- NOVÉ TVARY ---
+        else if (e.type === 'CIRCLE') {
+            ctx.arc(x, y, e.size / 2, 0, Math.PI * 2);
+        } 
+        else if (e.type === 'RHOMBUS') {
+            ctx.moveTo(x, y - e.size / 2);
+            ctx.lineTo(x + e.size / 2, y);
+            ctx.lineTo(x, y + e.size / 2);
+            ctx.lineTo(x - e.size / 2, y);
         }
+        
         ctx.closePath();
         ctx.fill();
         ctx.stroke();

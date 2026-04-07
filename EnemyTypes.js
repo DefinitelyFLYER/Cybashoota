@@ -7,7 +7,8 @@ export const ENEMY_TYPES = {
         size: 30,
         color: '#ff0000',
         scoreValue: 10,
-        renderType: 'shape'
+        renderType: 'shape',
+        isSuicidal: false
     },
 
     // --- RYCHLÝ, ALE KŘEHKÝ (Skaut) ---
@@ -18,7 +19,8 @@ export const ENEMY_TYPES = {
         size: 25,
         color: '#ffcc00',
         scoreValue: 15,
-        renderType: 'shape'
+        renderType: 'shape',
+        isSuicidal: true
     },
 
     // --- TANK (Pomalý obr) ---
@@ -29,7 +31,8 @@ export const ENEMY_TYPES = {
         size: 50, // Větší cíl
         color: '#3799f4',
         scoreValue: 50,
-        renderType: 'shape'
+        renderType: 'shape',
+        isSuicidal: false
     },
 
     // --- NOVINKA: SEBEVRAH (Seeker) ---
@@ -42,7 +45,8 @@ export const ENEMY_TYPES = {
         size: 15,
         color: '#00ff22',
         scoreValue: 20,
-        renderType: 'shape'
+        renderType: 'shape',
+        isSuicidal: true
     },
 
     // --- NOVINKA: ELITNÍ HUNTER ---
@@ -54,6 +58,7 @@ export const ENEMY_TYPES = {
         size: 40,
         color: '#ffffff',
         scoreValue: 100,
-        renderType: 'shape'
+        renderType: 'shape',
+        isSuicidal: false
     }
 };
