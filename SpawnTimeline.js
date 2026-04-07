@@ -1,45 +1,53 @@
 /**
- * SpawnTimeline.js - Revidovaná verze pro lepší gradaci a balanc
+ * SpawnTimeline.js
  */
 export const SPAWN_TIMELINE = [
     {
-        name: "Průzkumná fáze",
-        start: 0, end: 25,
-        types: ["TRIANGLE"], // Jen základní pomalý enemy na rozehřátí
+        name: "Warming up",
+        start: 0, end: 45,
+        types: ["TRIANGLE"],
         rate: 1800,
         hpMultiplier: 1, speedMultiplier: 1,
-        xpDrop: { value: 10, color: '#00ffcc' } 
+        xpDrop: { value: 10, color: '#6e6cff' } 
     },
     {
-        name: "Rychlý výpad",
-        start: 25, end: 50,
-        types: ["TRIANGLE", "SQUARE"], // Přidáváme "skleněná děla" - jsou rychlí, ale padnou na ránu
-        rate: 1200,
-        hpMultiplier: 1, speedMultiplier: 1, // Držíme rychlost na base hodnotách ze souboru
-        xpDrop: { value: 15, color: '#00ffcc' }
+        name: "Are they suicidal?",
+        start: 45, end: 60,
+        types: ["SQUARE"],
+        rate: 2000,
+        hpMultiplier: 1, speedMultiplier: 1,
+        xpDrop: { value: 5, color: '#c7fff4' }
     },
     {
-        name: "Příjezd těžké techniky",
-        start: 50, end: 90,
-        types: ["TRIANGLE", "HEXAGON"], // První pomalí tanci, hráč už by měl mít nějaký Damage upgrade
+        name: "The Tanks are coming",
+        start: 60, end: 70,
+        types: ["TRIANGLE", "HEXAGON"],
         rate: 1000,
-        hpMultiplier: 1.1, speedMultiplier: 0.9, // Hexagonům rychlost spíš lehce srážíme
+        hpMultiplier: 1.1, speedMultiplier: 0.9,
         xpDrop: { value: 30, color: '#bc00ff' }
     },
     {
-        name: "Chaos v datech",
-        start: 90, end: 140,
-        types: ["SQUARE", "CIRCLE"], // Kombinace velmi rychlých a sebevražedných malých koulí
-        rate: 700,
-        hpMultiplier: 1.2, speedMultiplier: 1.1,
+        name: "A suspicious silence",
+        start: 70, end: 100,
+        types: ["TRIANGLE"],
+        rate: 1500,
+        hpMultiplier: 1, speedMultiplier: 1,
+        xpDrop: { value: 10, color: '#6e6cff' } 
+    },
+    {
+        name: "Data Breach: Chaos outbreak",
+        start: 100, end: 120,
+        types: ["SQUARE", "CIRCLE"],
+        rate: 1000,
+        hpMultiplier: 1.2, speedMultiplier: 1.2,
         xpDrop: { value: 20, color: '#ff3300' }
     },
     {
-        name: "Elitní komando",
-        start: 140, end: 200,
-        types: ["RHOMBUS", "HEXAGON"], // Nejtěžší fáze s elitními lovci a tanky
-        rate: 600,
-        hpMultiplier: 1.5, speedMultiplier: 1.1,
+        name: "The Elite arrives",
+        start: 120, end: 180,
+        types: ["RHOMBUS", "HEXAGON"],
+        rate: 100,
+        hpMultiplier: 2, speedMultiplier: 1.1,
         xpDrop: { value: 50, color: '#ffffff' }
     }
 ];
