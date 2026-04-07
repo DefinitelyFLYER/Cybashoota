@@ -195,6 +195,8 @@ export default class EnemyManager {
                 const particles = this.game.getModule('particles');
                 const xpMgr = this.game.getModule('experience');
                 const director = this.game.getModule('director');
+                const powerUpMgr = this.game.getModule('powerups');
+
 
                 if (ui) ui.addScore(e.scoreValue);
                 if (particles) particles.emit(e.x, e.y, e.color || '#ffffff', 15);
@@ -204,6 +206,8 @@ export default class EnemyManager {
                     const drop = director.currentPhase.xpDrop;
                     xpMgr.spawnOrb(e.x, e.y, drop.value, drop.color);
                 }
+
+                if (powerUpMgr) powerUpMgr.trySpawn(e.x, e.y);
 
                 this.enemies.splice(i, 1);
             }
