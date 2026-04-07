@@ -67,10 +67,10 @@ export const SPAWN_TIMELINE = [
         xpDrop: { value: 50, color: '#ffffff' }
     },
     {
-        name: "The Elite arrives...",
+        name: "The real Elite arrives..",
         start: 220, end: 300,
-        types: ["RHOMBUS", "HEXAGON"],
-        rate: 40000,
+        types: ["SQUARE", "RHOMBUS", "HEXAGON"],
+        rate: 8000,
         hpMultiplier: 2.2, speedMultiplier: 1.2,
         xpDrop: { value: 50, color: '#ffffff' }
     }
