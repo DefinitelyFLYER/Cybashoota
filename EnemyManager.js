@@ -136,11 +136,9 @@ export default class EnemyManager {
                 if (player.invulnerable <= 0) {
                     player.takeDamage(1);
                     
-                    // Díváme se na vlastnost isSuicidal definovanou v EnemyTypes
                     if (e.isSuicidal) {
-                        e.currentHp = 0; // Sebevrah se zničí (spustí to tvůj efekt částic a drop XP)
+                        e.currentHp = 0; 
                     } else {
-                        // Klasický knockback pro ty, co mají přežít
                         const enemyKnockback = 80;
                         if (distToPlayer > 0) {
                             const dirX = (e.x - player.pos.x) / distToPlayer;
@@ -150,18 +148,6 @@ export default class EnemyManager {
                             e.turboCooldown = 2000; 
                         }
                     }
-                }
-            }
-
-
-            if (distToPlayer < collisionDist) {
-                // Knockback a poškození provedeme JEN pokud hráč není právě "nezranitelný"
-                // To slouží jako přirozený cooldown pro oba efekty.
-                if (player.invulnerable <= 0) {
-                    // 1. Hráč dostane DMG (v metodě takeDamage se mu nastaví invulnerable > 0)
-                    player.takeDamage(1);
-
-
                 }
             }
 
@@ -195,6 +181,8 @@ export default class EnemyManager {
                 const particles = this.game.getModule('particles');
                 const xpMgr = this.game.getModule('experience');
                 const director = this.game.getModule('director');
+                const powerUpMgr = this.game.getModule('powerups');
+
 
                 if (ui) ui.addScore(e.scoreValue);
                 if (particles) particles.emit(e.x, e.y, e.color || '#ffffff', 15);
@@ -204,6 +192,8 @@ export default class EnemyManager {
                     const drop = director.currentPhase.xpDrop;
                     xpMgr.spawnOrb(e.x, e.y, drop.value, drop.color);
                 }
+
+                if (powerUpMgr) powerUpMgr.trySpawn(e.x, e.y);
 
                 this.enemies.splice(i, 1);
             }

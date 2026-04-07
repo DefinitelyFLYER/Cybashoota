@@ -1,5 +1,4 @@
 export const ENEMY_TYPES = {
-    // --- ZÁKLADNÍ PĚŠÁK ---
     TRIANGLE: {
         type: 'TRIANGLE',
         hp: 3,
@@ -10,34 +9,26 @@ export const ENEMY_TYPES = {
         renderType: 'shape',
         isSuicidal: false
     },
-
-    // --- RYCHLÝ, ALE KŘEHKÝ (Skaut) ---
     SQUARE: {
         type: 'SQUARE',
-        hp: 1, // Umře na jednu ránu
-        speed: 0.22, // Velmi rychlý (překonává základní rychlost hráče)
+        hp: 1,
+        speed: 0.22,
         size: 25,
         color: '#ffcc00',
         scoreValue: 15,
         renderType: 'shape',
         isSuicidal: true
     },
-
-    // --- TANK (Pomalý obr) ---
     HEXAGON: {
         type: 'HEXAGON',
-        hp: 15, // Hodně životů
-        speed: 0.05, // Velmi pomalý (nerozhodí ho hned tak něco)
-        size: 50, // Větší cíl
+        hp: 15,
+        speed: 0.05,
+        size: 50,
         color: '#3799f4',
         scoreValue: 50,
         renderType: 'shape',
         isSuicidal: false
     },
-
-    // --- NOVINKA: SEBEVRAH (Seeker) ---
-    // Je velmi malý, středně rychlý, ale má jen 1 HP. 
-    // Ideální pro vytváření tlaku v hordě.
     CIRCLE: {
         type: 'CIRCLE',
         hp: 1,
@@ -48,9 +39,6 @@ export const ENEMY_TYPES = {
         renderType: 'shape',
         isSuicidal: true
     },
-
-    // --- NOVINKA: ELITNÍ HUNTER ---
-    // Má průměrné HP i rychlost, ale je vizuálně výrazný.
     RHOMBUS: {
         type: 'RHOMBUS',
         hp: 8,
