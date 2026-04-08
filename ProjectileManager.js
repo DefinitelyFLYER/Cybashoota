@@ -1,11 +1,8 @@
-/**
- * ProjectileManager.js - Obnovená stabilní verze
- */
 export default class ProjectileManager {
     constructor() {
         this.projectiles = [];
         this.lastFireTime = 0;
-        this.fireRate = 400; // VRÁCENO: 2.5 střely za vteřinu (1000/2.5 = 400)
+        this.fireRate = 400;
         
         this.mouseX = 0;
         this.mouseY = 0;
@@ -27,10 +24,8 @@ export default class ProjectileManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        // STŘELBA MYŠÍ
         if (this.isMouseDown) {
             const now = Date.now();
-            // Používáme fireRate z Player statistik
             if (now - this.lastFireTime >= player.stats.fireRate) {
                 const center = player.getCenter();
                 const worldMouseX = this.mouseX + player.pos.x - this.game.center.x;
@@ -38,10 +33,9 @@ export default class ProjectileManager {
                 const baseAngle = Math.atan2(worldMouseY - center.y, worldMouseX - center.x);
 
                 const count = player.stats.projectileCount;
-                const spread = player.stats.projectileSpread * (Math.PI / 180); // Převod na radiány
+                const spread = player.stats.projectileSpread * (Math.PI / 180);
 
                 for (let i = 0; i < count; i++) {
-                    // Výpočet úhlu pro každou střelu (vycentrovaný rozptyl)
                     let offset = 0;
                     if (count > 1) {
                         offset = (i - (count - 1) / 2) * spread;
@@ -54,15 +48,15 @@ export default class ProjectileManager {
                         vx: Math.cos(finalAngle) * player.stats.bulletSpeed,
                         vy: Math.sin(finalAngle) * player.stats.bulletSpeed,
                         life: 2000,
-                        // Přidáme informaci o kritickém zásahu přímo k projektilu
-                        isCrit: Math.random() < player.stats.critChance
+                        isCrit: Math.random() < player.stats.critChance,
+                        bounces: player.stats.ricochetCount,
+                        lastHitEnemy: null
                     });
                 }
                 this.lastFireTime = now;
             }
         }
 
-        // POHYB PROJEKTILŮ
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.x += p.vx * deltaTime;
@@ -75,17 +69,38 @@ export default class ProjectileManager {
         }
     }
 
+    findNextTarget(projectile, currentEnemy) {
+        const enemyMgr = this.game.getModule('enemies');
+        if (!enemyMgr) return null;
+
+        let closest = null;
+        let minDist = 800;
+
+        for (const enemy of enemyMgr.enemies) {
+            if (enemy === currentEnemy) continue;
+
+            const dx = enemy.x - projectile.x;
+            const dy = enemy.y - projectile.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < minDist) {
+                minDist = dist;
+                closest = enemy;
+            }
+        }
+        return closest;
+    }
+
     draw(ctx) {
         const player = this.game.getModule('player');
         if (!player) return;
 
         ctx.save();
-        ctx.fillStyle = '#00ffcc'; // VRÁCENO: Neonová azurová
+        ctx.fillStyle = '#00ffcc';
         ctx.shadowBlur = 15;
         ctx.shadowColor = '#00ffcc';
 
         for (const p of this.projectiles) {
-            // Správné vykreslení relativně k hráči (střed obrazovky)
             const screenX = p.x - player.pos.x + this.game.center.x;
             const screenY = p.y - player.pos.y + this.game.center.y;
 
