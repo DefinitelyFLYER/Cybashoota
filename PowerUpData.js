@@ -3,6 +3,7 @@ export const POWER_UPS = {
     SPEED_BOOST: {
         id: 'speed_boost',
         name: 'Overdrive',
+        infoText: 'MOVEMENT SPEED INCREASED',
         duration: 5000,
         color: '#00ffcc',
         sprite: 'assets/powerups/speed_boost.png',
@@ -13,6 +14,7 @@ export const POWER_UPS = {
     DAMAGE_BOOST: {
         id: 'damage_boost',
         name: 'Damage Surge',
+        infoText: 'DAMAGE INCREASED',
         duration: 4000,
         color: '#f2ff00',
         sprite: 'assets/powerups/damage.png',
@@ -23,6 +25,7 @@ export const POWER_UPS = {
     HP_SMALL: {
         id: 'hp_small',
         name: 'Repair Kit',
+        infoText: '+1 HEALTH RESTORED',
         color: '#ff0000',
         sprite: 'assets/powerups/hp_small.png',
         onPickup: (game) => {
@@ -35,6 +38,7 @@ export const POWER_UPS = {
     FULL_RECOVERY: {
         id: 'full_recovery',
         name: 'System Restore',
+        infoText: 'FULL HEALTH RESTORED',
         color: '#ff0073',
         sprite: 'assets/powerups/full_recovery.png',
         onPickup: (game) => {
@@ -45,6 +49,7 @@ export const POWER_UPS = {
     TEMP_HP: {
         id: 'temp_hp',
         name: 'Shield Overlay',
+        infoText: 'TEMPORARY HEALTH BOOST',
         color: '#3300ff',
         sprite: 'assets/powerups/temp_hp.png',
         onPickup: (game) => {
@@ -57,6 +62,7 @@ export const POWER_UPS = {
     MAGNET: {
         id: 'magnet',
         name: 'Data Siphon',
+        infoText: 'ENHANCED MAGNETIC FIELD',
         duration: 5000,
         color: '#ff9900',
         sprite: 'assets/powerups/magnet.png',
@@ -67,6 +73,7 @@ export const POWER_UPS = {
     FIRE_RATE_FRENZY: {
         id: 'fire_rate_frenzy',
         name: 'Overclocked Cores',
+        infoText: 'FIRERATE GREATLY INCREASED',
         duration: 8000,
         color: '#77ff00',
         sprite: 'assets/powerups/fire_rate.png',
@@ -82,6 +89,7 @@ export const POWER_UPS = {
     CRIT_OVERLOAD: {
         id: 'crit_overload',
         name: 'Targeting Glitch',
+        infoText: 'CRITICAL HIT CHANCE MAXIMIZED',
         duration: 5000,
         color: '#f2ff00',
         sprite: 'assets/powerups/crit_overload.png',

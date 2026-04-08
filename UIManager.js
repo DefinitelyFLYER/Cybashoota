@@ -2,6 +2,7 @@ export default class UIManager {
     constructor() {
         this.score = 0;
         this.highScore = localStorage.getItem('cyberpunk_highscore') || 0;
+        this.notifications = [];
     }
 
     init(game) {
@@ -13,6 +14,90 @@ export default class UIManager {
         if (this.score > this.highScore) {
             this.highScore = this.score;
             localStorage.setItem('cyberpunk_highscore', this.highScore);
+        }
+    }
+
+    showNotification(text, color) {
+        this.notifications.push({
+            text: text.toUpperCase(),
+            color: color,
+            alpha: 1,
+            y: 0
+        });
+    }
+
+    _drawActiveBuffs(ctx) {
+        const powerUpMgr = this.game.getModule('powerups');
+        if (!powerUpMgr || powerUpMgr.activeEffects.length === 0) return;
+
+        const iconSize = 32;
+        const spacing = 12;
+        const startX = 20;
+        let startY = 120;
+
+        powerUpMgr.activeEffects.forEach((effect, i) => {
+            const rowY = startY + i * (iconSize + spacing);
+            const rowX = startX;
+
+            ctx.save();
+            
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = effect.color;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = effect.color;
+            
+            ctx.strokeRect(rowX, rowY, iconSize, iconSize);
+            ctx.fillRect(rowX, rowY, iconSize, iconSize);
+
+            const img = powerUpMgr.sprites.get(effect.id);
+            if (img && img.isReady) {
+                ctx.drawImage(img, rowX + 2, rowY + 2, iconSize - 4, iconSize - 4);
+            }
+
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(effect.name.toUpperCase(), rowX + iconSize + 10, rowY + 12);
+
+            const barW = 80;
+            const barH = 4;
+            const progress = effect.remaining / effect.duration;
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.fillRect(rowX + iconSize + 10, rowY + 20, barW, barH);
+            
+            ctx.fillStyle = effect.color;
+            ctx.fillRect(rowX + iconSize + 10, rowY + 20, barW * progress, barH);
+
+            ctx.restore();
+        });
+    }
+
+    _drawNotifications(ctx) {
+        const w = this.game.canvas.width;
+        const h = this.game.canvas.height;
+
+        for (let i = this.notifications.length - 1; i >= 0; i--) {
+            const n = this.notifications[i];
+            
+            ctx.save();
+            ctx.globalAlpha = n.alpha;
+            ctx.fillStyle = n.color;
+            ctx.font = 'bold 24px "Courier New"';
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = n.color;
+            
+            ctx.fillText(n.text, w / 2, h / 3 - n.y);
+            ctx.restore();
+
+            // Animace
+            n.y += 1;
+            n.alpha -= 0.005;
+            if (n.alpha <= 0) this.notifications.splice(i, 1);
         }
     }
 
@@ -143,5 +228,7 @@ export default class UIManager {
         }
 
         this._drawXpBar(ctx);
+        this._drawActiveBuffs(ctx);
+        this._drawNotifications(ctx);
     }
 }

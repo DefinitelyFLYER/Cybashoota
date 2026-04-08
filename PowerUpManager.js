@@ -87,7 +87,12 @@ export default class PowerUpManager {
 
     applyEffect(config) {
         const player = this.game.getModule('player');
+        const ui = this.game.getModule('ui');
         
+        if (ui && ui.showNotification && config.infoText) {
+            ui.showNotification(config.infoText, config.color);
+        }
+
         const existing = this.activeEffects.find(e => e.id === config.id);
         if (existing) {
             existing.remaining = config.duration;
@@ -105,6 +110,9 @@ export default class PowerUpManager {
         if (config.duration) {
             this.activeEffects.push({
                 id: config.id,
+                name: config.name,
+                color: config.color,
+                duration: config.duration,
                 remaining: config.duration,
                 modifiers: config.statModifiers,
                 onExpire: config.onExpire
