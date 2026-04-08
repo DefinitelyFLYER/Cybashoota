@@ -38,7 +38,7 @@ export const SPAWN_TIMELINE = [
         name: "The Tanks are coming...",
         start: 70, end: 120,
         types: ["HEXAGON"],
-        rate: 10000,
+        rate: 3000,
         hpMultiplier: 1.5, speedMultiplier: 1,
         xpDrop: { value: 30, color: '#bc00ff' }
     },
@@ -70,8 +70,8 @@ export const SPAWN_TIMELINE = [
         name: "The real Elite arrives..",
         start: 220, end: 300,
         types: ["SQUARE", "RHOMBUS", "HEXAGON"],
-        rate: 2000,
-        hpMultiplier: 2.2, speedMultiplier: 1.2,
+        rate: 1500,
+        hpMultiplier: 2.2, speedMultiplier: 1.5,
         xpDrop: { value: 50, color: '#ffffff' }
     },
     {
@@ -87,7 +87,7 @@ export const SPAWN_TIMELINE = [
         start: 360, end: 600,
         types: ["TRIANGLE", "SQUARE", "CIRCLE", "HEXAGON", "RHOMBUS"],
         rate: 1000,
-        hpMultiplier: 4, speedMultiplier: 1.3,
+        hpMultiplier: 4, speedMultiplier: 2,
         xpDrop: { value: 100, color: '#ffff00' }
     }
 ];

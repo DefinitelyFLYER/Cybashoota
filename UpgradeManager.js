@@ -1,9 +1,8 @@
-// UpgradeManager.js
 import { UPGRADES } from './UpgradeData.js';
 
 export default class UpgradeManager {
     constructor() {
-        this.inventory = {}; // Formát: { 'rapid_fire': 3, 'multishot': 1 }
+        this.inventory = {};
         this.isSelectionActive = false;
         this.currentOptions = [];
     }
@@ -14,9 +13,8 @@ export default class UpgradeManager {
 
     getAvailableUpgrades(count = 3) {
         const player = this.game.getModule('player');
-        const luck = player.stats.luck || 1.0; // Základní luck je 1.0
+        const luck = player.stats.luck || 1.0;
 
-        // 1. Filtrování validních karet (requirements, maxStack, unique)
         let pool = UPGRADES.filter(upgrade => {
             const currentCount = this.inventory[upgrade.id] || 0;
             if (upgrade.unique && currentCount > 0) return false;
@@ -27,18 +25,13 @@ export default class UpgradeManager {
 
         const selected = [];
         
-        // Provádíme výběr X-krát (podle počtu karet, co chceme ukázat)
         for (let i = 0; i < count; i++) {
             if (pool.length === 0) break;
 
-            // 2. Výpočet dynamických vah na základě Lucku
             let totalWeight = 0;
             const weightedPool = pool.map(upgrade => {
                 let weight = upgrade.weight || 100;
 
-                // MATEMATIKA ŠTĚSTÍ:
-                // Rare (váha 40-50) se s luckem 2.0 změní na 80-100
-                // Common (váha 100) zůstane víceméně stejná
                 if (upgrade.rarity === 'Rare') weight *= luck;
                 if (upgrade.rarity === 'Epic') weight *= (luck * 1.5);
                 if (upgrade.rarity === 'Legendary') weight *= (luck * 2.5);
@@ -47,14 +40,12 @@ export default class UpgradeManager {
                 return { upgrade, weight };
             });
 
-            // 3. Samotný vážený výběr (Random Pick)
             let random = Math.random() * totalWeight;
             for (let j = 0; j < weightedPool.length; j++) {
                 random -= weightedPool[j].weight;
                 if (random <= 0) {
                     const picked = weightedPool[j].upgrade;
                     selected.push(picked);
-                    // Odstraníme z poolu, aby se stejná karta neobjevila v jedné nabídce 2x
                     pool = pool.filter(u => u.id !== picked.id);
                     break;
                 }
@@ -64,16 +55,13 @@ export default class UpgradeManager {
         return selected;
     }
 
-    // Aplikace vybrané karty
     applyUpgrade(upgradeId) {
         const player = this.game.getModule('player');
         const upgrade = UPGRADES.find(u => u.id === upgradeId);
 
         if (upgrade) {
-            // Logika zápisu do inventáře
             this.inventory[upgradeId] = (this.inventory[upgradeId] || 0) + 1;
             
-            // Samotná změna statů
             upgrade.onApply(player);
             
             console.log(`Applied upgrade: ${upgrade.name}. Current stack: ${this.inventory[upgradeId]}`);
@@ -83,8 +71,8 @@ export default class UpgradeManager {
     showSelection() {
         this.currentOptions = this.getAvailableUpgrades(3);
         this.isSelectionActive = true;
+        this.reRollBtnBounds = null;
         
-        // Přidáme listener na kliknutí (jednorázově při zobrazení)
         this._clickHandler = (e) => this._handleInput(e);
         window.addEventListener('mousedown', this._clickHandler);
     }
@@ -92,12 +80,23 @@ export default class UpgradeManager {
     _handleInput(e) {
         if (!this.isSelectionActive) return;
 
-        // Přepočet souřadnic myši na canvas
         const rect = this.game.canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        // Kontrola, zda jsme klikli na kartu
+        const player = this.game.getModule('player');
+
+        if (this.reRollBtnBounds && player && player.stats.reRollCount > 0) {
+            const b = this.reRollBtnBounds;
+            if (mouseX >= b.x && mouseX <= b.x + b.w && 
+                mouseY >= b.y && mouseY <= b.y + b.h) {
+                
+                player.stats.reRollCount--;
+                this.currentOptions = this.getAvailableUpgrades(3);
+                return;
+            }
+        }
+
         for (const card of this.cardBounds) {
             if (mouseX >= card.x && mouseX <= card.x + card.w &&
                 mouseY >= card.y && mouseY <= card.y + card.h) {
@@ -112,19 +111,16 @@ export default class UpgradeManager {
     _closeSelection() {
         this.isSelectionActive = false;
         window.removeEventListener('mousedown', this._clickHandler);
-        // Tady případně obnovíme běh hry, pokud ji budeme pauzovat
     }
 
     draw(ctx) {
         if (!this.isSelectionActive) return;
-
         const { width, height } = this.game.canvas;
-
-        // 1. Ztmavení pozadí (Overlay)
+        const player = this.game.getModule('player');
+        
         ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
         ctx.fillRect(0, 0, width, height);
 
-        // 2. Vykreslení karet
         const cardW = 220;
         const cardH = 320;
         const spacing = 40;
@@ -132,16 +128,14 @@ export default class UpgradeManager {
         let startX = (width - totalW) / 2;
         const startY = (height - cardH) / 2;
 
-        this.cardBounds = []; // Uložíme si pozice pro detekci kliknutí
+        this.cardBounds = [];
 
         this.currentOptions.forEach((upgrade, i) => {
             const x = startX + i * (cardW + spacing);
             const y = startY;
 
-            // Uložíme hitboxy
             this.cardBounds.push({ x, y, w: cardW, h: cardH, id: upgrade.id });
 
-            // Tělo karty
             ctx.save();
             ctx.shadowBlur = 20;
             ctx.shadowColor = this._getRarityColor(upgrade.rarity);
@@ -149,11 +143,9 @@ export default class UpgradeManager {
             ctx.strokeStyle = this._getRarityColor(upgrade.rarity);
             ctx.lineWidth = 3;
             
-            // Zaoblený obdélník (zjednodušeně)
             ctx.fillRect(x, y, cardW, cardH);
             ctx.strokeRect(x, y, cardW, cardH);
 
-            // Placeholder pro SPRITE (kostička)
             const spriteSize = 60;
             ctx.fillStyle = '#111';
             ctx.fillRect(x + (cardW - spriteSize) / 2, y + 40, spriteSize, spriteSize);
@@ -161,18 +153,15 @@ export default class UpgradeManager {
             ctx.strokeRect(x + (cardW - spriteSize) / 2, y + 40, spriteSize, spriteSize);
             
             if (upgrade.sprite) {
-                // Tady by byla logika pro ctx.drawImage, pokud sprite existuje
             } else {
-                // Text "NO DATA" do kostičky
                 ctx.fillStyle = '#333';
                 ctx.font = '10px monospace';
                 ctx.textAlign = 'center';
-                ctx.fillText('NO_IMG', x + cardW/2, y + 40 + spriteSize/2 + 4);
+                ctx.fillText('NO_DATA', x + cardW/2, y + 40 + spriteSize/2 + 4);
             }
 
-            // Texty
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 18px Orbitron, sans-serif'; // Nebo monospace
+            ctx.font = 'bold 18px Orbitron, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(upgrade.name.toUpperCase(), x + cardW/2, y + 140);
 
@@ -180,16 +169,38 @@ export default class UpgradeManager {
             ctx.fillStyle = '#aaa';
             this._wrapText(ctx, upgrade.description, x + 20, y + 180, cardW - 40, 16);
 
-            // Rarity Label
             ctx.fillStyle = this._getRarityColor(upgrade.rarity);
             ctx.font = '10px monospace';
             ctx.fillText(upgrade.rarity, x + cardW/2, y + cardH - 20);
 
             ctx.restore();
         });
+        if (player && player.stats.reRollCount > 0) {
+            const btnW = 220;
+            const btnH = 50;
+            const btnX = (width - btnW) / 2;
+            const btnY = startY + cardH + 40;
+
+            this.reRollBtnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+            ctx.save();
+            ctx.fillStyle = '#050505';
+            ctx.strokeStyle = '#ffcc00';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ffcc00';
+            
+            ctx.fillRect(btnX, btnY, btnW, btnH);
+            ctx.strokeRect(btnX, btnY, btnW, btnH);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`RE-ROLL (${player.stats.reRollCount})`, btnX + btnW/2, btnY + 32);
+            ctx.restore();
+        }
     }
 
-    // Pomocná pro barvy rarit
     _getRarityColor(rarity) {
         switch(rarity) {
             case 'Common': return '#00ffcc';
@@ -200,7 +211,6 @@ export default class UpgradeManager {
         }
     }
 
-    // Pomocná pro zalomení textu na kartě
     _wrapText(ctx, text, x, y, maxWidth, lineHeight) {
         const words = text.split(' ');
         let line = '';

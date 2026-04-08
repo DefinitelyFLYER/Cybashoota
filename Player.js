@@ -27,7 +27,8 @@ export default class Player {
             magnetRange: 150, // in in-game units(not pixels)
             penetration: 0,
             ricochetCount: 0,
-            luck: 1.0
+            luck: 1.0,
+            reRollCount: 0
         };
         
         this.sprite = new Image();
