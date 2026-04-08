@@ -118,8 +118,12 @@ export default class UpgradeManager {
         const { width, height } = this.game.canvas;
         const player = this.game.getModule('player');
         
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
         ctx.fillRect(0, 0, width, height);
+
+        if (player) {
+            this._drawStatsInfobox(ctx, 40, height / 2 - 150, player);
+        }
 
         const cardW = 220;
         const cardH = 320;
@@ -199,6 +203,59 @@ export default class UpgradeManager {
             ctx.fillText(`RE-ROLL (${player.stats.reRollCount})`, btnX + btnW/2, btnY + 32);
             ctx.restore();
         }
+    }
+
+    _drawStatsInfobox(ctx, x, y, player) {
+        const stats = player.stats;
+        const rowH = 22;
+        const panelW = 220;
+        const panelH = 400;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 40, 40, 0.4)';
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 10, y - 40, panelW, panelH);
+        ctx.fillRect(x - 10, y - 40, panelW, panelH);
+
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = 'bold 16px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText("STATUS", x, y - 15);
+        
+        ctx.font = '12px monospace';
+        ctx.fillStyle = '#aaa';
+        
+        const displayStats = [
+            { label: "MAX HP", val: stats.maxHp },
+            { label: "DEFENSE", val: stats.defense },
+            { label: "DODGE CHANCE", val: (stats.dodgeChance * 100).toFixed(0) + "%" },
+            { label: "DAMAGE", val: stats.damage },
+            { label: "FIRE RATE", val: (1000 / stats.fireRate).toFixed(2) + "/s" },
+            { label: "PROJ. SPEED", val: stats.bulletSpeed.toFixed(1) },
+            { label: "PROJ. SIZE", val: (stats.projectileSize * 100).toFixed(0) + "%" },
+            { label: "PROJ. COUNT", val: stats.projectileCount },
+            { label: "PENETRATION", val: stats.penetration },
+            { label: "RICOCHET(bullet bounce)", val: stats.ricochetCount },
+            { label: "CRIT CHANCE", val: (stats.critChance * 100).toFixed(0) + "%" },
+            { label: "CRIT MULTI", val: stats.critMultiplier.toFixed(1) + "x" },
+            { label: "MOVE SPEED", val: stats.moveSpeed.toFixed(2) },
+            { label: "MAGNET", val: stats.magnetRange },
+            { label: "LUCK", val: stats.luck.toFixed(2) },
+            { label: "XP GAIN", val: (stats.xpMultiplier * 100).toFixed(0) + "%" }
+        ];
+
+        displayStats.forEach((s, i) => {
+            const curY = y + (i * rowH) + 10;
+            ctx.fillStyle = '#00ffcc';
+            ctx.fillText(s.label, x, curY);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(s.val, x + panelW - 30, curY);
+            ctx.textAlign = 'left';
+        });
+
+        ctx.restore();
     }
 
     _getRarityColor(rarity) {
