@@ -1,6 +1,3 @@
-/**
- * Player.js - Aktualizace o systém životů
- */
 export default class Player {
     constructor(x, y) {
         this.pos = { x: x, y: y };
@@ -8,28 +5,25 @@ export default class Player {
         this.invulnerable = 0;
         this.level = 1;
         this.xp = 0;
-        this.xpNextLevel = 100; // Základní XP potřebné pro level 2
+        this.xpNextLevel = 100;
         
         this.stats = {
-            // POHYB A ŽIVOT
             moveSpeed: 0.2,
             maxHp: 3,
             hp: 3,
-            defense: 0,      // Snižuje příchozí poškození (např. o fixní hodnotu)
-            dodgeChance: 0,  // Procentuální šance (0.1 = 10%)
+            defense: 0,
+            dodgeChance: 0,
 
-            // STŘELBA
-            fireRate: 400,          // Prodleva mezi výstřely v ms
+            fireRate: 400,
             bulletSpeed: 0.8,
-            projectileCount: 1,     // Počet střel naráz
-            projectileSpread: 15,   // Úhel rozptylu v stupních mezi střelami
+            projectileCount: 1,
+            projectileSpread: 15,
             
-            // DAMAGE
-            critChance: 0.05,       // 5% šance na kritický zásah
-            critMultiplier: 2.0,     // 2x damage při kritickém zásahu
+            critChance: 0.05,
+            critMultiplier: 2.0,
 
-            damage: 1,           // Základní poškození projektilu
-            luck: 1.0           // Násobič štěstí (1.0 = základ, 1.5 = o 50% vyšší šance na vzácné věci)
+            damage: 1,
+            luck: 1.0
         };
         
         this.sprite = new Image();
@@ -39,8 +33,8 @@ export default class Player {
 
         this.shockwaveActive = false;
         this.shockwaveRadius = 0;
-        this.shockwaveMaxRadius = 600; // Dosah vlny
-        this.shockwaveDuration = 1200;  // Jak dlouho vlna cestuje (ms)
+        this.shockwaveMaxRadius = 600;
+        this.shockwaveDuration = 1200;
         this.shockwaveTimer = 0;
     }
 
@@ -55,7 +49,6 @@ export default class Player {
 takeDamage(amount = 1) {
     if (this.invulnerable > 0) return;
 
-    // 1. Kontrola Dodge
     if (Math.random() < this.stats.dodgeChance) {
         this.invulnerable = 500;
         return;
@@ -65,12 +58,10 @@ takeDamage(amount = 1) {
     
     this.stats.hp -= finalDamage;
     
-    // Aktivace i-frames (nesmrtelnost po zásahu)
     this.invulnerable = 1500;
 
-    // 4. Kontrola smrti
     if (this.stats.hp <= 0) {
-        this.stats.hp = 0; // Zamezíme záporným číslům
+        this.stats.hp = 0;
         if (this.game.gameOver) {
             this.game.gameOver();
         } else {
@@ -82,7 +73,6 @@ takeDamage(amount = 1) {
     addXp(amount) {
         this.xp += amount;
         
-        // Check na level up
         if (this.xp >= this.xpNextLevel) {
             this.levelUp();
         }
@@ -93,16 +83,12 @@ takeDamage(amount = 1) {
         this.level++;
         this.xpNextLevel = Math.floor(this.xpNextLevel * 1.2 + 50);
 
-        // Shockwave efekt
         this.shockwaveActive = true;
         this.shockwaveRadius = 0;
         this.shockwaveTimer = 0;
 
-        // OTEVŘENÍ UPGRADE MENU
         const upgrades = this.game.getModule('upgrades');
         if (upgrades) {
-            // Můžeme hru mírně zpozdit, aby doběhl efekt shockwave, 
-            // nebo menu otevřít hned:
             setTimeout(() => upgrades.showSelection(), 200);
         }
     }
@@ -114,7 +100,6 @@ takeDamage(amount = 1) {
         let moveX = 0;
         let moveY = 0;
 
-        // --- LOGIKA KLÁVESNICE ---
         if (input) {
             if (input.isKeyDown('KeyW')) moveY -= 1;
             if (input.isKeyDown('KeyS')) moveY += 1;
@@ -122,18 +107,15 @@ takeDamage(amount = 1) {
             if (input.isKeyDown('KeyD')) moveX += 1;
         }
 
-        // --- LOGIKA GAMEPADU (Levá páčka) ---
         if (gamepad && gamepad.gamepadIndex !== null) {
-            // Pokud pohneme páčkou, přepíšeme hodnoty z klávesnice
             if (Math.abs(gamepad.axes[0]) > 0.1 || Math.abs(gamepad.axes[1]) > 0.1) {
                 moveX = gamepad.axes[0];
                 moveY = gamepad.axes[1];
             }
         }
 
-        // Normalizace (potřeba hlavně pro klávesnici, páčka se normalizuje fyzicky)
         const mag = Math.sqrt(moveX * moveX + moveY * moveY);
-        if (mag > 1) { // Ošetříme jen pokud "přestřelíme" (diagonála na klávesnici)
+        if (mag > 1) {
             moveX /= mag;
             moveY /= mag;
         }
@@ -141,7 +123,6 @@ takeDamage(amount = 1) {
         this.pos.x += moveX * this.stats.moveSpeed * deltaTime;
         this.pos.y += moveY * this.stats.moveSpeed * deltaTime;
 
-        // --- ZBYTEK KÓDU (Invis frames, Kolize) ---
         if (this.invulnerable > 0) {
             this.invulnerable -= deltaTime;
         }
@@ -160,16 +141,13 @@ takeDamage(amount = 1) {
 
         if (this.shockwaveActive) {
             this.shockwaveTimer += deltaTime;
-            // Plynulé zvětšování rádiusu
             const progress = this.shockwaveTimer / this.shockwaveDuration;
             this.shockwaveRadius = progress * this.shockwaveMaxRadius;
 
-            // Pokud vlna dojela na konec, vypneme ji
             if (progress >= 1) {
                 this.shockwaveActive = false;
             }
 
-            // INTERAKCE S ENEMÁKY
             const enemyMgr = this.game.getModule('enemies');
 
             if (enemyMgr) {
@@ -178,7 +156,7 @@ takeDamage(amount = 1) {
                     const dy = e.y - this.pos.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    if (Math.abs(dist - this.shockwaveRadius) < 40) { // Trochu širší detekce pro pomalejší vlnu
+                    if (Math.abs(dist - this.shockwaveRadius) < 40) {
                         const pushForce = 1.0; 
                         
                         e.x += (dx / dist) * pushForce * deltaTime;
@@ -192,14 +170,12 @@ takeDamage(amount = 1) {
     }
 
     draw(ctx) {
-        // Hráčův logický střed (this.pos) chceme vidět na středu obrazovky (game.center)
         const screenX = this.game.center.x - this.size / 2;
         const screenY = this.game.center.y - this.size / 2;
 
         if (this.invulnerable > 0 && Math.floor(Date.now() / 100) % 2 === 0) return;
 
         if (this.isLoaded) {
-            // Vykreslíme obrázek tak, aby jeho střed byl na screenX/Y
             ctx.drawImage(this.sprite, screenX, screenY, this.size, this.size);
         } else {
             ctx.fillStyle = '#00ffcc';
@@ -210,7 +186,6 @@ takeDamage(amount = 1) {
             const progress = this.shockwaveTimer / this.shockwaveDuration;
             ctx.save();
             
-            // --- NASTAVENÍ STYLU ---
             ctx.beginPath();
             ctx.arc(this.game.center.x, this.game.center.y, this.shockwaveRadius, 0, Math.PI * 2);
             
