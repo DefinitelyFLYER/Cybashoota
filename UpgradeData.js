@@ -1,5 +1,5 @@
 export const UPGRADES = [
-    // --- OFENZÍVA (Zbraně a Damage) ---
+    // offensive upgrades
     {
         id: 'rapid_fire',
         name: 'Overclock',
@@ -55,7 +55,7 @@ export const UPGRADES = [
         onApply: (player) => { player.stats.critMultiplier += 0.5; }
     },
 
-    // --- DEFENZÍVA (Přežití) ---
+    // defensive upgrades
     {
         id: 'extra_hp',
         name: 'Backup Battery',
@@ -89,7 +89,7 @@ export const UPGRADES = [
         onApply: (player) => { player.stats.dodgeChance += 0.08; }
     },
 
-    // --- UTILITY A RIZIKO ---
+    // utilities
     {
         id: 'speed_freak',
         name: 'Turbo Boost',
@@ -139,7 +139,19 @@ export const UPGRADES = [
             player.stats.fireRate *= 1.3;
         }
     },
-    // --- MOVEMENT & AGILITY ---
+    {
+        id: 'magnetic_field',
+        name: 'Neural Link',
+        description: 'Increases item pickup range by 50 units.',
+        rarity: 'Common',
+        tags: ['utility', 'magnet'],
+        weight: 70,
+        maxStack: 5,
+        onApply: (player) => { 
+            player.stats.magnetRange += 50; 
+        }
+    },
+    // movement upgrades
     {
         id: 'servo_boost',
         name: 'Hydraulic Servos',
@@ -177,7 +189,7 @@ export const UPGRADES = [
         unique: true,
         onApply: (player) => {
             player.stats.moveSpeed *= 1.40;
-            player.stats.fireRate *= 1.15; // Zpomalí střelbu
+            player.stats.fireRate *= 1.15;
         }
     },
     {
