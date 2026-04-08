@@ -11,9 +11,10 @@ export default class Player {
             moveSpeed: 0.2,
             maxHp: 3,
             hp: 3,
-            defense: 0,
+            defense: 0, // not relevant until enemies does more than 1 damage
             dodgeChance: 0,
 
+            damage: 1,
             fireRate: 400,
             bulletSpeed: 0.8,
             projectileCount: 1,
@@ -22,7 +23,8 @@ export default class Player {
             critChance: 0.05,
             critMultiplier: 2.0,
 
-            damage: 1,
+            magnetRange: 150, // in in-game units(not pixels)
+            ricochetCount: 0,
             luck: 1.0
         };
         

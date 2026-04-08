@@ -1,11 +1,10 @@
-// PowerUpManager.js
 import { POWER_UPS } from './PowerUpData.js';
 
 export default class PowerUpManager {
     constructor() {
         this.drops = [];
         this.activeEffects = [];
-        this.sprites = new Map(); // Cache pro obrázky
+        this.sprites = new Map();
     }
 
     init(game) {
@@ -32,10 +31,8 @@ export default class PowerUpManager {
         }
     }
 
-    // Volá se z EnemyManageru, když někdo umře
     trySpawn(x, y) {
         const player = this.game.getModule('player');
-        // Šance na drop se může zvyšovat s Luckem hráče
         const luck = player ? player.stats.luck : 1;
         const dropChance = 0.1 * luck; 
 
@@ -48,7 +45,7 @@ export default class PowerUpManager {
                 ...config,
                 x, y,
                 spawnTime: Date.now(),
-                bobbing: 0 // Pro animaci levitace
+                bobbing: 0
             });
         }
     }
@@ -57,19 +54,26 @@ export default class PowerUpManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        // 1. Logika předmětů na zemi (Sběr)
         for (let i = this.drops.length - 1; i >= 0; i--) {
             const d = this.drops[i];
             d.bobbing += deltaTime * 0.005;
 
-            const dist = Math.sqrt((d.x - player.pos.x)**2 + (d.y - player.pos.y)**2);
-            if (dist < 30) { // Kolize s hráčem
+            const dx = player.pos.x - d.x;
+            const dy = player.pos.y - d.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < player.stats.magnetRange) {
+                const magnetSpeed = 0.5; 
+                d.x += (dx / dist) * magnetSpeed * deltaTime;
+                d.y += (dy / dist) * magnetSpeed * deltaTime;
+            }
+
+            if (dist < 30) {
                 this.applyEffect(d);
                 this.drops.splice(i, 1);
             }
         }
 
-        // 2. Logika aktivních efektů (Odpočet a konec)
         for (let i = this.activeEffects.length - 1; i >= 0; i--) {
             const effect = this.activeEffects[i];
             effect.remaining -= deltaTime;
@@ -84,18 +88,14 @@ export default class PowerUpManager {
     applyEffect(config) {
         const player = this.game.getModule('player');
         
-        // Pokud už efekt stejného typu běží, jen resetujeme čas (Stack Strategy: RENEW)
         const existing = this.activeEffects.find(e => e.id === config.id);
         if (existing) {
             existing.remaining = config.duration;
             return;
         }
 
-        // Aplikace modifikátorů
         if (config.statModifiers) {
             for (let stat in config.statModifiers) {
-                // Tady si musíme dát pozor, zda stat přičítáme nebo násobíme
-                // Pro jednoduchost teď budeme staty jen dočasně přepisovat/přidávat
                 player.stats[stat] += config.statModifiers[stat];
             }
         }
@@ -128,25 +128,21 @@ export default class PowerUpManager {
 
             ctx.save();
             
-            // Efekt záře pod power-upem
             ctx.shadowBlur = 20;
             ctx.shadowColor = d.color;
 
             const img = this.sprites.get(d.id);
 
-            // KONTROLA: Máme obrázek? Je načtený? Nemá chybu?
             if (img && img.isReady && !img.isError) {
-                // Vykreslení SPRITU (pokud je vše OK)
                 const size = 32;
                 ctx.drawImage(img, drawX - size/2, drawY - size/2, size, size);
             } else {
-                // FALLBACK: Vykreslení ORBU (pokud sprite chybí nebo se ještě nenačetl)
+                // fallback to a shape if sprite is missing or not loaded
                 ctx.fillStyle = d.color;
                 ctx.beginPath();
                 ctx.arc(drawX, drawY, 10, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Skleněný odlesk
                 ctx.fillStyle = "rgba(255,255,255,0.5)";
                 ctx.beginPath();
                 ctx.arc(drawX - 3, drawY - 3, 3, 0, Math.PI * 2);
