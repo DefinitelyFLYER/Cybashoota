@@ -1,6 +1,3 @@
-/**
- * UIManager.js - Správa herního rozhraní (HUD)
- */
 export default class UIManager {
     constructor() {
         this.score = 0;
@@ -11,7 +8,6 @@ export default class UIManager {
         this.game = game;
     }
 
-    // Metoda pro přidání bodů
     addScore(points) {
         this.score += points;
         if (this.score > this.highScore) {
@@ -25,13 +21,11 @@ export default class UIManager {
         if (!player) return;
 
         const w = this.game.canvas.width;
-        const barHeight = 6; // Výška XP lišty
+        const barHeight = 6;
         
-        // 1. Pozadí lišty (tmavý neonový podklad)
         ctx.fillStyle = 'rgba(0, 20, 20, 0.8)';
         ctx.fillRect(0, 0, w, barHeight);
 
-        // 2. Výpočet šířky podle postupu k dalšímu levelu
         const progress = Math.min(player.xp / player.xpNextLevel, 1);
         const barWidth = w * progress;
 
@@ -44,7 +38,6 @@ export default class UIManager {
             ctx.restore();
         }
 
-        // 3. Text s aktuálním levelem pod lištou
         ctx.save();
         ctx.fillStyle = '#00ffcc';
         ctx.font = 'bold 14px "Courier New", monospace';
@@ -56,7 +49,6 @@ export default class UIManager {
     }
 
     update(deltaTime) {
-        // Zde můžeme řešit animace textu, pokud budeme chtít
     }
 
     draw(ctx) {
@@ -65,7 +57,6 @@ export default class UIManager {
         const player = this.game.getModule('player');
         const director = this.game.getModule('director');
         
-        // SKÓRE (stávající)
         ctx.fillStyle = '#00ffcc';
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
@@ -73,21 +64,36 @@ export default class UIManager {
         ctx.shadowColor = '#00ffcc';
         ctx.fillText(`SCORE: ${this.score.toString().padStart(6, '0')}`, 20, 40);
         
-        // ŽIVOTY (Nové)
         if (player) {
+            ctx.save();
+            ctx.font = 'bold 24px "Courier New", monospace';
+            ctx.textAlign = 'left';
+            ctx.shadowBlur = 8;
+            
             let healthText = "HP: ";
-
             for(let i = 0; i < player.stats.maxHp; i++) {
                 healthText += (i < player.stats.hp) ? "▮" : "▯";
             }
             
             ctx.fillStyle = '#00ffcc'; 
-            ctx.shadowBlur = 8;
             ctx.shadowColor = '#00ffcc';
             ctx.fillText(healthText, 20, 75);
+
+            if (player.stats.hp > player.stats.maxHp) {
+                const extraHp = player.stats.hp - player.stats.maxHp;
+                let shieldText = "";
+                for(let i = 0; i < extraHp; i++) {
+                    shieldText += "▮";
+                }
+                
+                const metrics = ctx.measureText(healthText);
+                ctx.fillStyle = '#00bbff';
+                ctx.shadowColor = '#00bbff';
+                ctx.fillText(shieldText, 20 + metrics.width, 75);
+            }
+            ctx.restore();
         }
 
-        // HIGH SCORE
         ctx.textAlign = 'right';
         ctx.font = '16px "Courier New", monospace';
         ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, w - 20, 40);
@@ -103,7 +109,6 @@ export default class UIManager {
                 ctx.save();
                 ctx.textAlign = 'center';
                 
-                // Logika pro efekt při změně fáze (trvá 3 sekundy)
                 let scale = 1;
                 let alpha = 1;
 
@@ -130,7 +135,6 @@ export default class UIManager {
                 ctx.font = 'bold 30px "Courier New", monospace';
                 ctx.fillText(timeStr, 0, 0);
 
-                // Volitelný název fáze pod časem
                 ctx.font = '12px "Courier New", monospace';
                 ctx.globalAlpha = alpha * 0.7;
                 ctx.fillText(director.getPhaseName().toUpperCase(), 0, 20);
