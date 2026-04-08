@@ -69,13 +69,38 @@ export const UPGRADES = [
     {
         id: 'advanced_ricochet_module',
         name: 'Ricochet Mastery',
-        description: 'Projectiles bounce to the nearest enemy upon hit... +5 times.',
+        description: 'Projectiles bounce to the nearest enemy upon hit ...+5 times...',
         rarity: 'Epic',
         tags: ['weapon', 'projectile'],
         weight: 10,
         unique: true,
         onApply: (player) => { 
             player.stats.ricochetCount += 5; 
+        }
+    },
+    {
+        id: 'penetration_module',
+        name: 'Piercing Rounds',
+        description: 'Projectiles pass through +1 additional enemy.',
+        rarity: 'Rare',
+        tags: ['weapon', 'projectile'],
+        weight: 30,
+        maxStack: 5,
+        onApply: (player) => { 
+            player.stats.penetration += 1; 
+        }
+    },
+    {
+        id: 'heavy_railgun',
+        name: 'Railgun Protocol',
+        description: 'Massive projectile penetration (+3), but -50% Fire Rate.',
+        rarity: 'Epic',
+        tags: ['weapon', 'projectile'],
+        weight: 10,
+        unique: true,
+        onApply: (player) => { 
+            player.stats.penetration += 3;
+            player.stats.fireRate *= 1.5;
         }
     },
 

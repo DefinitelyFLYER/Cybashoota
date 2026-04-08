@@ -50,6 +50,8 @@ export default class ProjectileManager {
                         life: 2000,
                         isCrit: Math.random() < player.stats.critChance,
                         bounces: player.stats.ricochetCount,
+                        penetration: player.stats.penetration,
+                        hitEnemies: new Set(),
                         lastHitEnemy: null
                     });
                 }

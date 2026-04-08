@@ -24,6 +24,7 @@ export default class Player {
             critMultiplier: 2.0,
 
             magnetRange: 150, // in in-game units(not pixels)
+            penetration: 0,
             ricochetCount: 0,
             luck: 1.0
         };
