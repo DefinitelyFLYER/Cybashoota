@@ -9,23 +9,27 @@ export default class Player {
         
         this.stats = {
             moveSpeed: 0.2,
-            maxHp: 3,
-            hp: 3,
+            maxHp: 2,
+            hp: 2,
             defense: 0, // not relevant until enemies does more than 1 damage
             dodgeChance: 0,
 
             damage: 1,
-            fireRate: 400,
+            fireRate: 600,
             bulletSpeed: 0.8,
+            projectileSize: 1.0,
             projectileCount: 1,
-            projectileSpread: 15,
+            projectileSpread: 5,
             
             critChance: 0.05,
             critMultiplier: 2.0,
 
             magnetRange: 150, // in in-game units(not pixels)
+            penetration: 0,
             ricochetCount: 0,
-            luck: 1.0
+            luck: 1.0,
+            reRollCount: 0,
+            xpMultiplier: 1.0
         };
         
         this.sprite = new Image();
@@ -35,8 +39,8 @@ export default class Player {
 
         this.shockwaveActive = false;
         this.shockwaveRadius = 0;
-        this.shockwaveMaxRadius = 600;
-        this.shockwaveDuration = 1200;
+        this.shockwaveMaxRadius = 400;
+        this.shockwaveDuration = 1400;
         this.shockwaveTimer = 0;
     }
 
@@ -73,7 +77,8 @@ takeDamage(amount = 1) {
 }
 
     addXp(amount) {
-        this.xp += amount;
+        const bonusXp = amount * this.stats.xpMultiplier;
+        this.xp += bonusXp;
         
         if (this.xp >= this.xpNextLevel) {
             this.levelUp();

@@ -140,11 +140,15 @@ export default class EnemyManager {
                 for (let j = pm.projectiles.length - 1; j >= 0; j--) {
                     const p = pm.projectiles[j];
                     
+                    if (p.lastHitEnemy === e || p.hitEnemies.has(e)) continue;
+
                     const pdx = p.x - e.x;
                     const pdy = p.y - e.y;
                     const distSq = pdx * pdx + pdy * pdy;
 
-                    if (distSq < (e.size / 2) ** 2) {
+                    const collisionRadius = (e.size / 2) + (p.size / 2);
+
+                    if (distSq < collisionRadius * collisionRadius) {
                         const player = this.game.getModule('player');
                         let damage = player ? player.stats.damage : 1;
 
@@ -160,14 +164,25 @@ export default class EnemyManager {
                             const nextTarget = pm.findNextTarget(p, e);
                             if (nextTarget) {
                                 p.bounces--;
+                                
+                                p.lastHitEnemy = e;
+                                p.hitEnemies.clear();
+                                
                                 const angle = Math.atan2(nextTarget.y - p.y, nextTarget.x - p.x);
                                 const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
                                 p.vx = Math.cos(angle) * speed;
                                 p.vy = Math.sin(angle) * speed;
                                 p.life = 2000;
+                            } else if (p.penetration > 0) {
+                                p.penetration--;
+                                p.hitEnemies.add(e);
                             } else {
                                 pm.projectiles.splice(j, 1);
                             }
+                        } 
+                        else if (p.penetration > 0) {
+                            p.penetration--;
+                            p.hitEnemies.add(e);
                         } else {
                             pm.projectiles.splice(j, 1);
                         }

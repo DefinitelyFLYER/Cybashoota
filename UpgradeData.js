@@ -69,13 +69,76 @@ export const UPGRADES = [
     {
         id: 'advanced_ricochet_module',
         name: 'Ricochet Mastery',
-        description: 'Projectiles bounce to the nearest enemy upon hit... +5 times.',
+        description: 'Projectiles bounce to the nearest enemy upon hit ...+5 times...',
         rarity: 'Epic',
         tags: ['weapon', 'projectile'],
         weight: 10,
         unique: true,
         onApply: (player) => { 
             player.stats.ricochetCount += 5; 
+        }
+    },
+    {
+        id: 'penetration_module',
+        name: 'Piercing Rounds',
+        description: 'Projectiles pass through +1 additional enemy.',
+        rarity: 'Rare',
+        tags: ['weapon', 'projectile'],
+        weight: 30,
+        maxStack: 5,
+        onApply: (player) => { 
+            player.stats.penetration += 1; 
+        }
+    },
+    {
+        id: 'heavy_railgun',
+        name: 'Railgun Protocol',
+        description: 'Massive projectile penetration (+3), but -50% Fire Rate.',
+        rarity: 'Epic',
+        tags: ['weapon', 'projectile'],
+        weight: 10,
+        unique: true,
+        onApply: (player) => { 
+            player.stats.penetration += 3;
+            player.stats.fireRate *= 1.5;
+        }
+    },
+    {
+        id: 'big_bullets',
+        name: 'Glichy Ammo',
+        description: 'Increases projectile size by 25%.',
+        rarity: 'Common',
+        tags: ['weapon', 'projectile'],
+        weight: 70,
+        maxStack: 10,
+        onApply: (player) => { 
+            player.stats.projectileSize *= 1.25; 
+        }
+    },
+    {
+        id: 'plasma_enlarger',
+        name: 'Plasma Enlarger',
+        description: 'Increases projectile size by 100%. (AND they do +1 more damage!)',
+        rarity: 'Rare',
+        tags: ['weapon', 'projectile'],
+        weight: 50,
+        unique: true,
+        onApply: (player) => { 
+            player.stats.projectileSize *= 2; 
+            player.stats.damage += 1;
+        }
+    },
+    {
+        id: 'needle_rounds',
+        name: 'Needle Precision',
+        description: 'Projectiles are 30% smaller, but your bullets are 50% faster. (And they bounce(+1) now!)',
+        rarity: 'Epic',
+        tags: ['weapon', 'projectile', 'ricochet', 'risky'],
+        weight: 15,
+        requirements: (player) => player.stats.ricochetCount >= 1,
+        onApply: (player) => { 
+            player.stats.projectileSize *= 0.7;
+            player.stats.bulletSpeed *= 1.5;
         }
     },
 
@@ -240,6 +303,35 @@ export const UPGRADES = [
         onApply: (player) => {
             player.stats.moveSpeed *= 0.70;
             player.stats.maxHp += 6;
+        }
+    },
+    {
+        id: 'xp_boost',
+        name: 'Learning Algorithm',
+        description: 'Increases XP gain by 20%.',
+        rarity: 'Common',
+        tags: ['utility', 'xp'],
+        weight: 70,
+        maxStack: 5,
+        onApply: (player) => { 
+            player.stats.xpMultiplier += 0.2; 
+        }
+    },
+    {
+        id: 'AI',
+        name: 'AI protocol',
+        description: 'Massive XP boost (+100%), but your damage is reduced to 1, and your Max HP too.',
+        rarity: 'Legendary',
+        tags: ['utility', 'xp', 'risky'],
+        weight: 5,
+        unique: true,
+        requirements: (player) => { player.stats.maxHp <= 3 && player.stats.damage <= 3;},
+        onApply: (player) => { 
+            player.stats.xpMultiplier += 1;
+            player.stats.hp = 1;
+            player.stats.maxHp = 1;
+            player.stats.damage = 1;
+            if (player.stats.hp > player.stats.maxHp) player.stats.hp = player.stats.maxHp;
         }
     }
 ];
