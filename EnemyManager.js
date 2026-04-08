@@ -146,7 +146,9 @@ export default class EnemyManager {
                     const pdy = p.y - e.y;
                     const distSq = pdx * pdx + pdy * pdy;
 
-                    if (distSq < (e.size / 2) ** 2) {
+                    const collisionRadius = (e.size / 2) + (p.size / 2);
+
+                    if (distSq < collisionRadius * collisionRadius) {
                         const player = this.game.getModule('player');
                         let damage = player ? player.stats.damage : 1;
 

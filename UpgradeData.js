@@ -103,6 +103,44 @@ export const UPGRADES = [
             player.stats.fireRate *= 1.5;
         }
     },
+    {
+        id: 'big_bullets',
+        name: 'Glichy Ammo',
+        description: 'Increases projectile size by 25%.',
+        rarity: 'Common',
+        tags: ['weapon', 'projectile'],
+        weight: 70,
+        maxStack: 10,
+        onApply: (player) => { 
+            player.stats.projectileSize *= 1.25; 
+        }
+    },
+    {
+        id: 'plasma_enlarger',
+        name: 'Plasma Enlarger',
+        description: 'Increases projectile size by 100%. (AND they do +1 more damage!)',
+        rarity: 'Rare',
+        tags: ['weapon', 'projectile'],
+        weight: 50,
+        unique: true,
+        onApply: (player) => { 
+            player.stats.projectileSize *= 2; 
+            player.stats.damage += 1;
+        }
+    },
+    {
+        id: 'needle_rounds',
+        name: 'Needle Precision',
+        description: 'Projectiles are 30% smaller, but your bullets are 50% faster. (And they bounce(+1) now!)',
+        rarity: 'Epic',
+        tags: ['weapon', 'projectile', 'ricochet', 'risky'],
+        weight: 15,
+        requirements: (player) => player.stats.ricochetCount >= 1,
+        onApply: (player) => { 
+            player.stats.projectileSize *= 0.7;
+            player.stats.bulletSpeed *= 1.5;
+        }
+    },
 
     // defensive upgrades
     {

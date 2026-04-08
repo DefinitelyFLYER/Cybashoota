@@ -17,6 +17,7 @@ export default class Player {
             damage: 1,
             fireRate: 400,
             bulletSpeed: 0.8,
+            projectileSize: 1.0,
             projectileCount: 1,
             projectileSpread: 15,
             

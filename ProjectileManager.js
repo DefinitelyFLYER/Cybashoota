@@ -47,10 +47,11 @@ export default class ProjectileManager {
                         y: center.y,
                         vx: Math.cos(finalAngle) * player.stats.bulletSpeed,
                         vy: Math.sin(finalAngle) * player.stats.bulletSpeed,
+                        size: 10 * player.stats.projectileSize,
                         life: 2000,
                         isCrit: Math.random() < player.stats.critChance,
                         bounces: player.stats.ricochetCount,
-                        penetration: player.stats.penetration,
+                        penetration: player.stats.penetration || 0,
                         hitEnemies: new Set(),
                         lastHitEnemy: null
                     });
@@ -107,7 +108,7 @@ export default class ProjectileManager {
             const screenY = p.y - player.pos.y + this.game.center.y;
 
             ctx.beginPath();
-            ctx.arc(screenX, screenY, 4, 0, Math.PI * 2);
+            ctx.arc(screenX, screenY, p.size / 2, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.restore();
