@@ -304,5 +304,34 @@ export const UPGRADES = [
             player.stats.moveSpeed *= 0.70;
             player.stats.maxHp += 6;
         }
+    },
+    {
+        id: 'xp_boost',
+        name: 'Learning Algorithm',
+        description: 'Increases XP gain by 20%.',
+        rarity: 'Common',
+        tags: ['utility', 'xp'],
+        weight: 70,
+        maxStack: 5,
+        onApply: (player) => { 
+            player.stats.xpMultiplier += 0.2; 
+        }
+    },
+    {
+        id: 'AI',
+        name: 'AI protocol',
+        description: 'Massive XP boost (+100%), but your damage is reduced to 1, and your Max HP too.',
+        rarity: 'Legendary',
+        tags: ['utility', 'xp', 'risky'],
+        weight: 5,
+        unique: true,
+        requirements: (player) => { player.stats.maxHp <= 3 && player.stats.damage <= 3;},
+        onApply: (player) => { 
+            player.stats.xpMultiplier += 1;
+            player.stats.hp = 1;
+            player.stats.maxHp = 1;
+            player.stats.damage = 1;
+            if (player.stats.hp > player.stats.maxHp) player.stats.hp = player.stats.maxHp;
+        }
     }
 ];
