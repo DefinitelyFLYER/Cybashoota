@@ -79,15 +79,15 @@ export const SPAWN_TIMELINE = [
         start: 300, end: 360,
         types: ["TRIANGLE", "SQUARE"],
         rate: 350,
-        hpMultiplier: 2, speedMultiplier: 1,
+        hpMultiplier: 3, speedMultiplier: 2,
         xpDrop: { value: 30, color: '#6e6cff' }
     },
     {
         name: "What is this..",
         start: 360, end: 600,
         types: ["TRIANGLE", "SQUARE", "CIRCLE", "HEXAGON", "RHOMBUS"],
-        rate: 1000,
-        hpMultiplier: 4, speedMultiplier: 2,
+        rate: 400,
+        hpMultiplier: 7, speedMultiplier: 3,
         xpDrop: { value: 100, color: '#ffff00' }
     }
 ];

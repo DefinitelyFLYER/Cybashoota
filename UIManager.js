@@ -1,17 +1,14 @@
-/**
- * UIManager.js - Správa herního rozhraní (HUD)
- */
 export default class UIManager {
     constructor() {
         this.score = 0;
         this.highScore = localStorage.getItem('cyberpunk_highscore') || 0;
+        this.notifications = [];
     }
 
     init(game) {
         this.game = game;
     }
 
-    // Metoda pro přidání bodů
     addScore(points) {
         this.score += points;
         if (this.score > this.highScore) {
@@ -20,18 +17,100 @@ export default class UIManager {
         }
     }
 
+    showNotification(text, color) {
+        this.notifications.push({
+            text: text.toUpperCase(),
+            color: color,
+            alpha: 1,
+            y: 0
+        });
+    }
+
+    _drawActiveBuffs(ctx) {
+        const powerUpMgr = this.game.getModule('powerups');
+        if (!powerUpMgr || powerUpMgr.activeEffects.length === 0) return;
+
+        const iconSize = 32;
+        const spacing = 12;
+        const startX = 20;
+        let startY = 120;
+
+        powerUpMgr.activeEffects.forEach((effect, i) => {
+            const rowY = startY + i * (iconSize + spacing);
+            const rowX = startX;
+
+            ctx.save();
+            
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = effect.color;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = effect.color;
+            
+            ctx.strokeRect(rowX, rowY, iconSize, iconSize);
+            ctx.fillRect(rowX, rowY, iconSize, iconSize);
+
+            const img = powerUpMgr.sprites.get(effect.id);
+            if (img && img.isReady) {
+                ctx.drawImage(img, rowX + 2, rowY + 2, iconSize - 4, iconSize - 4);
+            }
+
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(effect.name.toUpperCase(), rowX + iconSize + 10, rowY + 12);
+
+            const barW = 80;
+            const barH = 4;
+            const progress = effect.remaining / effect.duration;
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.fillRect(rowX + iconSize + 10, rowY + 20, barW, barH);
+            
+            ctx.fillStyle = effect.color;
+            ctx.fillRect(rowX + iconSize + 10, rowY + 20, barW * progress, barH);
+
+            ctx.restore();
+        });
+    }
+
+    _drawNotifications(ctx) {
+        const w = this.game.canvas.width;
+        const h = this.game.canvas.height;
+
+        for (let i = this.notifications.length - 1; i >= 0; i--) {
+            const n = this.notifications[i];
+            
+            ctx.save();
+            ctx.globalAlpha = n.alpha;
+            ctx.fillStyle = n.color;
+            ctx.font = 'bold 24px "Courier New"';
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = n.color;
+            
+            ctx.fillText(n.text, w / 2, h / 3 - n.y);
+            ctx.restore();
+
+            // Animace
+            n.y += 1;
+            n.alpha -= 0.005;
+            if (n.alpha <= 0) this.notifications.splice(i, 1);
+        }
+    }
+
     _drawXpBar(ctx) {
         const player = this.game.getModule('player');
         if (!player) return;
 
         const w = this.game.canvas.width;
-        const barHeight = 6; // Výška XP lišty
+        const barHeight = 6;
         
-        // 1. Pozadí lišty (tmavý neonový podklad)
         ctx.fillStyle = 'rgba(0, 20, 20, 0.8)';
         ctx.fillRect(0, 0, w, barHeight);
 
-        // 2. Výpočet šířky podle postupu k dalšímu levelu
         const progress = Math.min(player.xp / player.xpNextLevel, 1);
         const barWidth = w * progress;
 
@@ -44,7 +123,6 @@ export default class UIManager {
             ctx.restore();
         }
 
-        // 3. Text s aktuálním levelem pod lištou
         ctx.save();
         ctx.fillStyle = '#00ffcc';
         ctx.font = 'bold 14px "Courier New", monospace';
@@ -56,7 +134,6 @@ export default class UIManager {
     }
 
     update(deltaTime) {
-        // Zde můžeme řešit animace textu, pokud budeme chtít
     }
 
     draw(ctx) {
@@ -65,7 +142,6 @@ export default class UIManager {
         const player = this.game.getModule('player');
         const director = this.game.getModule('director');
         
-        // SKÓRE (stávající)
         ctx.fillStyle = '#00ffcc';
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.textAlign = 'left';
@@ -73,21 +149,36 @@ export default class UIManager {
         ctx.shadowColor = '#00ffcc';
         ctx.fillText(`SCORE: ${this.score.toString().padStart(6, '0')}`, 20, 40);
         
-        // ŽIVOTY (Nové)
         if (player) {
+            ctx.save();
+            ctx.font = 'bold 24px "Courier New", monospace';
+            ctx.textAlign = 'left';
+            ctx.shadowBlur = 8;
+            
             let healthText = "HP: ";
-
             for(let i = 0; i < player.stats.maxHp; i++) {
                 healthText += (i < player.stats.hp) ? "▮" : "▯";
             }
             
             ctx.fillStyle = '#00ffcc'; 
-            ctx.shadowBlur = 8;
             ctx.shadowColor = '#00ffcc';
             ctx.fillText(healthText, 20, 75);
+
+            if (player.stats.hp > player.stats.maxHp) {
+                const extraHp = player.stats.hp - player.stats.maxHp;
+                let shieldText = "";
+                for(let i = 0; i < extraHp; i++) {
+                    shieldText += "▮";
+                }
+                
+                const metrics = ctx.measureText(healthText);
+                ctx.fillStyle = '#00bbff';
+                ctx.shadowColor = '#00bbff';
+                ctx.fillText(shieldText, 20 + metrics.width, 75);
+            }
+            ctx.restore();
         }
 
-        // HIGH SCORE
         ctx.textAlign = 'right';
         ctx.font = '16px "Courier New", monospace';
         ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, w - 20, 40);
@@ -103,7 +194,6 @@ export default class UIManager {
                 ctx.save();
                 ctx.textAlign = 'center';
                 
-                // Logika pro efekt při změně fáze (trvá 3 sekundy)
                 let scale = 1;
                 let alpha = 1;
 
@@ -130,7 +220,6 @@ export default class UIManager {
                 ctx.font = 'bold 30px "Courier New", monospace';
                 ctx.fillText(timeStr, 0, 0);
 
-                // Volitelný název fáze pod časem
                 ctx.font = '12px "Courier New", monospace';
                 ctx.globalAlpha = alpha * 0.7;
                 ctx.fillText(director.getPhaseName().toUpperCase(), 0, 20);
@@ -139,5 +228,7 @@ export default class UIManager {
         }
 
         this._drawXpBar(ctx);
+        this._drawActiveBuffs(ctx);
+        this._drawNotifications(ctx);
     }
 }

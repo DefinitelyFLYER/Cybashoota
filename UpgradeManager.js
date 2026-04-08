@@ -5,6 +5,7 @@ export default class UpgradeManager {
         this.inventory = {};
         this.isSelectionActive = false;
         this.currentOptions = [];
+        this.baseStats = null;
     }
 
     init(game) {
@@ -69,6 +70,12 @@ export default class UpgradeManager {
     }
 
     showSelection() {
+        const player = this.game.getModule('player');
+        
+        if (!this.baseStats && player) {
+            this.baseStats = JSON.parse(JSON.stringify(player.stats));
+        }
+
         this.currentOptions = this.getAvailableUpgrades(3);
         this.isSelectionActive = true;
         this.reRollBtnBounds = null;
@@ -205,58 +212,67 @@ export default class UpgradeManager {
         }
     }
 
-    _drawStatsInfobox(ctx, x, y, player) {
-        const stats = player.stats;
-        const rowH = 22;
-        const panelW = 220;
-        const panelH = 400;
+_drawStatsInfobox(ctx, x, y, player) {
+    if (!this.baseStats) return;
 
-        ctx.save();
-        ctx.fillStyle = 'rgba(0, 40, 40, 0.4)';
-        ctx.strokeStyle = '#00ffcc';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x - 10, y - 40, panelW, panelH);
-        ctx.fillRect(x - 10, y - 40, panelW, panelH);
+    const stats = player.stats;
+    const rowH = 22;
+    const panelW = 220;
+    const panelH = 400;
 
+    const getBonus = (current, base) => {
+        if (base === 0) return "+0%";
+        const bonus = ((current / base) - 1) * 100;
+        const sign = bonus >= 0 ? "+" : "";
+        return `${sign}${Math.round(bonus)}%`;
+    };
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 40, 40, 0.4)';
+    ctx.strokeStyle = '#00ffcc';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - 10, y - 40, panelW, panelH);
+    ctx.fillRect(x - 10, y - 40, panelW, panelH);
+
+    ctx.fillStyle = '#00ffcc';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText("STATUS", x, y - 15);
+    
+    ctx.font = '12px monospace';
+    ctx.fillStyle = '#aaa';
+    
+    const displayStats = [
+        { label: "MAX HP", val: stats.maxHp },
+        { label: "DEFENSE", val: stats.defense },
+        { label: "DODGE CHANCE", val: (stats.dodgeChance * 100).toFixed(0) + "%" },
+        { label: "DAMAGE", val: stats.damage },
+        { label: "FIRE RATE", val: (1000 / stats.fireRate).toFixed(2) + "/s" },
+        { label: "PROJ. SPEED", val: stats.bulletSpeed.toFixed(1) },
+        { label: "PROJ. SIZE", val: (stats.projectileSize * 100).toFixed(0) + "%" },
+        { label: "PROJ. COUNT", val: stats.projectileCount },
+        { label: "PENETRATION", val: stats.penetration },
+        { label: "RICOCHET", val: stats.ricochetCount },
+        { label: "CRIT CHANCE", val: (stats.critChance * 100).toFixed(0) + "%" },
+        { label: "CRIT MULTI", val: stats.critMultiplier.toFixed(1) + "x" },
+        { label: "MOVE SPEED", val: getBonus(stats.moveSpeed, this.baseStats.moveSpeed) },
+        { label: "MAGNET", val: getBonus(stats.magnetRange, this.baseStats.magnetRange) },
+        { label: "LUCK", val: getBonus(stats.luck, this.baseStats.luck) },
+        { label: "XP GAIN", val: getBonus(stats.xpMultiplier, this.baseStats.xpMultiplier) }
+    ];
+
+    displayStats.forEach((s, i) => {
+        const curY = y + (i * rowH) + 10;
         ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 16px monospace';
+        ctx.fillText(s.label, x, curY);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(s.val, x + panelW - 30, curY);
         ctx.textAlign = 'left';
-        ctx.fillText("STATUS", x, y - 15);
-        
-        ctx.font = '12px monospace';
-        ctx.fillStyle = '#aaa';
-        
-        const displayStats = [
-            { label: "MAX HP", val: stats.maxHp },
-            { label: "DEFENSE", val: stats.defense },
-            { label: "DODGE CHANCE", val: (stats.dodgeChance * 100).toFixed(0) + "%" },
-            { label: "DAMAGE", val: stats.damage },
-            { label: "FIRE RATE", val: (1000 / stats.fireRate).toFixed(2) + "/s" },
-            { label: "PROJ. SPEED", val: stats.bulletSpeed.toFixed(1) },
-            { label: "PROJ. SIZE", val: (stats.projectileSize * 100).toFixed(0) + "%" },
-            { label: "PROJ. COUNT", val: stats.projectileCount },
-            { label: "PENETRATION", val: stats.penetration },
-            { label: "RICOCHET(bullet bounce)", val: stats.ricochetCount },
-            { label: "CRIT CHANCE", val: (stats.critChance * 100).toFixed(0) + "%" },
-            { label: "CRIT MULTI", val: stats.critMultiplier.toFixed(1) + "x" },
-            { label: "MOVE SPEED", val: stats.moveSpeed.toFixed(2) },
-            { label: "MAGNET", val: stats.magnetRange },
-            { label: "LUCK", val: stats.luck.toFixed(2) },
-            { label: "XP GAIN", val: (stats.xpMultiplier * 100).toFixed(0) + "%" }
-        ];
+    });
 
-        displayStats.forEach((s, i) => {
-            const curY = y + (i * rowH) + 10;
-            ctx.fillStyle = '#00ffcc';
-            ctx.fillText(s.label, x, curY);
-            ctx.textAlign = 'right';
-            ctx.fillStyle = '#fff';
-            ctx.fillText(s.val, x + panelW - 30, curY);
-            ctx.textAlign = 'left';
-        });
-
-        ctx.restore();
-    }
+    ctx.restore();
+}
 
     _getRarityColor(rarity) {
         switch(rarity) {

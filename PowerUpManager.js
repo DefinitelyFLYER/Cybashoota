@@ -87,7 +87,12 @@ export default class PowerUpManager {
 
     applyEffect(config) {
         const player = this.game.getModule('player');
+        const ui = this.game.getModule('ui');
         
+        if (ui && ui.showNotification && config.infoText) {
+            ui.showNotification(config.infoText, config.color);
+        }
+
         const existing = this.activeEffects.find(e => e.id === config.id);
         if (existing) {
             existing.remaining = config.duration;
@@ -102,20 +107,29 @@ export default class PowerUpManager {
 
         if (config.onPickup) config.onPickup(this.game);
 
-        this.activeEffects.push({
-            id: config.id,
-            remaining: config.duration,
-            modifiers: config.statModifiers
-        });
+        if (config.duration) {
+            this.activeEffects.push({
+                id: config.id,
+                name: config.name,
+                color: config.color,
+                duration: config.duration,
+                remaining: config.duration,
+                modifiers: config.statModifiers,
+                onExpire: config.onExpire
+            });
+        }
     }
 
     removeEffect(effect) {
         const player = this.game.getModule('player');
+        
         if (effect.modifiers) {
             for (let stat in effect.modifiers) {
                 player.stats[stat] -= effect.modifiers[stat];
             }
         }
+
+        if (effect.onExpire) effect.onExpire(this.game);
     }
 
     draw(ctx) {
