@@ -72,21 +72,24 @@ export default class PowerUpManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
+        const magnetRangePx = player.stats.magnetRange * this.game.UNIT_SIZE;
+        const pickupRangePx = 0.3 * this.game.UNIT_SIZE;
+
         for (let i = this.drops.length - 1; i >= 0; i--) {
             const d = this.drops[i];
             d.bobbing += deltaTime * 0.003;
 
             const dx = player.pos.x - d.x;
             const dy = player.pos.y - d.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const distPx = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist < player.stats.magnetRange) {
+            if (distPx < magnetRangePx) {
                 const magnetSpeed = 0.5; 
-                d.x += (dx / dist) * magnetSpeed * deltaTime;
-                d.y += (dy / dist) * magnetSpeed * deltaTime;
+                d.x += (dx / distPx) * magnetSpeed * deltaTime;
+                d.y += (dy / distPx) * magnetSpeed * deltaTime;
             }
 
-            if (dist < 30) {
+            if (distPx < pickupRangePx) {
                 this.applyEffect(d);
                 this.drops.splice(i, 1);
             }

@@ -8,6 +8,7 @@ export default class Game {
 
         this._resizeCanvas();
         window.addEventListener('resize', () => this._resizeCanvas());
+        this.UNIT_SIZE = 100;
 
         this.center = {
         x: this.canvas.width / 2,

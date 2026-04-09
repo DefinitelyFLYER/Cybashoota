@@ -7,9 +7,9 @@ export default class ProjectileManager {
         this.mouseY = 0;
         this.isMouseDown = false;
 
-        this.HOMING_RANGE_UNITS = 300; 
-        this.RICOCHET_RANGE_UNITS = 800;
-        this.ASSIST_NEARBY_UNITS = 50;
+        this.HOMING_RANGE = 3;    // 300px
+        this.RICOCHET_RANGE = 8;  // 800px
+        this.NEARBY_LIMIT = 0.5;
 
         window.addEventListener('mousemove', (e) => {
             this.mouseX = e.clientX;
@@ -98,18 +98,18 @@ export default class ProjectileManager {
         if (!enemyMgr) return;
 
         const target = this._findHomingTarget(p, enemyMgr);
-
         if (target) {
             const dx = target.x - p.x;
             const dy = target.y - p.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const distPx = Math.sqrt(dx * dx + dy * dy);
+            
+            const distUnits = distPx / this.game.UNIT_SIZE;
 
-            const targetDirX = dx / dist;
-            const targetDirY = dy / dist;
-
+            const targetDirX = dx / distPx;
+            const targetDirY = dy / distPx;
             const steerStrength = intensity * 0.01 * deltaTime;
 
-            if (dist < this.ASSIST_NEARBY_UNITS && intensity > 0.8) {
+            if (distUnits < this.NEARBY_LIMIT && intensity > 0.8) {
                 p.vx = targetDirX * speed;
                 p.vy = targetDirY * speed;
             } else {
@@ -125,19 +125,17 @@ export default class ProjectileManager {
 
     _findHomingTarget(p, enemyMgr) {
         let closest = null;
-        let minDist = this.HOMING_RANGE_UNITS;
+        let minDistPx = this.HOMING_RANGE * this.game.UNIT_SIZE;
 
         for (const e of enemyMgr.enemies) {
-            if (p.lastHitEnemy === e || (p.hitEnemies && p.hitEnemies.has(e))) {
-                continue;
-            }
+            if (p.lastHitEnemy === e || (p.hitEnemies && p.hitEnemies.has(e))) continue;
 
             const dx = e.x - p.x;
             const dy = e.y - p.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const dSq = dx * dx + dy * dy; // Optimalizace: počítáme se čtvercem vzdálenosti
 
-            if (dist < minDist) {
-                minDist = dist;
+            if (dSq < minDistPx * minDistPx) {
+                minDistPx = Math.sqrt(dSq);
                 closest = e;
             }
         }
@@ -149,7 +147,7 @@ export default class ProjectileManager {
         if (!enemyMgr) return null;
 
         let closest = null;
-        let minDist = this.RICOCHET_RANGE_UNITS;
+        let minDist = this.RICOCHET_RANGE * this.game.UNIT_SIZE;
 
         for (const enemy of enemyMgr.enemies) {
             if (enemy === currentEnemy) continue;

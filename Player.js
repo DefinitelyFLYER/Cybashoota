@@ -25,7 +25,7 @@ export default class Player {
             critChance: 0.05,
             critMultiplier: 2.0,
 
-            magnetRange: 150, // in in-game units(not pixels)
+            magnetRange: 0.75, // in in-game units(not pixels)
             penetration: 0,
             ricochetCount: 0,
             luck: 1.0,

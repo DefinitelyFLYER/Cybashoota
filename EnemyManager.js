@@ -66,6 +66,24 @@ export default class EnemyManager {
         const distP = Math.sqrt(dxP * dxP + dyP * dyP);
         
         const isOutsideView = Math.abs(dxP) > innerW || Math.abs(dyP) > innerH;
+
+        if (e.kbX || e.kbY) {
+            e.x += (e.kbX || 0) * deltaTime;
+            e.y += (e.kbY || 0) * deltaTime;
+
+            e.kbX *= Math.pow(0.9, deltaTime / 16);
+            e.kbY *= Math.pow(0.9, deltaTime / 16);
+
+            if (Math.abs(e.kbX) < 0.01) e.kbX = 0;
+            if (Math.abs(e.kbY) < 0.01) e.kbY = 0;
+        }
+
+        if (e.speedModifier === undefined) e.speedModifier = 1;
+        if (e.speedModifier < 1) {
+            e.speedModifier += deltaTime * 0.002; 
+            if (e.speedModifier > 1) e.speedModifier = 1;
+        }
+        
         let currentSpeed = e.speed;
 
         if (isOutsideView && e.turboCooldown <= 0) {
@@ -74,9 +92,11 @@ export default class EnemyManager {
             e.turboCooldown = COOLDOWN_TIME;
         }
 
+        const finalSpeed = currentSpeed * e.speedModifier;
+
         if (distP > 1) {
-            const moveX = (dxP / distP) * currentSpeed + sep.x + soft.x;
-            const moveY = (dyP / distP) * currentSpeed + sep.y + soft.y;
+            const moveX = (dxP / distP) * finalSpeed + sep.x + soft.x;
+            const moveY = (dyP / distP) * finalSpeed + sep.y + soft.y;
             e.x += moveX * deltaTime;
             e.y += moveY * deltaTime;
         }
@@ -109,7 +129,7 @@ export default class EnemyManager {
 
         if (dist < softDist && dist > 0) {
             const force = (softDist - dist) / softDist;
-            const strength = 0.3;
+            const strength = 0.1;
             return {
                 x: -(dx / dist) * force * strength,
                 y: -(dy / dist) * force * strength
@@ -126,14 +146,18 @@ export default class EnemyManager {
 
         if (distP < collisionDistPlayer && player.invulnerable <= 0) {
             player.takeDamage(1);
+            
             if (e.isSuicidal) {
                 e.currentHp = 0;
             } else {
-                const enemyKnockback = 80;
                 const dirX = (e.x - player.pos.x) / distP;
                 const dirY = (e.y - player.pos.y) / distP;
-                e.x += dirX * enemyKnockback;
-                e.y += dirY * enemyKnockback;
+
+                const knockbackPower = 0.5;
+                e.kbX = dirX * knockbackPower;
+                e.kbY = dirY * knockbackPower;
+                
+                e.speedModifier = 0;
                 e.turboCooldown = 2000;
             }
         }

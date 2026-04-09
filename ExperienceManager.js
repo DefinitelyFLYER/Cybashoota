@@ -26,34 +26,35 @@ export default class ExperienceManager {
         });
     }
 
-update(deltaTime) {
-    const player = this.game.getModule('player');
-    if (!player) return;
+    update(deltaTime) {
+        const player = this.game.getModule('player');
+        if (!player) return;
 
-    const center = player.getCenter();
-    const magnetRange = player.stats.magnetRange; 
-    const pickupRange = 25;  
-    const magnetSpeed = 0.6;
+        const center = player.getCenter();
+        
+        const magnetRangePx = player.stats.magnetRange * this.game.UNIT_SIZE; 
+        const pickupRangePx = 0.25 * this.game.UNIT_SIZE;
+        const magnetSpeed = 0.6;
 
-    for (let i = this.orbs.length - 1; i >= 0; i--) {
-        const orb = this.orbs[i];
-        orb.pulse += deltaTime * 0.005;
+        for (let i = this.orbs.length - 1; i >= 0; i--) {
+            const orb = this.orbs[i];
+            orb.pulse += deltaTime * 0.005;
 
-        const dx = center.x - orb.x;
-        const dy = center.y - orb.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+            const dx = center.x - orb.x;
+            const dy = center.y - orb.y;
+            const distPx = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < magnetRange) {
-            orb.x += (dx / dist) * magnetSpeed * deltaTime;
-            orb.y += (dy / dist) * magnetSpeed * deltaTime;
-        }
+            if (distPx < magnetRangePx) {
+                orb.x += (dx / distPx) * magnetSpeed * deltaTime;
+                orb.y += (dy / distPx) * magnetSpeed * deltaTime;
+            }
 
-        if (dist < pickupRange) {
-            player.addXp(orb.value);
-            this.orbs.splice(i, 1);
+            if (distPx < pickupRangePx) {
+                player.addXp(orb.value);
+                this.orbs.splice(i, 1);
+            }
         }
     }
-}
 
     draw(ctx) {
         const player = this.game.getModule('player');
