@@ -1,6 +1,3 @@
-/**
- * ExperienceManager.js - Správa XP orbů
- */
 export default class ExperienceManager {
     constructor() {
         this.orbs = [];
@@ -11,18 +8,15 @@ export default class ExperienceManager {
         this.game = game;
     }
 
-    /**
-     * Vytvoří XP orb na pozici zemřelého nepřítele
-     */
     spawnOrb(x, y, value, color) {
         this.orbs.push({
             x: x,
             y: y,
             value: value,
             color: color,
-            size: 6 + (value / 20), // Velikost podle hodnoty
-            pulse: 0, // Pro animaci
-            seed: Math.random() * Math.PI * 2 // Náhodný start animace
+            size: 6 + (value / 20),
+            pulse: 0,
+            seed: Math.random() * Math.PI * 2
         });
     }
 
@@ -32,7 +26,7 @@ export default class ExperienceManager {
 
         const center = player.getCenter();
         
-        const magnetRangePx = player.stats.magnetRange * this.game.UNIT_SIZE; 
+        const magnetRangePx = player.getStat('magnetRange') * this.game.UNIT_SIZE;
         const pickupRangePx = 0.25 * this.game.UNIT_SIZE;
         const magnetSpeed = 0.6;
 
@@ -65,7 +59,6 @@ export default class ExperienceManager {
             const drawX = orb.x - player.pos.x + this.game.center.x;
             const drawY = orb.y - player.pos.y + this.game.center.y;
 
-            // Efekt jemného pulzování velikosti a jasu
             const pulseScale = Math.sin(orb.pulse + orb.seed) * 2;
             
             ctx.shadowBlur = 10 + pulseScale;
@@ -76,7 +69,6 @@ export default class ExperienceManager {
             ctx.arc(drawX, drawY, orb.size + pulseScale/2, 0, Math.PI * 2);
             ctx.fill();
 
-            // Malý bílý odlesk uprostřed pro "skleněný" vzhled
             ctx.fillStyle = '#ffffffaa';
             ctx.beginPath();
             ctx.arc(drawX - orb.size/4, drawY - orb.size/4, orb.size/4, 0, Math.PI * 2);

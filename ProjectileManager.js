@@ -71,7 +71,7 @@ export default class ProjectileManager {
         if (!this.isMouseDown) return;
 
         const now = Date.now();
-        if (now - this.lastFireTime >= player.stats.fireRate) {
+        if (now - this.lastFireTime >= player.getStat('fireRate')) {
             this._spawnBurst(player);
             this.lastFireTime = now;
         }
@@ -83,8 +83,10 @@ export default class ProjectileManager {
         const worldMouseY = this.mouseY + player.pos.y - this.game.center.y;
         const baseAngle = Math.atan2(worldMouseY - center.y, worldMouseX - center.x);
 
-        const count = player.stats.projectileCount;
-        const spread = player.stats.projectileSpread * (Math.PI / 180);
+        const count = player.getStat('projectileCount'); 
+        const spread = player.getStat('projectileSpread') * (Math.PI / 180);
+        const bulletSpeed = player.getStat('bulletSpeed');
+        const projectileSize = player.getStat('projectileSize');
 
         for (let i = 0; i < count; i++) {
             let offset = 0;
@@ -97,13 +99,13 @@ export default class ProjectileManager {
             this.projectiles.push({
                 x: center.x,
                 y: center.y,
-                vx: Math.cos(finalAngle) * player.stats.bulletSpeed,
-                vy: Math.sin(finalAngle) * player.stats.bulletSpeed,
-                size: 10 * player.stats.projectileSize,
+                vx: Math.cos(finalAngle) * bulletSpeed,
+                vy: Math.sin(finalAngle) * bulletSpeed,
+                size: 10 * projectileSize,
                 life: 2000,
-                isCrit: Math.random() < player.stats.critChance,
-                bounces: player.stats.ricochetCount,
-                penetration: player.stats.penetration || 0,
+                isCrit: Math.random() < player.getStat('critChance'),
+                bounces: player.getStat('ricochetCount'),
+                penetration: player.getStat('penetration') || 0,
                 hitEnemies: new Set(),
                 lastHitEnemy: null
             });
@@ -116,8 +118,11 @@ export default class ProjectileManager {
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
 
-            if (player.stats.aimAssist > 0) {
-                this._applyHoming(p, player.stats.aimAssist, player.stats.bulletSpeed, enemyMgr, deltaTime);
+            const currentBulletSpeed = player.getStat('bulletSpeed');
+            const aimAssist = player.getStat('aimAssist');
+
+            if (aimAssist > 0) {
+                this._applyHoming(p, aimAssist, currentBulletSpeed, enemyMgr, deltaTime);
             }
 
             p.x += p.vx * deltaTime;

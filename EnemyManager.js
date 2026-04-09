@@ -93,7 +93,7 @@ export default class EnemyManager {
         if (!isAttackingAndStopping && distP > 1) {
             let currentSpeed = e.speed;
             if (isOutsideView && e.turboCooldown <= 0) {
-                currentSpeed = player.stats.moveSpeed * turboMultiplier;
+                currentSpeed = player.getStat('moveSpeed') * turboMultiplier;
             } else if (!isOutsideView && e.turboCooldown <= 0) {
                 e.turboCooldown = COOLDOWN_TIME;
             }
@@ -243,10 +243,10 @@ export default class EnemyManager {
 
     _applyProjectileDamage(e, p, projectileIndex, pm) {
         const playerMod = this.game.getModule('player');
-        let damage = playerMod ? playerMod.stats.damage : 1;
+        let damage = playerMod ? playerMod.getStat('damage') : 1;
 
         if (p.isCrit) {
-            damage *= (playerMod ? playerMod.stats.critMultiplier : 2);
+            damage *= (playerMod ? playerMod.getStat('critMultiplier') : 2);
             const particles = this.game.getModule('particles');
             if (particles) particles.emit(p.x, p.y, '#ffffff', 5);
         }
@@ -302,7 +302,10 @@ export default class EnemyManager {
     }
 
     spawnEnemy() {
-        if (!this.activePhase) return;
+        const director = this.game.getModule('director');
+        if (!director || !director.currentPhase) return;
+        
+        const activePhase = director.currentPhase;
         const player = this.game.getModule('player');
         const center = this.game.center;
         const allowedTypes = this.activePhase.types;

@@ -73,7 +73,7 @@ export const POWER_UPS = {
         sprite: 'assets/powerups/magnet.png',
         weight: 70,
         statModifiers: {
-            magnetRange: 1000
+            magnetRange: 20
         }
     },
     FIRE_RATE_FRENZY: {
@@ -86,11 +86,11 @@ export const POWER_UPS = {
         weight: 7,
         onPickup: (game) => {
             const player = game.getModule('player');
-            if (player) player.stats.fireRate /= 3;
+            if (player) player.multipliers.fireRate += 2.0;
         },
         onExpire: (game) => {
             const player = game.getModule('player');
-            if (player) player.stats.fireRate *= 3;
+            if (player) player.multipliers.fireRate -= 2.0;
         }
     },
     CRIT_OVERLOAD: {

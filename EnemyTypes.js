@@ -51,8 +51,8 @@ export const ENEMY_TYPES = {
     },
     SENTRY: {
         type: 'HEXAGON',
-        hp: 10,
-        speed: 0.1,
+        hp: 5,
+        speed: 0.01,
         size: 35,
         color: '#ff44ff',
         scoreValue: 75,

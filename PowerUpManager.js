@@ -34,7 +34,7 @@ export default class PowerUpManager {
 
     trySpawn(x, y) {
         const player = this.game.getModule('player');
-        const luck = player ? player.stats.luck : 1;
+        const luck = player ? player.getStat('luck') : 1;
         
         const dropChance = 0.02 * luck;
 
@@ -72,7 +72,7 @@ export default class PowerUpManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        const magnetRangePx = player.stats.magnetRange * this.game.UNIT_SIZE;
+        const magnetRangePx = player.getStat('magnetRange') * this.game.UNIT_SIZE;
         const pickupRangePx = 0.3 * this.game.UNIT_SIZE;
 
         for (let i = this.drops.length - 1; i >= 0; i--) {
@@ -122,7 +122,15 @@ export default class PowerUpManager {
 
         if (config.statModifiers) {
             for (let stat in config.statModifiers) {
-                player.stats[stat] += config.statModifiers[stat];
+                const value = config.statModifiers[stat];
+
+                if (stat === 'damage') {
+                    player.stats.damage += value;
+                } else if (player.multipliers[stat] !== undefined) {
+                    player.multipliers[stat] += value;
+                } else if (player.stats[stat] !== undefined) {
+                    player.stats[stat] += value;
+                }
             }
         }
 
@@ -146,7 +154,15 @@ export default class PowerUpManager {
         
         if (effect.modifiers) {
             for (let stat in effect.modifiers) {
-                player.stats[stat] -= effect.modifiers[stat];
+                const value = effect.modifiers[stat];
+
+                if (stat === 'damage') {
+                    player.stats.damage -= value;
+                } else if (player.multipliers[stat] !== undefined) {
+                    player.multipliers[stat] -= value;
+                } else if (player.stats[stat] !== undefined) {
+                    player.stats[stat] -= value;
+                }
             }
         }
 

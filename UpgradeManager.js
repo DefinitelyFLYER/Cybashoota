@@ -93,12 +93,12 @@ export default class UpgradeManager {
 
         const player = this.game.getModule('player');
 
-        if (this.reRollBtnBounds && player && player.stats.reRollCount > 0) {
+        if (this.reRollBtnBounds && player && player.stats.rerolls > 0) {
             const b = this.reRollBtnBounds;
             if (mouseX >= b.x && mouseX <= b.x + b.w && 
                 mouseY >= b.y && mouseY <= b.y + b.h) {
                 
-                player.stats.reRollCount--;
+                player.stats.rerolls--;
                 this.currentOptions = this.getAvailableUpgrades(3);
                 return;
             }
@@ -200,7 +200,7 @@ export default class UpgradeManager {
 
             ctx.restore();
         });
-        if (player && player.stats.reRollCount > 0) {
+        if (player && player.stats.rerolls > 0) {
             const btnW = 220;
             const btnH = 50;
             const btnX = (width - btnW) / 2;
@@ -221,7 +221,7 @@ export default class UpgradeManager {
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 16px monospace';
             ctx.textAlign = 'center';
-            ctx.fillText(`RE-ROLL (${player.stats.reRollCount})`, btnX + btnW/2, btnY + 32);
+            ctx.fillText(`RE-ROLL (${player.stats.rerolls})`, btnX + btnW/2, btnY + 32);
             ctx.restore();
         }
     }
@@ -257,26 +257,26 @@ _drawStatsInfobox(ctx, x, y, player) {
     ctx.fillStyle = '#aaa';
     
     const displayStats = [
-        { label: "MAX HP", val: stats.maxHp },
-        { label: "DEFENSE", val: stats.defense },
-        { label: "DODGE CHANCE", val: (stats.dodgeChance * 100).toFixed(0) + "%" },
-        { label: "DAMAGE", val: stats.damage.toFixed(1) },
-        { label: "FIRE RATE", val: (1000 / stats.fireRate).toFixed(1) + "/s" + " (" + getBonus(1000 / stats.fireRate, 1000 / this.baseStats.fireRate) + ")" },
-        { label: "PROJ. SPEED", val: stats.bulletSpeed.toFixed(1) + " (" + getBonus(stats.bulletSpeed, this.baseStats.bulletSpeed) + ")" },
-        { label: "PROJ. SIZE", val: (stats.projectileSize * 100).toFixed(0) + "%" },
-        { label: "PROJ. COUNT", val: stats.projectileCount },
-        { label: "PENETRATION", val: stats.penetration },
-        { label: "RICOCHET", val: stats.ricochetCount },
-        { label: "CRIT CHANCE", val: (stats.critChance * 100).toFixed(0) + "%" },
-        { label: "CRIT MULTI", val: stats.critMultiplier.toFixed(1) + "x" },
-        { label: "MOVE SPEED", val: getBonus(stats.moveSpeed, this.baseStats.moveSpeed) },
-        { label: "MAGNET", val: getBonus(stats.magnetRange, this.baseStats.magnetRange) },
-        { label: "LUCK", val: getBonus(stats.luck, this.baseStats.luck) },
-        { label: "XP GAIN", val: getBonus(stats.xpMultiplier, this.baseStats.xpMultiplier) }
+        { label: "MAX HP", val: player.stats.maxHp },
+        { label: "DEFENSE", val: player.stats.defense },
+        { label: "DODGE CHANCE", val: (player.stats.dodgeChance * 100).toFixed(0) + "%" },
+        { label: "DAMAGE", val: player.getStat('damage').toFixed(1) },
+        { label: "FIRE RATE", val: (1000 / player.getStat('fireRate')).toFixed(1) + "/s" + " (" + getBonus(1000 / player.getStat('fireRate'), 1000 / player.baseStats.fireRate) + ")" },
+        { label: "PROJ. SPEED", val: player.getStat('bulletSpeed').toFixed(1) + " (" + getBonus(player.getStat('bulletSpeed'), player.baseStats.bulletSpeed) + ")" },
+        { label: "PROJ. SIZE", val: (player.getStat('projectileSize') * 100).toFixed(0) + "%" },
+        { label: "PROJ. COUNT", val: player.stats.projectileCount },
+        { label: "PENETRATION", val: player.stats.penetration },
+        { label: "RICOCHET", val: player.stats.ricochetCount },
+        { label: "CRIT CHANCE", val: (player.stats.critChance * 100).toFixed(0) + "%" },
+        { label: "CRIT MULTI", val: player.getStat('critMultiplier').toFixed(1) + "x" },
+        { label: "MOVE SPEED", val: getBonus(player.getStat('moveSpeed'), player.baseStats.moveSpeed) },
+        { label: "MAGNET", val: getBonus(player.getStat('magnetRange'), player.baseStats.magnetRange) },
+        { label: "LUCK", val: getBonus(player.getStat('luck'), player.baseStats.luck) },
+        { label: "XP GAIN", val: getBonus(player.getStat('xpMultiplier'), player.baseStats.xpMultiplier) }
     ];
 
     displayStats.forEach((s, i) => {
-        const curY = y + (i * rowH) + 10;
+        const curY = y + (i * rowH);
         ctx.fillStyle = '#00ffcc';
         ctx.fillText(s.label, x, curY);
         ctx.textAlign = 'right';
@@ -284,7 +284,6 @@ _drawStatsInfobox(ctx, x, y, player) {
         ctx.fillText(s.val, x + panelW - 30, curY);
         ctx.textAlign = 'left';
     });
-
     ctx.restore();
 }
 
