@@ -318,6 +318,30 @@ export const UPGRADES = [
         }
     },
     {
+        id: 'reroll',
+        name: 'Hack the System',
+        description: 'Gain a reroll.',
+        rarity: 'Rare',
+        tags: ['utility'],
+        weight: 40,
+        onApply: (player) => { 
+            player.stats.rerolls += 1; 
+        }
+    },
+    {
+        id: 'reroll_mastery',
+        name: 'The ultimate hack',
+        description: 'Gain 100 rerolls. Use them!!!',
+        rarity: 'Legendary',
+        tags: ['utility'],
+        weight: 1,
+        unique: true,
+        requirements: (player) => { player.stats.rerolls >= 10; },
+        onApply: (player) => { 
+            player.stats.rerolls += 100; 
+        }
+    },
+    {
         id: 'AI',
         name: 'AI protocol',
         description: 'Massive XP boost (+100%), but your damage is reduced to 1, and your Max HP too.',
