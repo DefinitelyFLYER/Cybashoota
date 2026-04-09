@@ -18,6 +18,7 @@ export default class ProjectileManager {
         });
         window.addEventListener('mousedown', () => this.isMouseDown = true);
         window.addEventListener('mouseup', () => this.isMouseDown = false);
+        this.crosshairPulse = 0;
     }
 
     init(game) {
@@ -44,6 +45,10 @@ export default class ProjectileManager {
         this._handlePlayerFiring(player);
         this._updateProjectiles(player, deltaTime);
         this._updateEnemyProjectiles(player, deltaTime);
+        if (this.crosshairPulse > 0) {
+            this.crosshairPulse -= deltaTime * 0.0025;
+            if (this.crosshairPulse < 0) this.crosshairPulse = 0;
+        }
     }
 
     _updateEnemyProjectiles(player, deltaTime) {
@@ -110,6 +115,7 @@ export default class ProjectileManager {
                 lastHitEnemy: null
             });
         }
+        this.crosshairPulse = 1.0;
     }
 
     _updateProjectiles(player, deltaTime) {
