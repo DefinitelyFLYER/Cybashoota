@@ -7,6 +7,7 @@ export const POWER_UPS = {
         duration: 5000,
         color: '#00ffcc',
         sprite: 'assets/powerups/speed_boost.png',
+        weight: 50,
         statModifiers: {
             moveSpeed: 0.1
         }
@@ -18,6 +19,7 @@ export const POWER_UPS = {
         duration: 4000,
         color: '#f2ff00',
         sprite: 'assets/powerups/damage.png',
+        weight: 20,
         statModifiers: {
             damage: 2
         }
@@ -28,6 +30,7 @@ export const POWER_UPS = {
         infoText: '+1 HEALTH RESTORED',
         color: '#ff0000',
         sprite: 'assets/powerups/hp_small.png',
+        weight: 100,
         onPickup: (game) => {
             const player = game.getModule('player');
             if (player) {
@@ -41,6 +44,7 @@ export const POWER_UPS = {
         infoText: 'FULL HEALTH RESTORED',
         color: '#ff0073',
         sprite: 'assets/powerups/full_recovery.png',
+        weight: 15,
         onPickup: (game) => {
             const player = game.getModule('player');
             if (player) player.stats.hp = player.stats.maxHp;
@@ -52,6 +56,7 @@ export const POWER_UPS = {
         infoText: 'TEMPORARY HEALTH BOOST',
         color: '#3300ff',
         sprite: 'assets/powerups/temp_hp.png',
+        weight: 35,
         onPickup: (game) => {
             const player = game.getModule('player');
             if (player) {
@@ -66,6 +71,7 @@ export const POWER_UPS = {
         duration: 5000,
         color: '#ff9900',
         sprite: 'assets/powerups/magnet.png',
+        weight: 70,
         statModifiers: {
             magnetRange: 1000
         }
@@ -77,6 +83,7 @@ export const POWER_UPS = {
         duration: 8000,
         color: '#77ff00',
         sprite: 'assets/powerups/fire_rate.png',
+        weight: 7,
         onPickup: (game) => {
             const player = game.getModule('player');
             if (player) player.stats.fireRate /= 3;
@@ -93,6 +100,7 @@ export const POWER_UPS = {
         duration: 5000,
         color: '#f2ff00',
         sprite: 'assets/powerups/crit_overload.png',
+        weight: 10,
         statModifiers: {
             critChance: 1.0
         }

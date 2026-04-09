@@ -31,23 +31,41 @@ export default class PowerUpManager {
         }
     }
 
+
     trySpawn(x, y) {
         const player = this.game.getModule('player');
         const luck = player ? player.stats.luck : 1;
-        const dropChance = 0.1 * luck; 
+        
+        const dropChance = 0.05 * luck;
 
         if (Math.random() < dropChance) {
-            const keys = Object.keys(POWER_UPS);
-            const randomKey = keys[Math.floor(Math.random() * keys.length)];
-            const config = POWER_UPS[randomKey];
+            let totalWeight = 0;
+            for (const key in POWER_UPS) {
+                totalWeight += POWER_UPS[key].weight || 50;
+            }
 
-            this.drops.push({
-                ...config,
-                x, y,
-                spawnTime: Date.now(),
-                bobbing: 0
-            });
+            let random = Math.random() * totalWeight;
+
+            for (const key in POWER_UPS) {
+                const config = POWER_UPS[key];
+                const weight = config.weight || 50;
+                
+                random -= weight;
+                if (random <= 0) {
+                    this._spawnSpecific(config, x, y);
+                    break;
+                }
+            }
         }
+    }
+
+    _spawnSpecific(config, x, y) {
+        this.drops.push({
+            ...config,
+            x, y,
+            bobbing: Math.random() * Math.PI * 2,
+            spawnTime: Date.now()
+        });
     }
 
     update(deltaTime) {
@@ -56,7 +74,7 @@ export default class PowerUpManager {
 
         for (let i = this.drops.length - 1; i >= 0; i--) {
             const d = this.drops[i];
-            d.bobbing += deltaTime * 0.005;
+            d.bobbing += deltaTime * 0.003;
 
             const dx = player.pos.x - d.x;
             const dy = player.pos.y - d.y;
@@ -148,7 +166,7 @@ export default class PowerUpManager {
             const img = this.sprites.get(d.id);
 
             if (img && img.isReady && !img.isError) {
-                const size = 32;
+                const size = 48; 
                 ctx.drawImage(img, drawX - size/2, drawY - size/2, size, size);
             } else {
                 // fallback to a shape if sprite is missing or not loaded
