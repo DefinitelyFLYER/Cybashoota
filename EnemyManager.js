@@ -57,22 +57,29 @@ export default class EnemyManager {
         const innerH = (this.game.canvas.height / 2) - stopMargin;
         const turboMultiplier = 3;
         const COOLDOWN_TIME = 5000;
+        
+        // Vzdálenost od okraje, kdy už je bezpečné teleportovat (hráč to neuvidí)
+        const TELEPORT_THRESHOLD = 200; 
 
         const dxP = player.pos.x - e.x;
         const dyP = player.pos.y - e.y;
         const distP = Math.sqrt(dxP * dxP + dyP * dyP);
         
         const isOutsideView = Math.abs(dxP) > innerW || Math.abs(dyP) > innerH;
+        
+        // Nová podmínka: Je nepřítel dostatečně daleko v "mlze"?
+        const isDeepInFog = Math.abs(dxP) > (innerW + TELEPORT_THRESHOLD) || 
+                            Math.abs(dyP) > (innerH + TELEPORT_THRESHOLD);
 
+        // Aplikace knockbacku (zůstává stejné)
         if (e.kbX || e.kbY) {
             e.x += (e.kbX || 0) * deltaTime;
             e.y += (e.kbY || 0) * deltaTime;
             e.kbX *= Math.pow(0.9, deltaTime / 16);
             e.kbY *= Math.pow(0.9, deltaTime / 16);
-            if (Math.abs(e.kbX) < 0.01) e.kbX = 0;
-            if (Math.abs(e.kbY) < 0.01) e.kbY = 0;
         }
 
+        // Speed modifier (zůstává stejné)
         if (e.speedModifier === undefined) e.speedModifier = 1;
         if (e.speedModifier < 1) {
             e.speedModifier += deltaTime * 0.002; 
@@ -82,9 +89,7 @@ export default class EnemyManager {
         let isAttackingAndStopping = false;
         if (e.ranged && e.ranged.stopToShoot) {
             const rangePx = e.ranged.range * this.game.UNIT_SIZE;
-            if (distP < rangePx) {
-                isAttackingAndStopping = true;
-            }
+            if (distP < rangePx) isAttackingAndStopping = true;
         }
 
         const sep = this._calculateSeparation(e);
@@ -92,14 +97,35 @@ export default class EnemyManager {
 
         if (!isAttackingAndStopping && distP > 1) {
             let currentSpeed = e.speed;
+            
             if (isOutsideView && e.turboCooldown <= 0) {
-                currentSpeed = player.getStat('moveSpeed') * turboMultiplier;
+                // Šance na teleport se vyhodnotí jen, pokud je enemy dostatečně daleko [isDeepInFog]
+                if (isDeepInFog && Math.random() < 0.5) {
+                    const margin = 100;
+                    const distXP = Math.abs(dxP);
+                    const distYP = Math.abs(dyP);
+
+                    if (distXP > distYP) {
+                        e.x = player.pos.x + (dxP > 0 ? (innerW + margin) : -(innerW + margin));
+                        e.y = player.pos.y + (Math.random() - 0.5) * (innerH * 2);
+                    } else {
+                        e.y = player.pos.y + (dyP > 0 ? (innerH + margin) : -(innerH + margin));
+                        e.x = player.pos.x + (Math.random() - 0.5) * (innerW * 2);
+                    }
+
+                    const particles = this.game.getModule('particles');
+                    if (particles) particles.emit(e.x, e.y, e.color, 10);
+                    
+                    e.turboCooldown = COOLDOWN_TIME;
+                } else {
+                    // Pokud není dostatečně daleko pro teleport, nebo nepadlo 50%, jen zrychlí
+                    currentSpeed = player.getStat('moveSpeed') * turboMultiplier;
+                }
             } else if (!isOutsideView && e.turboCooldown <= 0) {
                 e.turboCooldown = COOLDOWN_TIME;
             }
 
             const finalSpeed = currentSpeed * e.speedModifier;
-
             const moveX = (dxP / distP) * finalSpeed + sep.x + soft.x;
             const moveY = (dyP / distP) * finalSpeed + sep.y + soft.y;
             

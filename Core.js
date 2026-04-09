@@ -42,19 +42,20 @@ export default class Game {
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
 
-        if (this.isPaused) {
-            return; 
-        }
+        // ODSTRANĚNO: if (this.isPaused) { return; }
 
         const upgrades = this.getModule('upgrades');
         const isMenuOpen = upgrades && upgrades.isSelectionActive;
 
-        if (!isMenuOpen) {
+        // Aktualizujeme hru pouze pokud NENÍ pauza a NENÍ otevřené menu upgradů
+        if (!isMenuOpen && !this.isPaused) {
             this._update(deltaTime);
         }
 
+        // VYKRESLOVÁNÍ běží VŽDY (i při pauze, abychom mohli hýbat křížkem)
         this._draw();
 
+        // Smyčka musí pokračovat dál
         requestAnimationFrame(this._gameLoop.bind(this));
     }
 
@@ -69,51 +70,93 @@ export default class Game {
     _draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // 1. Vykreslíme svět (pozadí, hráč, nepřátelé...)
         for (const [key, module] of this.modules) {
             if (module.draw && key !== 'upgrades') {
                 module.draw(this.ctx);
             }
         }
 
+        // 2. Pokud je Game Over, vykreslíme overlay
+        if (this.isPaused) {
+            this._drawGameOverScreen();
+        }
+
+        // 3. Upgrady (Menu karet) - nyní se kreslí dříve než křížek
         const upgrades = this.getModule('upgrades');
         if (upgrades && upgrades.isSelectionActive && upgrades.draw) {
             upgrades.draw(this.ctx);
         }
+
+        // 4. CROSSHAIR - Úplně poslední věc
+        // Tím zajistíme, že bude nad světem, nad Game Overem i nad kartami upgradů
+        const proj = this.getModule('projectiles');
+        if (proj) {
+            this._drawCrosshair(this.ctx, proj);
+        }
+    }
+
+    // Pomocná metoda pro čistý kód
+    _drawCrosshair(ctx, proj) {
+        ctx.save();
+        
+        // Zde je ten trik: Bereme souřadnice přímo. 
+        // Pokud proj.mouseX/Y plní window.event, poletí to i v pauze.
+        const x = proj.mouseX;
+        const y = proj.mouseY;
+        
+        ctx.strokeStyle = '#00ffcc';
+        ctx.fillStyle = '#00ffcc';
+        ctx.lineWidth = 2;
+
+        const gap = 4 + (proj.crosshairPulse * 12);
+        const lineLen = 6;
+
+        ctx.fillRect(x - 1, y - 1, 2, 2); // Tečka
+
+        ctx.beginPath();
+        ctx.moveTo(x, y - gap); ctx.lineTo(x, y - gap - lineLen); // Horní
+        ctx.moveTo(x, y + gap); ctx.lineTo(x, y + gap + lineLen); // Spodní
+        ctx.moveTo(x - gap, y); ctx.lineTo(x - gap - lineLen, y); // Levá
+        ctx.moveTo(x + gap, y); ctx.lineTo(x + gap + lineLen, y); // Pravá
+        ctx.stroke();
+
+        ctx.restore();
     }
 
     gameOver() {
         this.isPaused = true;
+        console.log("Game Over state triggered.");
+    }
+
+    _drawGameOverScreen() {
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(10, 10, 25, 0.85)';
+        ctx.fillRect(0, 0, w, h);
         
-        setTimeout(() => {
-            const ctx = this.ctx;
-            const w = this.canvas.width;
-            const h = this.canvas.height;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#ff0055';
+        ctx.fillStyle = '#ff0055';
+        ctx.font = 'bold 60px "Courier New", Courier, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('CRITICAL FAILURE', w / 2, h / 2 - 20);
 
-            ctx.fillStyle = 'rgba(10, 10, 25, 0.85)';
-            ctx.fillRect(0, 0, w, h);
-            
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#ff0055';
-            ctx.fillStyle = '#ff0055';
-            ctx.font = 'bold 60px "Courier New", Courier, monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            ctx.fillText('CRITICAL FAILURE', w / 2, h / 2 - 20);
-
-            const ui = this.getModule('ui');
-            if (ui) {
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '24px "Courier New"';
-                ctx.fillText(`FINAL SCORE: ${ui.score}`, w / 2, h / 2 + 20);
-            }
-            
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = '#00ffcc';
-            ctx.font = '20px "Courier New", Courier, monospace';
-            ctx.fillText('REBOOT REQUIRED (PRESS F5)', w / 2, h / 2 + 60);
-            
-            console.log("Game Over screen rendered.");
-        }, 20);
+        const ui = this.getModule('ui');
+        if (ui) {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '24px "Courier New"';
+            ctx.fillText(`FINAL SCORE: ${ui.score}`, w / 2, h / 2 + 20);
+        }
+        
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = '20px "Courier New", Courier, monospace';
+        ctx.fillText('REBOOT REQUIRED (PRESS F5)', w / 2, h / 2 + 60);
+        ctx.restore();
     }
 }
