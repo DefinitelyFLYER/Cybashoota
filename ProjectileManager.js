@@ -8,8 +8,8 @@ export default class ProjectileManager {
         this.mouseY = 0;
         this.isMouseDown = false;
 
-        this.HOMING_RANGE = 3;    // 300px
-        this.RICOCHET_RANGE = 8;  // 800px
+        this.HOMING_RANGE = 3;
+        this.RICOCHET_RANGE = 8;
         this.NEARBY_LIMIT = 0.5;
 
         window.addEventListener('mousemove', (e) => {
@@ -179,8 +179,7 @@ export default class ProjectileManager {
 
             const dx = e.x - p.x;
             const dy = e.y - p.y;
-            const dSq = dx * dx + dy * dy; // Optimalizace: počítáme se čtvercem vzdálenosti
-
+            const dSq = dx * dx + dy * dy;
             if (dSq < minDistPx * minDistPx) {
                 minDistPx = Math.sqrt(dSq);
                 closest = e;

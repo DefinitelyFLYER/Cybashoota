@@ -1,6 +1,3 @@
-/**
- * ParticleManager.js - Vizuální efekty a exploze
- */
 export default class ParticleManager {
     constructor() {
         this.particles = [];
@@ -22,10 +19,10 @@ export default class ParticleManager {
             this.particles.push({
                 x: x,
                 y: y,
-                vx: (Math.random() - 0.5) * 0.4, // Náhodná rychlost X
-                vy: (Math.random() - 0.5) * 0.4, // Náhodná rychlost Y
-                life: 1.0, // Životnost (1.0 = 100%)
-                decay: 0.002 + Math.random() * 0.003, // Jak rychle mizí
+                vx: (Math.random() - 0.5) * 0.4,
+                vy: (Math.random() - 0.5) * 0.4,
+                life: 1.0,
+                decay: 0.002 + Math.random() * 0.003,
                 color: color,
                 size: 1 + Math.random() * 3
             });
@@ -36,14 +33,11 @@ export default class ParticleManager {
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             
-            // Pohyb
             p.x += p.vx * deltaTime;
             p.y += p.vy * deltaTime;
             
-            // Stárnutí
             p.life -= p.decay * deltaTime;
 
-            // Odstranění mrtvých částic
             if (p.life <= 0) {
                 this.particles.splice(i, 1);
             }
@@ -57,7 +51,6 @@ export default class ParticleManager {
 
         ctx.save();
         for (const p of this.particles) {
-            // PŘEPOČET NA OBRAZOVKU
             const drawX = p.x - player.pos.x + center.x;
             const drawY = p.y - player.pos.y + center.y;
 

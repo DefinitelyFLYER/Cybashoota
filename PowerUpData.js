@@ -1,4 +1,3 @@
-// PowerUpData.js
 export const POWER_UPS = {
     SPEED_BOOST: {
         id: 'speed_boost',

@@ -188,7 +188,6 @@ export default class PowerUpManager {
                 const size = 48; 
                 ctx.drawImage(img, drawX - size/2, drawY - size/2, size, size);
             } else {
-                // fallback to a shape if sprite is missing or not loaded
                 ctx.fillStyle = d.color;
                 ctx.beginPath();
                 ctx.arc(drawX, drawY, 10, 0, Math.PI * 2);
