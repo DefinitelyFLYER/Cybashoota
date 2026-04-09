@@ -125,11 +125,11 @@ export default class EnemyManager {
         const dy = player.pos.y - e.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        const softDist = (e.size + player.size) * 0.6;
+        const softDist = (e.size + player.size) * 0.35;
 
         if (dist < softDist && dist > 0) {
             const force = (softDist - dist) / softDist;
-            const strength = 0.1;
+            const strength = 0.4;
             return {
                 x: -(dx / dist) * force * strength,
                 y: -(dy / dist) * force * strength

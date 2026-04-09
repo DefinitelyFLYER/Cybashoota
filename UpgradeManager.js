@@ -20,7 +20,7 @@ export default class UpgradeManager {
             const currentCount = this.inventory[upgrade.id] || 0;
             if (upgrade.unique && currentCount > 0) return false;
             if (upgrade.maxStack && currentCount >= upgrade.maxStack) return false;
-            if (upgrade.requirements && !upgrade.requirements(player)) return false;
+            if (upgrade.requirements && !upgrade.requirements(player, this)) return false;
             return true;
         });
 
@@ -179,6 +179,20 @@ export default class UpgradeManager {
             ctx.font = '12px monospace';
             ctx.fillStyle = '#aaa';
             this._wrapText(ctx, upgrade.description, x + 20, y + 180, cardW - 40, 16);
+
+            if (upgrade.requirementText) {
+                ctx.save();
+                ctx.font = 'italic bold 10px monospace';
+                ctx.fillStyle = '#ffcc00';
+                ctx.textAlign = 'center';
+                
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = '#ffcc00';
+                
+                ctx.fillText(upgrade.requirementText.toUpperCase(), x + cardW / 2, y + cardH - 45);
+                
+                ctx.restore();
+            }
 
             ctx.fillStyle = this._getRarityColor(upgrade.rarity);
             ctx.font = '10px monospace';
