@@ -12,7 +12,7 @@ export default class Player {
             maxHp: 2,
             hp: 2,
             defense: 0, // not relevant until enemies does more than 1 damage
-            dodgeChance: 0,
+            dodgeChance: 1,
 
             damage: 1,
             fireRate: 600,

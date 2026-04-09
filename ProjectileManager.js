@@ -1,6 +1,7 @@
 export default class ProjectileManager {
     constructor() {
         this.projectiles = [];
+        this.enemyProjectiles = [];
         this.lastFireTime = 0;
         
         this.mouseX = 0;
@@ -23,12 +24,47 @@ export default class ProjectileManager {
         this.game = game;
     }
 
+    spawnEnemyProjectile(config) {
+        this.enemyProjectiles.push({
+            x: config.x,
+            y: config.y,
+            vx: config.vx,
+            vy: config.vy,
+            size: config.size,
+            color: config.color,
+            damage: config.damage || 1,
+            life: 3000
+        });
+    }
+
     update(deltaTime) {
         const player = this.game.getModule('player');
         if (!player) return;
 
         this._handlePlayerFiring(player);
         this._updateProjectiles(player, deltaTime);
+        this._updateEnemyProjectiles(player, deltaTime);
+    }
+
+    _updateEnemyProjectiles(player, deltaTime) {
+        for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
+            const p = this.enemyProjectiles[i];
+            p.x += p.vx * deltaTime;
+            p.y += p.vy * deltaTime;
+            p.life -= deltaTime;
+
+            const dx = player.pos.x - p.x;
+            const dy = player.pos.y - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < (player.size / 2 + p.size / 2) * 0.8) {
+                player.takeDamage(p.damage);
+                this.enemyProjectiles.splice(i, 1);
+                continue;
+            }
+
+            if (p.life <= 0) this.enemyProjectiles.splice(i, 1);
+        }
     }
 
     _handlePlayerFiring(player) {
@@ -172,11 +208,20 @@ export default class ProjectileManager {
         ctx.fillStyle = '#00ffcc';
         ctx.shadowBlur = 15;
         ctx.shadowColor = '#00ffcc';
-
         for (const p of this.projectiles) {
             const screenX = p.x - player.pos.x + this.game.center.x;
             const screenY = p.y - player.pos.y + this.game.center.y;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, p.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
+        ctx.shadowBlur = 10;
+        for (const p of this.enemyProjectiles) {
+            const screenX = p.x - player.pos.x + this.game.center.x;
+            const screenY = p.y - player.pos.y + this.game.center.y;
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
             ctx.beginPath();
             ctx.arc(screenX, screenY, p.size / 2, 0, Math.PI * 2);
             ctx.fill();

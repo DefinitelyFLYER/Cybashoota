@@ -36,6 +36,7 @@ export default class EnemyManager {
 
             this._updateEnemyTimers(e, deltaTime);
             this._applyPhysics(e, player, deltaTime);
+            this._handleRangedAttack(e, player, deltaTime);
             this._checkPlayerCollision(e, player);
             this._checkProjectileCollisions(e);
 
@@ -57,10 +58,6 @@ export default class EnemyManager {
         const turboMultiplier = 3;
         const COOLDOWN_TIME = 5000;
 
-        const sep = this._calculateSeparation(e);
-        
-        const soft = this._calculateSoftPlayerCollision(e, player);
-
         const dxP = player.pos.x - e.x;
         const dyP = player.pos.y - e.y;
         const distP = Math.sqrt(dxP * dxP + dyP * dyP);
@@ -70,10 +67,8 @@ export default class EnemyManager {
         if (e.kbX || e.kbY) {
             e.x += (e.kbX || 0) * deltaTime;
             e.y += (e.kbY || 0) * deltaTime;
-
             e.kbX *= Math.pow(0.9, deltaTime / 16);
             e.kbY *= Math.pow(0.9, deltaTime / 16);
-
             if (Math.abs(e.kbX) < 0.01) e.kbX = 0;
             if (Math.abs(e.kbY) < 0.01) e.kbY = 0;
         }
@@ -83,22 +78,36 @@ export default class EnemyManager {
             e.speedModifier += deltaTime * 0.002; 
             if (e.speedModifier > 1) e.speedModifier = 1;
         }
-        
-        let currentSpeed = e.speed;
 
-        if (isOutsideView && e.turboCooldown <= 0) {
-            currentSpeed = player.stats.moveSpeed * turboMultiplier;
-        } else if (!isOutsideView && e.turboCooldown <= 0) {
-            e.turboCooldown = COOLDOWN_TIME;
+        let isAttackingAndStopping = false;
+        if (e.ranged && e.ranged.stopToShoot) {
+            const rangePx = e.ranged.range * this.game.UNIT_SIZE;
+            if (distP < rangePx) {
+                isAttackingAndStopping = true;
+            }
         }
 
-        const finalSpeed = currentSpeed * e.speedModifier;
+        const sep = this._calculateSeparation(e);
+        const soft = this._calculateSoftPlayerCollision(e, player);
 
-        if (distP > 1) {
+        if (!isAttackingAndStopping && distP > 1) {
+            let currentSpeed = e.speed;
+            if (isOutsideView && e.turboCooldown <= 0) {
+                currentSpeed = player.stats.moveSpeed * turboMultiplier;
+            } else if (!isOutsideView && e.turboCooldown <= 0) {
+                e.turboCooldown = COOLDOWN_TIME;
+            }
+
+            const finalSpeed = currentSpeed * e.speedModifier;
+
             const moveX = (dxP / distP) * finalSpeed + sep.x + soft.x;
             const moveY = (dyP / distP) * finalSpeed + sep.y + soft.y;
+            
             e.x += moveX * deltaTime;
             e.y += moveY * deltaTime;
+        } else {
+            e.x += sep.x * deltaTime;
+            e.y += sep.y * deltaTime;
         }
     }
 
@@ -313,6 +322,41 @@ export default class EnemyManager {
             maxHp: Math.ceil(baseConfig.hp * this.activePhase.hpMultiplier),
             currentHp: Math.ceil(baseConfig.hp * this.activePhase.hpMultiplier),
             speed: baseConfig.speed * this.activePhase.speedMultiplier
+        });
+    }
+
+    _handleRangedAttack(e, player, deltaTime) {
+        if (!e.ranged) return;
+        
+        if (e.shootTimer === undefined) e.shootTimer = 0;
+        e.shootTimer += deltaTime;
+
+        const dx = player.pos.x - e.x;
+        const dy = player.pos.y - e.y;
+        const distPx = Math.sqrt(dx * dx + dy * dy);
+        const rangePx = e.ranged.range * this.game.UNIT_SIZE;
+
+        if (distPx < rangePx && e.shootTimer >= e.ranged.fireRate) {
+            this._enemyShoot(e, player, dx, dy, distPx);
+            e.shootTimer = 0;
+        }
+    }
+
+    _enemyShoot(e, player, dx, dy, dist) {
+        const pm = this.game.getModule('projectiles');
+        if (!pm) return;
+
+        const vx = (dx / dist) * e.ranged.projectileSpeed;
+        const vy = (dy / dist) * e.ranged.projectileSpeed;
+
+        pm.spawnEnemyProjectile({
+            x: e.x,
+            y: e.y,
+            vx: vx,
+            vy: vy,
+            size: e.ranged.projectileSize,
+            color: e.ranged.color,
+            damage: 1
         });
     }
 
