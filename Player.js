@@ -6,31 +6,43 @@ export default class Player {
         this.level = 1;
         this.xp = 0;
         this.xpNextLevel = 100;
-        
-        this.stats = {
+
+        this.baseStats = {
             moveSpeed: 0.2,
             maxHp: 2,
-            hp: 2,
-            defense: 0, // not relevant until enemies does more than 1 damage
-            dodgeChance: 0,
-
-            damage: 1,
             fireRate: 600,
             bulletSpeed: 0.8,
             projectileSize: 1.0,
+            critMultiplier: 2.0,
+            magnetRange: 0.75,
+            xpMultiplier: 1.0,
+            luck: 1.0
+        };
+
+        this.multipliers = {
+            moveSpeed: 1.0,
+            fireRate: 1.0, 
+            bulletSpeed: 1.0,
+            projectileSize: 1.0,
+            critMultiplier: 1.0,
+            magnetRange: 1.0,
+            xpMultiplier: 1.0,
+            luck: 1.0
+        };
+
+        this.stats = {
+            hp: 2,
+            maxHp: 2, 
+            defense: 0,
+            damage: 1,
+            dodgeChance: 0,
             projectileCount: 1,
             projectileSpread: 5,
             aimAssist: 0,
-            
             critChance: 0.05,
-            critMultiplier: 2.0,
-
-            magnetRange: 0.75, // in in-game units(not pixels)
             penetration: 0,
             ricochetCount: 0,
-            luck: 1.0,
-            reRollCount: 0,
-            xpMultiplier: 1.0
+            rerolls: 0
         };
         
         this.sprite = new Image();
@@ -45,6 +57,18 @@ export default class Player {
         this.shockwaveTimer = 0;
     }
 
+    getStat(name) {
+        if (name === 'damage') {
+            return this.stats.damage;
+        }
+
+        if (this.baseStats[name] !== undefined) {
+            if (name === 'fireRate') return this.baseStats[name] / this.multipliers[name];
+            return this.baseStats[name] * this.multipliers[name];
+        }
+        return this.stats[name];
+    }
+
     getCenter() {
         return { x: this.pos.x, y: this.pos.y };
     }
@@ -53,32 +77,32 @@ export default class Player {
         this.game = game;
     }
 
-takeDamage(amount = 1) {
-    if (this.invulnerable > 0) return;
+    takeDamage(amount = 1) {
+        if (this.invulnerable > 0) return;
 
-    if (Math.random() < this.stats.dodgeChance) {
-        this.invulnerable = 500;
-        return;
-    }
+        if (Math.random() < this.stats.dodgeChance) {
+            this.invulnerable = 500;
+            return;
+        }
 
-    const finalDamage = Math.max(1, amount - this.stats.defense);
-    
-    this.stats.hp -= finalDamage;
-    
-    this.invulnerable = 1500;
+        const finalDamage = Math.max(1, amount - this.stats.defense);
+        
+        this.stats.hp -= finalDamage;
+        
+        this.invulnerable = 1500;
 
-    if (this.stats.hp <= 0) {
-        this.stats.hp = 0;
-        if (this.game.gameOver) {
-            this.game.gameOver();
-        } else {
-            console.log("GAME OVER - Hráč zemřel");
+        if (this.stats.hp <= 0) {
+            this.stats.hp = 0;
+            if (this.game.gameOver) {
+                this.game.gameOver();
+            } else {
+                console.log("GAME OVER - Hráč zemřel");
+            }
         }
     }
-}
 
     addXp(amount) {
-        const bonusXp = amount * this.stats.xpMultiplier;
+        const bonusXp = amount * this.getStat('xpMultiplier');
         this.xp += bonusXp;
         
         if (this.xp >= this.xpNextLevel) {
@@ -98,6 +122,12 @@ takeDamage(amount = 1) {
         const upgrades = this.game.getModule('upgrades');
         if (upgrades) {
             setTimeout(() => upgrades.showSelection(), 200);
+        }
+    }
+
+    updateMaxHp() {
+        if (this.stats.hp > this.stats.maxHp) {
+            this.stats.hp = this.stats.maxHp;
         }
     }
 
@@ -128,8 +158,8 @@ takeDamage(amount = 1) {
             moveY /= mag;
         }
 
-        this.pos.x += moveX * this.stats.moveSpeed * deltaTime;
-        this.pos.y += moveY * this.stats.moveSpeed * deltaTime;
+        this.pos.x += moveX * this.getStat('moveSpeed') * deltaTime;
+        this.pos.y += moveY * this.getStat('moveSpeed') * deltaTime;
 
         if (this.invulnerable > 0) {
             this.invulnerable -= deltaTime;

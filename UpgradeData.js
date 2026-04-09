@@ -13,7 +13,7 @@ export const UPGRADES = [
         tags: ['weapon', 'speed'],
         weight: 100,
         maxStack: 4,
-        onApply: (player) => { player.stats.fireRate *= 0.85; }
+        onApply: (player) => { player.multipliers.fireRate += 0.15; }
     },
     {
         id: 'damage_boost',
@@ -58,7 +58,7 @@ export const UPGRADES = [
         maxStack: 5,
         requirements: (player) => player.stats.critChance > 0.15,
         requirementText: 'Requires at least 15% Crit Chance.',
-        onApply: (player) => { player.stats.critMultiplier += 0.5; }
+        onApply: (player) => { player.multipliers.critMultiplier += 0.5; }
     },
     {
         id: 'ricochet_logic',
@@ -106,7 +106,7 @@ export const UPGRADES = [
         unique: true,
         onApply: (player) => { 
             player.stats.penetration += 3;
-            player.stats.fireRate *= 1.5;
+            player.multipliers.fireRate -= 0.5;
         }
     },
     {
@@ -118,7 +118,7 @@ export const UPGRADES = [
         weight: 70,
         maxStack: 10,
         onApply: (player) => { 
-            player.stats.projectileSize *= 1.25; 
+            player.multipliers.projectileSize += 0.25; 
         }
     },
     {
@@ -130,7 +130,7 @@ export const UPGRADES = [
         weight: 50,
         unique: true,
         onApply: (player) => { 
-            player.stats.projectileSize *= 2; 
+            player.multipliers.projectileSize += 1; 
             player.stats.damage += 1;
         }
     },
@@ -144,8 +144,8 @@ export const UPGRADES = [
         requirements: (player) => player.stats.ricochetCount >= 1,
         requirementText: 'Requires at least 1 Ricochet.',
         onApply: (player) => { 
-            player.stats.projectileSize *= 0.7;
-            player.stats.bulletSpeed *= 1.5;
+            player.multipliers.projectileSize -= 0.3;
+            player.multipliers.bulletSpeed += 0.5;
         }
     },
 
@@ -192,7 +192,7 @@ export const UPGRADES = [
         tags: ['utility', 'luck'],
         weight: 60,
         maxStack: 4,
-        onApply: (player) => { player.stats.luck += 0.25; }
+        onApply: (player) => { player.multipliers.luck += 0.25; }
     },
     {
         id: 'glass_cannon',
@@ -205,7 +205,7 @@ export const UPGRADES = [
         requirements: (player) => player.stats.maxHp > 2,
         requirementText: 'Requires more than 2 Max HP.',
         onApply: (player) => { 
-            player.stats.damage *= 2;
+            player.stats.damage *= 2.0;
             player.stats.maxHp = 1;
             player.stats.hp = 1;
         }
@@ -219,9 +219,9 @@ export const UPGRADES = [
         weight: 20,
         unique: true,
         onApply: (player) => {
-            player.stats.bulletSpeed *= 2;
+            player.multipliers.bulletSpeed += 1;
             player.stats.damage += 2;
-            player.stats.fireRate *= 1.3;
+            player.multipliers.fireRate -= 0.3;
         }
     },
     {
@@ -233,7 +233,7 @@ export const UPGRADES = [
         weight: 60,
         maxStack: 10,
         onApply: (player) => { 
-            player.stats.magnetRange += 40; 
+            player.multipliers.magnetRange += 40;
         }
     },
     {
@@ -245,7 +245,7 @@ export const UPGRADES = [
         weight: 10,
         unique: true,
         onApply: (player) => { 
-            player.stats.magnetRange += 240; 
+            player.multipliers.magnetRange += 240;
         }
     },
     // movement upgrades
@@ -258,7 +258,7 @@ export const UPGRADES = [
         weight: 80,
         maxStack: 5,
         onApply: (player) => { 
-            player.stats.moveSpeed *= 1.10; 
+            player.multipliers.moveSpeed += 0.10;
         }
     },
     {
@@ -271,7 +271,7 @@ export const UPGRADES = [
         requirements: (player) => player.stats.maxHp > 2,
         requirementText: 'Requires more than 2 Max HP.',
         onApply: (player) => {
-            player.stats.moveSpeed *= 1.10;
+            player.multipliers.moveSpeed += 0.10;
             player.stats.dodgeChance += 0.05;
             player.stats.maxHp -= 1;
             if (player.stats.hp > player.stats.maxHp) player.stats.hp = player.stats.maxHp;
@@ -286,8 +286,8 @@ export const UPGRADES = [
         weight: 20,
         unique: true,
         onApply: (player) => {
-            player.stats.moveSpeed *= 1.40;
-            player.stats.fireRate *= 1.35;
+            player.multipliers.moveSpeed += 0.40;
+            player.multipliers.fireRate -= 0.35;
         }
     },
     {
@@ -298,7 +298,7 @@ export const UPGRADES = [
         tags: ['utility', 'speed', 'healing'],
         weight: 80,
         onApply: (player) => {
-            player.stats.moveSpeed *= 1.05;
+            player.multipliers.moveSpeed += 0.05;
             player.stats.maxHp += 1;
         }
     },
@@ -310,7 +310,7 @@ export const UPGRADES = [
         tags: ['utility', 'healing'],
         weight: 20,
         onApply: (player) => {
-            player.stats.moveSpeed *= 0.70;
+            player.multipliers.moveSpeed -= 0.30;
             player.stats.maxHp += 6;
         }
     },
@@ -323,7 +323,7 @@ export const UPGRADES = [
         weight: 30,
         maxStack: 3,
         onApply: (player) => { 
-            player.stats.xpMultiplier += 0.1; 
+            player.multipliers.xpMultiplier += 0.1; 
         }
     },
     {
@@ -359,10 +359,10 @@ export const UPGRADES = [
         tags: ['utility', 'xp', 'risky'],
         weight: 5,
         unique: true,
-        requirements: (player) => { player.stats.maxHp >= 4 && player.stats.damage >= 4;},
+        requirements: (player) => { player.getStat('maxHp') >= 4 && player.getStat('damage') >= 4;},
         requirementText: 'Requires at least 4 Max HP and 4 Damage.',
         onApply: (player) => { 
-            player.stats.xpMultiplier += 1;
+            player.multipliers.xpMultiplier += 1;
             player.stats.hp = 1;
             player.stats.maxHp = 1;
             player.stats.damage = 1;
