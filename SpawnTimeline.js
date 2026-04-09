@@ -36,17 +36,25 @@ export const SPAWN_TIMELINE = [
     },
     {
         name: "The Tanks are coming...",
-        start: 70, end: 120,
+        start: 70, end: 118,
         types: ["HEXAGON"],
         rate: 3000,
         hpMultiplier: 1.5, speedMultiplier: 1,
+        xpDrop: { value: 30, color: '#bc00ff' }
+    },    
+    {
+        name: "Triangles... everywhere?",
+        start: 118, end: 120,
+        types: ["HEXAGON"],
+        rate: 300,
+        hpMultiplier: 1, speedMultiplier: 0.8,
         xpDrop: { value: 30, color: '#bc00ff' }
     },
     {
         name: "Triangles... everywhere.",
         start: 120, end: 180,
         types: ["TRIANGLE"],
-        rate: 200,
+        rate: 150,
         hpMultiplier: 1, speedMultiplier: 0.8,
         xpDrop: { value: 10, color: '#6e6cff' } 
     },

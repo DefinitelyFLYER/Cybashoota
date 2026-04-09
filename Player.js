@@ -20,6 +20,7 @@ export default class Player {
             projectileSize: 1.0,
             projectileCount: 1,
             projectileSpread: 5,
+            aimAssist: 0,
             
             critChance: 0.05,
             critMultiplier: 2.0,

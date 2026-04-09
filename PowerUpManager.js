@@ -36,7 +36,7 @@ export default class PowerUpManager {
         const player = this.game.getModule('player');
         const luck = player ? player.stats.luck : 1;
         
-        const dropChance = 0.05 * luck;
+        const dropChance = 0.02 * luck;
 
         if (Math.random() < dropChance) {
             let totalWeight = 0;
