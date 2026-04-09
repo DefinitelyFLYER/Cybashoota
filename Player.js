@@ -12,7 +12,7 @@ export default class Player {
             maxHp: 2,
             hp: 2,
             defense: 0, // not relevant until enemies does more than 1 damage
-            dodgeChance: 1,
+            dodgeChance: 0,
 
             damage: 1,
             fireRate: 600,
@@ -157,6 +157,8 @@ takeDamage(amount = 1) {
             }
 
             const enemyMgr = this.game.getModule('enemies');
+            const projMgr = this.game.getModule('projectiles');
+            const particles = this.game.getModule('particles');
 
             if (enemyMgr) {
                 for (const e of enemyMgr.enemies) {
@@ -171,6 +173,23 @@ takeDamage(amount = 1) {
                         e.y += (dy / dist) * pushForce * deltaTime;
                         
                         e.turboCooldown = 2000; 
+                    }
+                }
+            }
+
+            if (projMgr && projMgr.enemyProjectiles) {
+                for (let i = projMgr.enemyProjectiles.length - 1; i >= 0; i--) {
+                    const p = projMgr.enemyProjectiles[i];
+                    const dx = p.x - this.pos.x;
+                    const dy = p.y - this.pos.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (Math.abs(dist - this.shockwaveRadius) < 30) {
+                        if (particles) {
+                            particles.emit(p.x, p.y, p.color, 4);
+                        }
+
+                        projMgr.enemyProjectiles.splice(i, 1);
                     }
                 }
             }
