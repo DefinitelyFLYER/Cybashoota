@@ -20,11 +20,12 @@ export default class Player {
             projectileSize: 1.0,
             projectileCount: 1,
             projectileSpread: 5,
+            aimAssist: 0,
             
             critChance: 0.05,
             critMultiplier: 2.0,
 
-            magnetRange: 150, // in in-game units(not pixels)
+            magnetRange: 0.75, // in in-game units(not pixels)
             penetration: 0,
             ricochetCount: 0,
             luck: 1.0,
@@ -156,6 +157,8 @@ takeDamage(amount = 1) {
             }
 
             const enemyMgr = this.game.getModule('enemies');
+            const projMgr = this.game.getModule('projectiles');
+            const particles = this.game.getModule('particles');
 
             if (enemyMgr) {
                 for (const e of enemyMgr.enemies) {
@@ -170,6 +173,23 @@ takeDamage(amount = 1) {
                         e.y += (dy / dist) * pushForce * deltaTime;
                         
                         e.turboCooldown = 2000; 
+                    }
+                }
+            }
+
+            if (projMgr && projMgr.enemyProjectiles) {
+                for (let i = projMgr.enemyProjectiles.length - 1; i >= 0; i--) {
+                    const p = projMgr.enemyProjectiles[i];
+                    const dx = p.x - this.pos.x;
+                    const dy = p.y - this.pos.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (Math.abs(dist - this.shockwaveRadius) < 30) {
+                        if (particles) {
+                            particles.emit(p.x, p.y, p.color, 4);
+                        }
+
+                        projMgr.enemyProjectiles.splice(i, 1);
                     }
                 }
             }

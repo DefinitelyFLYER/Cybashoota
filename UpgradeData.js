@@ -1,3 +1,8 @@
+const hasUpgrade = (id, count = 1) => (p, m) => (m.inventory[id] || 0) >= count;
+const hasStat = (stat, val) => (p, m) => p.stats[stat] >= val;
+const not = (conditionFunc) => (p, m) => !conditionFunc(p, m);
+const and = (...funcs) => (p, m) => funcs.every(f => f(p, m));
+
 export const UPGRADES = [
     // offensive upgrades
     {
@@ -52,6 +57,7 @@ export const UPGRADES = [
         weight: 50,
         maxStack: 5,
         requirements: (player) => player.stats.critChance > 0.15,
+        requirementText: 'Requires at least 15% Crit Chance.',
         onApply: (player) => { player.stats.critMultiplier += 0.5; }
     },
     {
@@ -136,6 +142,7 @@ export const UPGRADES = [
         tags: ['weapon', 'projectile', 'ricochet', 'risky'],
         weight: 15,
         requirements: (player) => player.stats.ricochetCount >= 1,
+        requirementText: 'Requires at least 1 Ricochet.',
         onApply: (player) => { 
             player.stats.projectileSize *= 0.7;
             player.stats.bulletSpeed *= 1.5;
@@ -196,6 +203,7 @@ export const UPGRADES = [
         weight: 15,
         unique: true,
         requirements: (player) => player.stats.maxHp > 2,
+        requirementText: 'Requires more than 2 Max HP.',
         onApply: (player) => { 
             player.stats.damage *= 2;
             player.stats.maxHp = 1;
@@ -261,6 +269,7 @@ export const UPGRADES = [
         tags: ['utility', 'speed', 'defense'],
         weight: 40,
         requirements: (player) => player.stats.maxHp > 2,
+        requirementText: 'Requires more than 2 Max HP.',
         onApply: (player) => {
             player.stats.moveSpeed *= 1.10;
             player.stats.dodgeChance += 0.05;
@@ -308,13 +317,13 @@ export const UPGRADES = [
     {
         id: 'xp_boost',
         name: 'Learning Algorithm',
-        description: 'Increases XP gain by 20%.',
-        rarity: 'Common',
+        description: 'Increases XP gain by 10%.',
+        rarity: 'Rare',
         tags: ['utility', 'xp'],
-        weight: 70,
-        maxStack: 5,
+        weight: 30,
+        maxStack: 3,
         onApply: (player) => { 
-            player.stats.xpMultiplier += 0.2; 
+            player.stats.xpMultiplier += 0.1; 
         }
     },
     {
@@ -337,6 +346,7 @@ export const UPGRADES = [
         weight: 1,
         unique: true,
         requirements: (player) => { player.stats.rerolls >= 10; },
+        requirementText: 'Requires at least 10 rerolls.',
         onApply: (player) => { 
             player.stats.rerolls += 100; 
         }
@@ -349,7 +359,8 @@ export const UPGRADES = [
         tags: ['utility', 'xp', 'risky'],
         weight: 5,
         unique: true,
-        requirements: (player) => { player.stats.maxHp <= 3 && player.stats.damage <= 3;},
+        requirements: (player) => { player.stats.maxHp >= 4 && player.stats.damage >= 4;},
+        requirementText: 'Requires at least 4 Max HP and 4 Damage.',
         onApply: (player) => { 
             player.stats.xpMultiplier += 1;
             player.stats.hp = 1;

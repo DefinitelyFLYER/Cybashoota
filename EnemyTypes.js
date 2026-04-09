@@ -48,5 +48,23 @@ export const ENEMY_TYPES = {
         scoreValue: 100,
         renderType: 'shape',
         isSuicidal: false
+    },
+    SENTRY: {
+        type: 'HEXAGON',
+        hp: 10,
+        speed: 0.1,
+        size: 35,
+        color: '#ff44ff',
+        scoreValue: 75,
+        renderType: 'shape',
+        isSuicidal: false,
+        ranged: {
+            fireRate: 3000,
+            projectileSpeed: 0.6,
+            projectileSize: 10,
+            range: 6,
+            stopToShoot: true,
+            color: '#ff44ff'
+        }
     }
 };
