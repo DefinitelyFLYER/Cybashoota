@@ -58,7 +58,6 @@ export default class EnemyManager {
         const turboMultiplier = 3;
         const COOLDOWN_TIME = 5000;
         
-        // Vzdálenost od okraje, kdy už je bezpečné teleportovat (hráč to neuvidí)
         const TELEPORT_THRESHOLD = 200; 
 
         const dxP = player.pos.x - e.x;
@@ -67,11 +66,9 @@ export default class EnemyManager {
         
         const isOutsideView = Math.abs(dxP) > innerW || Math.abs(dyP) > innerH;
         
-        // Nová podmínka: Je nepřítel dostatečně daleko v "mlze"?
         const isDeepInFog = Math.abs(dxP) > (innerW + TELEPORT_THRESHOLD) || 
                             Math.abs(dyP) > (innerH + TELEPORT_THRESHOLD);
 
-        // Aplikace knockbacku (zůstává stejné)
         if (e.kbX || e.kbY) {
             e.x += (e.kbX || 0) * deltaTime;
             e.y += (e.kbY || 0) * deltaTime;
@@ -79,7 +76,6 @@ export default class EnemyManager {
             e.kbY *= Math.pow(0.9, deltaTime / 16);
         }
 
-        // Speed modifier (zůstává stejné)
         if (e.speedModifier === undefined) e.speedModifier = 1;
         if (e.speedModifier < 1) {
             e.speedModifier += deltaTime * 0.002; 
@@ -99,7 +95,6 @@ export default class EnemyManager {
             let currentSpeed = e.speed;
             
             if (isOutsideView && e.turboCooldown <= 0) {
-                // Šance na teleport se vyhodnotí jen, pokud je enemy dostatečně daleko [isDeepInFog]
                 if (isDeepInFog && Math.random() < 0.5) {
                     const margin = 100;
                     const distXP = Math.abs(dxP);
@@ -118,7 +113,6 @@ export default class EnemyManager {
                     
                     e.turboCooldown = COOLDOWN_TIME;
                 } else {
-                    // Pokud není dostatečně daleko pro teleport, nebo nepadlo 50%, jen zrychlí
                     currentSpeed = player.getStat('moveSpeed') * turboMultiplier;
                 }
             } else if (!isOutsideView && e.turboCooldown <= 0) {

@@ -233,7 +233,7 @@ export const UPGRADES = [
         weight: 60,
         maxStack: 10,
         onApply: (player) => { 
-            player.multipliers.magnetRange += 40;
+            player.multipliers.magnetRange += 0.4;
         }
     },
     {
@@ -245,7 +245,7 @@ export const UPGRADES = [
         weight: 10,
         unique: true,
         onApply: (player) => { 
-            player.multipliers.magnetRange += 240;
+            player.multipliers.magnetRange += 5;
         }
     },
     // movement upgrades

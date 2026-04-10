@@ -1,9 +1,6 @@
-/**
- * InputHandler.js - Sledování klávesnice
- */
 export default class InputHandler {
     constructor() {
-        this.keys = {}; // Mapa stisknutých kláves
+        this.keys = {};
 
         window.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
@@ -18,7 +15,6 @@ export default class InputHandler {
         this.game = game;
     }
 
-    // Pomocná metoda pro kontrolu, zda je klávesa dole
     isKeyDown(keyCode) {
         return this.keys[keyCode] === true;
     }

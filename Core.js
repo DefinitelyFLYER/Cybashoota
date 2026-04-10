@@ -42,20 +42,16 @@ export default class Game {
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
 
-        // ODSTRANĚNO: if (this.isPaused) { return; }
 
         const upgrades = this.getModule('upgrades');
         const isMenuOpen = upgrades && upgrades.isSelectionActive;
 
-        // Aktualizujeme hru pouze pokud NENÍ pauza a NENÍ otevřené menu upgradů
         if (!isMenuOpen && !this.isPaused) {
             this._update(deltaTime);
         }
 
-        // VYKRESLOVÁNÍ běží VŽDY (i při pauze, abychom mohli hýbat křížkem)
         this._draw();
 
-        // Smyčka musí pokračovat dál
         requestAnimationFrame(this._gameLoop.bind(this));
     }
 
@@ -70,38 +66,30 @@ export default class Game {
     _draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // 1. Vykreslíme svět (pozadí, hráč, nepřátelé...)
         for (const [key, module] of this.modules) {
             if (module.draw && key !== 'upgrades') {
                 module.draw(this.ctx);
             }
         }
 
-        // 2. Pokud je Game Over, vykreslíme overlay
         if (this.isPaused) {
             this._drawGameOverScreen();
         }
 
-        // 3. Upgrady (Menu karet) - nyní se kreslí dříve než křížek
         const upgrades = this.getModule('upgrades');
         if (upgrades && upgrades.isSelectionActive && upgrades.draw) {
             upgrades.draw(this.ctx);
         }
 
-        // 4. CROSSHAIR - Úplně poslední věc
-        // Tím zajistíme, že bude nad světem, nad Game Overem i nad kartami upgradů
         const proj = this.getModule('projectiles');
         if (proj) {
             this._drawCrosshair(this.ctx, proj);
         }
     }
 
-    // Pomocná metoda pro čistý kód
     _drawCrosshair(ctx, proj) {
         ctx.save();
         
-        // Zde je ten trik: Bereme souřadnice přímo. 
-        // Pokud proj.mouseX/Y plní window.event, poletí to i v pauze.
         const x = proj.mouseX;
         const y = proj.mouseY;
         
@@ -112,13 +100,13 @@ export default class Game {
         const gap = 4 + (proj.crosshairPulse * 12);
         const lineLen = 6;
 
-        ctx.fillRect(x - 1, y - 1, 2, 2); // Tečka
+        ctx.fillRect(x - 1, y - 1, 2, 2);
 
         ctx.beginPath();
-        ctx.moveTo(x, y - gap); ctx.lineTo(x, y - gap - lineLen); // Horní
-        ctx.moveTo(x, y + gap); ctx.lineTo(x, y + gap + lineLen); // Spodní
-        ctx.moveTo(x - gap, y); ctx.lineTo(x - gap - lineLen, y); // Levá
-        ctx.moveTo(x + gap, y); ctx.lineTo(x + gap + lineLen, y); // Pravá
+        ctx.moveTo(x, y - gap); ctx.lineTo(x, y - gap - lineLen);
+        ctx.moveTo(x, y + gap); ctx.lineTo(x, y + gap + lineLen);
+        ctx.moveTo(x - gap, y); ctx.lineTo(x - gap - lineLen, y);
+        ctx.moveTo(x + gap, y); ctx.lineTo(x + gap + lineLen, y);
         ctx.stroke();
 
         ctx.restore();

@@ -94,7 +94,6 @@ export default class UIManager {
             ctx.fillText(n.text, w / 2, h / 3 - n.y);
             ctx.restore();
 
-            // Animace
             n.y += 1;
             n.alpha -= 0.005;
             if (n.alpha <= 0) this.notifications.splice(i, 1);
