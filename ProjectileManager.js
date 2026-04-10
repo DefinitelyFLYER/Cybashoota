@@ -52,11 +52,18 @@ export default class ProjectileManager {
     }
 
     _updateEnemyProjectiles(player, deltaTime) {
+        const particles = this.game.getModule('particles');
+
         for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
             const p = this.enemyProjectiles[i];
+            
             p.x += p.vx * deltaTime;
             p.y += p.vy * deltaTime;
             p.life -= deltaTime;
+
+            if (particles && Math.random() > 0.3) {
+                particles.emitTrail(p.x, p.y, p.color || '#ff0055'); 
+            }
 
             const dx = player.pos.x - p.x;
             const dy = player.pos.y - p.y;
@@ -116,10 +123,21 @@ export default class ProjectileManager {
             });
         }
         this.crosshairPulse = 1.0;
+
+        const particles = this.game.getModule('particles');
+        if (particles && player.weaponAngle !== undefined) {
+            const barrelDist = player.weaponAnchorDist + 32; 
+            
+            const barrelX = center.x + Math.cos(player.weaponAngle) * barrelDist;
+            const barrelY = center.y + Math.sin(player.weaponAngle) * barrelDist;
+            
+            particles.emitMuzzle(barrelX, barrelY, player.weaponAngle, '#00ffcc', 5);
+        }
     }
 
     _updateProjectiles(player, deltaTime) {
         const enemyMgr = this.game.getModule('enemies');
+        const particles = this.game.getModule('particles'); 
 
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
@@ -134,6 +152,10 @@ export default class ProjectileManager {
             p.x += p.vx * deltaTime;
             p.y += p.vy * deltaTime;
             p.life -= deltaTime;
+
+            if (particles && Math.random() > 0.3) {
+                particles.emitTrail(p.x, p.y, p.color || '#00ffcc');
+            }
 
             if (p.life <= 0) {
                 this.projectiles.splice(i, 1);
