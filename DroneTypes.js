@@ -42,6 +42,25 @@ export const DRONE_TYPES = {
         cooldown: 2000         
     },
 
+    'SABOTEUR_DRONE': {
+        id: 'SABOTEUR_DRONE',
+        name: 'Saboteur Drone',
+        color: '#bc00ff',
+        size: 20,
+        sprite: 'assets/drones/saboteur_drone.png',
+        
+        movement: 'FOLLOW',
+        followOffset: { x: 0, y: -70 }, 
+        followSpeed: 0.1,
+        
+        behavior: 'DEBUFF',    
+        
+        actionRate: 1500,
+        range: 800,
+        debuffMultiplier: 2.0,
+        debuffTargets: 2
+    },
+
     'SNIPER_DRONE': {
         id: 'SNIPER_DRONE',
         name: 'Sniper Drone',

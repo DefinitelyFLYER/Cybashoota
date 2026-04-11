@@ -223,8 +223,12 @@ export default class EnemyManager {
                     e.speedModifier = 0;
                     e.turboCooldown = 1500;
 
-                    const dmg = droneMgr._getStat(drone, 'collisionDamage', player);
-                    
+                    let dmg = droneMgr._getStat(drone, 'collisionDamage', player);
+
+                    if (e.isTagged && e.tagMultiplier) {
+                        dmg *= e.tagMultiplier;
+                    }
+
                     if (dmg > 0) {
                         e.currentHp -= dmg;
                         
@@ -313,6 +317,10 @@ export default class EnemyManager {
             damage *= (playerMod ? playerMod.getStat('critMultiplier') : 2);
             const particles = this.game.getModule('particles');
             if (particles) particles.emit(p.x, p.y, '#ffffff', 5);
+        }
+
+        if (e.isTagged && e.tagMultiplier) {
+            damage *= e.tagMultiplier;
         }
 
         e.currentHp -= damage;
@@ -451,6 +459,10 @@ export default class EnemyManager {
             if (e.currentHp < e.maxHp) {
                 this._drawHealthBar(ctx, drawX, drawY, e);
             }
+            
+            if (e.isTagged) {
+                this._drawTag(ctx, drawX, drawY, e);
+            }
             ctx.restore();
         }
     }
@@ -516,5 +528,36 @@ export default class EnemyManager {
         const hpPercent = e.currentHp / e.maxHp;
         ctx.fillStyle = hpPercent > 0.5 ? '#00ffcc' : '#ff0055'; 
         ctx.fillRect(drawX, drawY, barWidth * hpPercent, 4);
+    }
+
+    _drawTag(ctx, x, y, e) {
+        e.tagAnimationTimer = (e.tagAnimationTimer || 0) + 0.015; 
+        
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(e.tagAnimationTimer);
+        
+        ctx.strokeStyle = '#bc00ff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#bc00ff';
+
+        const r = (e.size / 2) * 1.25;
+        
+        ctx.beginPath();
+        ctx.setLineDash([8, 8]);
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.setLineDash([]);
+        const stickLength = 16;
+        ctx.beginPath();
+        ctx.moveTo(-r - stickLength, 0); ctx.lineTo(-r, 0);
+        ctx.moveTo(r, 0); ctx.lineTo(r + stickLength, 0);
+        ctx.moveTo(0, -r - stickLength); ctx.lineTo(0, -r);
+        ctx.moveTo(0, r); ctx.lineTo(0, r + stickLength);
+        ctx.stroke();
+
+        ctx.restore();
     }
 }

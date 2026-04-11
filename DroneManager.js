@@ -57,6 +57,9 @@ export default class DroneManager {
                 case 'INTERCEPTOR':
                     isIntercepting = this._handleInterceptorBehavior(drone, deltaTime);
                     break;
+                case 'DEBUFF':
+                    this._handleDebuffBehavior(drone, deltaTime);
+                    break;
             }
 
             if (!isIntercepting) {
@@ -171,6 +174,52 @@ export default class DroneManager {
         if (target) {
             this._shootAtTarget(drone, target, player);
             drone.actionTimer = 0; 
+        }
+    }
+
+    _handleDebuffBehavior(drone, deltaTime) {
+        const player = this.game.getModule('player');
+        if (!player) return;
+
+        const currentActionRate = this._getStat(drone, 'actionRate', player);
+        if (drone.actionTimer < currentActionRate) return;
+
+        const enemyMgr = this.game.getModule('enemies');
+        if (!enemyMgr || enemyMgr.enemies.length === 0) return;
+
+        const currentRange = this._getStat(drone, 'range', player);
+        const targetCount = this._getStat(drone, 'debuffTargets', player);
+
+        const validTargets = enemyMgr.enemies.filter(e => {
+            if (e.isTagged) return false; 
+            const dx = e.x - drone.x;
+            const dy = e.y - drone.y;
+            return Math.sqrt(dx * dx + dy * dy) < currentRange;
+        });
+
+        if (validTargets.length === 0) return;
+
+        let taggedAny = false;
+        const particles = this.game.getModule('particles');
+
+        for (let i = 0; i < targetCount; i++) {
+            if (validTargets.length === 0) break;
+            
+            const randomIndex = Math.floor(Math.random() * validTargets.length);
+            const target = validTargets.splice(randomIndex, 1)[0]; 
+
+            target.isTagged = true;
+            target.tagMultiplier = this._getStat(drone, 'debuffMultiplier', player);
+            target.tagAnimationTimer = 0;
+
+            if (particles) {
+                particles.emit(target.x, target.y, drone.color, 15);
+            }
+            taggedAny = true;
+        }
+
+        if (taggedAny) {
+            drone.actionTimer = 0;
         }
     }
 
