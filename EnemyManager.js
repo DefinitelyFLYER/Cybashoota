@@ -38,6 +38,9 @@ export default class EnemyManager {
             this._applyPhysics(e, player, deltaTime);
             this._handleRangedAttack(e, player, deltaTime);
             this._checkPlayerCollision(e, player);
+            
+            this._checkDroneCollisions(e, player);
+            
             this._checkProjectileCollisions(e);
 
             if (e.currentHp <= 0) {
@@ -188,6 +191,47 @@ export default class EnemyManager {
                 
                 e.speedModifier = 0;
                 e.turboCooldown = 2000;
+            }
+        }
+    }
+
+    _checkDroneCollisions(e, player) {
+        const droneMgr = this.game.getModule('drones');
+        if (!droneMgr || !droneMgr.drones || !player) return;
+
+        for (const drone of droneMgr.drones) {
+            if (drone.hasCollision) {
+                const dx = e.x - drone.x;
+                const dy = e.y - drone.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                const collisionDist = (e.size + drone.size) * 0.45;
+
+                if (dist < collisionDist && e.speedModifier > 0.1) {
+                    
+                    const pDx = e.x - player.pos.x;
+                    const pDy = e.y - player.pos.y;
+                    const pDist = Math.sqrt(pDx * pDx + pDy * pDy);
+
+                    const dirX = pDx / pDist;
+                    const dirY = pDy / pDist;
+
+                    const knockbackPower = drone.pushbackForce || 0.5;
+                    e.kbX = dirX * knockbackPower;
+                    e.kbY = dirY * knockbackPower;
+                    
+                    e.speedModifier = 0;
+                    e.turboCooldown = 1500;
+
+                    const dmg = droneMgr._getStat(drone, 'collisionDamage', player);
+                    
+                    if (dmg > 0) {
+                        e.currentHp -= dmg;
+                        
+                        const particles = this.game.getModule('particles');
+                        if (particles) particles.emit(e.x, e.y, drone.color, 5);
+                    }
+                }
             }
         }
     }

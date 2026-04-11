@@ -65,6 +65,30 @@ export default class ProjectileManager {
                 particles.emitTrail(p.x, p.y, p.color || '#ff0055'); 
             }
 
+            const droneMgr = this.game.getModule('drones');
+            let hitDrone = false;
+
+            if (droneMgr && droneMgr.drones) {
+                for (const drone of droneMgr.drones) {
+                    if (drone.hasCollision || drone.behavior === 'INTERCEPTOR') {
+                        const dx = drone.x - p.x;
+                        const dy = drone.y - p.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist < (drone.size / 2 + p.size / 2)) {
+                            hitDrone = true;
+                            if (particles) particles.emit(p.x, p.y, drone.color, 10);
+                            break; 
+                        }
+                    }
+                }
+            }
+
+            if (hitDrone) {
+                this.enemyProjectiles.splice(i, 1);
+                continue;
+            }
+
             const dx = player.pos.x - p.x;
             const dy = player.pos.y - p.y;
             const dist = Math.sqrt(dx * dx + dy * dy);

@@ -10,10 +10,12 @@ import SpawnDirector from './SpawnDirector.js';
 import ExperienceManager from './ExperienceManager.js';
 import UpgradeManager from './UpgradeManager.js';
 import PowerUpManager from './PowerUpManager.js';
+import DroneManager from './DroneManager.js';
 
 const game = new Game('gameCanvas');
 
 game.addModule('background', new Background());
+game.addModule('drones', new DroneManager());
 game.addModule('input', new InputHandler());
 game.addModule('ui', new UIManager());
 game.addModule('projectiles', new ProjectileManager());
