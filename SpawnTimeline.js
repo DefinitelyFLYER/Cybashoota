@@ -4,19 +4,19 @@
 export const SPAWN_TIMELINE = [
     {
         name: "Warming up",
-        start: 0, end: 35,
-        types: ["TRIANGLE", "SENTRY"],
+        start: 0, end: 40,
+        types: ["TRIANGLE",],
         rate: 1500,
         hpMultiplier: 1, speedMultiplier: 1,
         xpDrop: { value: 10, color: '#6e6cff' } 
     },
     {
         name: "Shooting so soon?",
-        start: 35, end: 45,
+        start: 40, end: 45,
         types: ["TRIANGLE", "SENTRY"],
         rate: 1000,
         hpMultiplier: 1, speedMultiplier: 1,
-        xpDrop: { value: 10, color: '#6e6cff' } 
+        xpDrop: { value: 12, color: '#6e6cff' } 
     },
     {
         name: "Are they suicidal?",

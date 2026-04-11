@@ -12,6 +12,13 @@ export default class UpgradeManager {
         this.selectedCardId = null; 
         this.confirmBtnBounds = null;
         this.droneLevelInterval = 3;
+
+        this.droneMods = {
+            'ALL': { damageBonus: 0, speedMulti: 1.0 },
+            'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
+            'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
+            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 }
+        };
     }
 
     init(game) {
@@ -61,15 +68,44 @@ export default class UpgradeManager {
         return selected;
     }
 
-    getAvailableDrones(count = 3) {
+    getDroneSelectionPool(count = 3) {
         const droneMgr = this.game.getModule('drones');
-        if (!droneMgr) return [];
+        const player = this.game.getModule('player');
+        if (!droneMgr || !player) return [];
 
+        const ownedCount = droneMgr.drones.length;
+        const maxDrones = player.stats.maxDrones;
         const activeDroneIds = droneMgr.drones.map(d => d.id);
         
-        let poolDrones = Object.values(DRONE_TYPES).filter(d => !activeDroneIds.includes(d.id));
+        let availableDrones = Object.values(DRONE_TYPES)
+            .filter(d => !activeDroneIds.includes(d.id));
+
+        const activeBehaviors = [...new Set(droneMgr.drones.map(d => d.behavior))];
+        let availableUpgrades = DRONE_UPGRADES.filter(upg => 
+            upg.targetBehaviors.includes('ALL') || 
+            upg.targetBehaviors.some(b => activeBehaviors.includes(b))
+        );
+
+        let selected = [];
+
+        if (ownedCount === 0) {
+            return availableDrones.sort(() => 0.5 - Math.random()).slice(0, count);
+        }
+
+        if (ownedCount >= maxDrones) {
+            return availableUpgrades.sort(() => 0.5 - Math.random()).slice(0, count);
+        }
+
+        if (availableDrones.length > 0) {
+            const shuffledDrones = availableDrones.sort(() => 0.5 - Math.random());
+            selected.push(shuffledDrones[0]);
+        }
         
-        return poolDrones.sort(() => 0.5 - Math.random()).slice(0, count);
+        const remainingCount = count - selected.length;
+        const shuffledUpgrades = availableUpgrades.sort(() => 0.5 - Math.random());
+        selected.push(...shuffledUpgrades.slice(0, remainingCount));
+
+        return selected.sort(() => 0.5 - Math.random());
     }
 
     applyUpgrade(upgradeId) {
@@ -78,6 +114,13 @@ export default class UpgradeManager {
         if (upgrade) {
             this.inventory[upgradeId] = (this.inventory[upgradeId] || 0) + 1;
             upgrade.onApply(player);
+        }
+    }
+
+    applyDroneUpgrade(upgradeId) {
+        const upgrade = DRONE_UPGRADES.find(u => u.id === upgradeId);
+        if (upgrade) {
+            upgrade.onApply(this.droneMods);
         }
     }
 
@@ -92,12 +135,7 @@ export default class UpgradeManager {
             const choiceCount = player.stats.upgradeOptions || 3;
             this.currentOptions = this.getAvailableUpgrades(choiceCount);
         } else {
-            this.currentOptions = this.getAvailableDrones(3);
-        }
-
-        if (this.currentOptions.length === 0) {
-            this.isSelectionActive = false;
-            return;
+            this.currentOptions = this.getDroneSelectionPool(3);
         }
 
         this.isSelectionActive = true;
@@ -133,7 +171,8 @@ export default class UpgradeManager {
 
     _checkRerollClick(x, y) {
         const player = this.game.getModule('player');
-        if (this.selectionMode !== 'UPGRADES' || !this.reRollBtnBounds || !player || player.stats.rerolls <= 0) return false;
+        if (!this.reRollBtnBounds || !player || player.stats.rerolls <= 0) return false;
+        
         const b = this.reRollBtnBounds;
         if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
             this._executeReroll(player);
@@ -143,11 +182,14 @@ export default class UpgradeManager {
     }
 
     _checkConfirmClick(x, y) {
-        if (!this.confirmBtnBounds || !this.selectedCardId) return false;
+        if (!this.confirmBtnBounds) return false;
+
         const b = this.confirmBtnBounds;
         if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
-            this._executeSelection(this.selectedCardId);
-            return true;
+            if (this.selectedCardId !== null || this.currentOptions.length === 0) {
+                this._executeSelection(this.selectedCardId);
+                return true;
+            }
         }
         return false;
     }
@@ -168,18 +210,35 @@ export default class UpgradeManager {
 
     _executeReroll(player) {
         player.stats.rerolls--;
-        const choiceCount = player.stats.upgradeOptions || 3;
-        this.currentOptions = this.getAvailableUpgrades(choiceCount);
+        
+        if (this.selectionMode === 'UPGRADES') {
+            const choiceCount = player.stats.upgradeOptions || 3;
+            this.currentOptions = this.getAvailableUpgrades(choiceCount);
+        } else {
+            this.currentOptions = this.getDroneSelectionPool(3);
+        }
+        
         this.selectedCardId = null;
     }
 
     _executeSelection(selectedId) {
         const droneMgr = this.game.getModule('drones');
+        const player = this.game.getModule('player');
 
-        if (this.selectionMode === 'UPGRADES') {
-            this.applyUpgrade(selectedId);
-        } else {
-            if (droneMgr) droneMgr.spawnDrone(selectedId);
+        if (selectedId) {
+            if (this.selectionMode === 'UPGRADES') {
+                this.applyUpgrade(selectedId);
+            } else {
+                const isDrone = DRONE_TYPES[selectedId] !== undefined;
+                
+                if (isDrone) {
+                    if (droneMgr && droneMgr.drones.length < player.stats.maxDrones) {
+                        droneMgr.spawnDrone(selectedId);
+                    }
+                } else {
+                    this.applyDroneUpgrade(selectedId);
+                }
+            }
         }
         
         this._closeSelection();
@@ -197,7 +256,7 @@ export default class UpgradeManager {
         const infoY = height / 2 - 150;
         if (player) {
             this._drawStatsInfobox(ctx, infoX, infoY, player);
-            if (player.stats.rerolls > 0 && this.selectionMode === 'UPGRADES') {
+            if (player.stats.rerolls > 0) {
                 this._drawRerollButton(ctx, player, infoX, infoY + 380);
             }
         }
@@ -206,6 +265,18 @@ export default class UpgradeManager {
     }
 
     _drawCards(ctx, width, height) {
+        if (this.currentOptions.length === 0) {
+            ctx.save();
+            ctx.fillStyle = '#ffcc00'; 
+            ctx.font = 'bold 24px monospace'; 
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ffcc00';
+            ctx.fillText("NO UPGRADES AVAILABLE", width / 2, height / 2);
+            ctx.restore();
+            return height / 2 + 40; 
+        }
+
         const cardW = 220; const cardH = 320; const spacing = 40; const maxPerRow = 3;
         this.cardBounds = [];
         const rows = [];
@@ -226,18 +297,27 @@ export default class UpgradeManager {
                 this._drawSingleCard(ctx, upgrade, x, y, cardW, cardH, isSelected);
             });
         });
-        return startY + totalH; 
+        return startY + totalH;
     }
 
     _drawSingleCard(ctx, item, x, y, cardW, cardH, isSelected) {
-        const isDrone = !item.rarity;
-        const mainColor = isDrone ? item.color : this._getRarityColor(item.rarity);
+        let mainColor = '#ffffff';
+        
+        if (item.rarity) {
+            mainColor = this._getRarityColor(item.rarity);
+        } else if (item.behavior) {
+            mainColor = item.color || '#ffffff';
+        } else if (item.targetBehaviors) {
+            mainColor = '#ff55ff'; 
+        }
+
         const borderColor = isSelected ? '#ffffff' : mainColor;
+        
         ctx.save();
         this._drawCardFrame(ctx, x, y, cardW, cardH, isSelected, borderColor);
         this._drawCardIcon(ctx, item, x, y, cardW);
         this._drawCardText(ctx, item, x, y, cardW);
-        this._drawCardFooter(ctx, item, x, y, cardW, cardH, mainColor, isDrone);
+        this._drawCardFooter(ctx, item, x, y, cardW, cardH, mainColor); 
         ctx.restore();
     }
 
@@ -270,16 +350,30 @@ export default class UpgradeManager {
         this._wrapText(ctx, item.description, x + 20, y + 180, cardW - 40, 16);
     }
 
-    _drawCardFooter(ctx, item, x, y, cardW, cardH, mainColor, isDrone) {
+    _drawCardFooter(ctx, item, x, y, cardW, cardH, mainColor) {
         if (item.requirementText) {
             ctx.save(); ctx.font = 'italic bold 10px monospace'; ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
             ctx.shadowBlur = 5; ctx.shadowColor = '#ffcc00';
             ctx.fillText(item.requirementText.toUpperCase(), x + cardW / 2, y + cardH - 45);
             ctx.restore();
         }
-        ctx.save(); ctx.fillStyle = mainColor; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
-        ctx.shadowBlur = 8; ctx.shadowColor = mainColor;
-        const label = isDrone ? `TYPE: ${item.behavior.toUpperCase()}` : item.rarity.toUpperCase();
+        
+        ctx.save(); 
+        ctx.fillStyle = mainColor; 
+        ctx.font = 'bold 11px monospace'; 
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 8; 
+        ctx.shadowColor = mainColor;
+        
+        let label = 'SYSTEM MODULE';
+        if (item.rarity) {
+            label = item.rarity.toUpperCase();
+        } else if (item.behavior) {
+            label = `TYPE: ${item.behavior.toUpperCase()}`;
+        } else if (item.targetBehaviors) {
+            label = `TYPE: ${item.targetBehaviors.join(' & ').toUpperCase()}`;
+        }
+
         ctx.fillText(label, x + cardW / 2, y + cardH - 20);
         ctx.restore();
     }
@@ -297,7 +391,8 @@ export default class UpgradeManager {
     _drawConfirmButton(ctx, width, bottomY) {
         const btnW = 220; const btnH = 50; const btnX = (width - btnW) / 2; const btnY = bottomY + 40; 
         this.confirmBtnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
-        const isActive = this.selectedCardId !== null;
+        const isActive = this.selectedCardId !== null || this.currentOptions.length === 0;
+        
         ctx.save();
         ctx.fillStyle = isActive ? '#050505' : '#111';
         ctx.strokeStyle = isActive ? '#00ffcc' : '#333';

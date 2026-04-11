@@ -5,7 +5,13 @@ export default class DroneManager {
         this.drones = [];
         this.sprites = new Map();
         
-        this.testSpawnCooldown = 0; 
+        this.testSpawnCooldown = 0;
+        this.droneMods = {
+            'ALL': { damageBonus: 0, speedMulti: 1.0 },
+            'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
+            'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
+            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 }
+        };
     }
 
     init(game) {
@@ -36,7 +42,9 @@ export default class DroneManager {
             currentAngle: Math.random() * Math.PI * 2,
             actionTimer: 0,
             x: 0,
-            y: 0
+            y: 0,
+            vx: 0,
+            vy: 0
         });
         console.log(`Spawned Drone: ${config.name}`);
     }
@@ -89,63 +97,108 @@ export default class DroneManager {
         }
     }
 
-
-
     _handleInterceptorBehavior(drone, deltaTime) {
         const projMgr = this.game.getModule('projectiles');
         const player = this.game.getModule('player');
         
-        drone.interceptTarget = null; 
+        if (!projMgr || projMgr.enemyProjectiles.length === 0 || !player) {
+            drone.vx = 0;
+            drone.vy = 0;
+            drone.interceptTarget = null;
+            return false;
+        }
 
-        if (!projMgr || projMgr.enemyProjectiles.length === 0 || !player) return false;
+        if (drone.interceptTarget && !projMgr.enemyProjectiles.includes(drone.interceptTarget)) {
+            drone.vx = 0;
+            drone.vy = 0;
+            drone.interceptTarget = null;
+        }
 
-        let closestProj = null;
-        let minDist = (drone.blockRadius || 4) * this.game.UNIT_SIZE;
-
-        const droneToPlayerDist = Math.sqrt(Math.pow(player.pos.x - drone.x, 2) + Math.pow(player.pos.y - drone.y, 2));
-        const tolerancePx = 0.15 * this.game.UNIT_SIZE;
+        let bestTarget = null;
+        let highestDanger = -1;
+        
+        const patrolRange = (this._getStat(drone, 'patrolRadius', player) || 4) * this.game.UNIT_SIZE;
 
         for (const p of projMgr.enemyProjectiles) {
             let isClaimed = false;
-            for (const otherDrone of this.drones) {
-                if (otherDrone !== drone && otherDrone.interceptTarget === p) {
-                    isClaimed = true;
-                    break;
-                }
+            for (const other of this.drones) {
+                if (other !== drone && other.interceptTarget === p) isClaimed = true;
             }
             if (isClaimed) continue;
 
-            const toPlayerX = player.pos.x - p.x;
-            const toPlayerY = player.pos.y - p.y;
+            const vpx = player.pos.x - p.x;
+            const vpy = player.pos.y - p.y;
+            const distToPlayer = Math.sqrt(vpx * vpx + vpy * vpy);
             
-            const isApproaching = (p.vx * toPlayerX) + (p.vy * toPlayerY);
-            if (isApproaching <= 0) continue; 
+            if (distToPlayer > patrolRange) continue;
 
-            const dist = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY);
+            const pMag = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+            const pnx = p.vx / pMag;
+            const pny = p.vy / pMag;
             
-            if (dist < droneToPlayerDist - tolerancePx) continue;
-            
-            if (dist < minDist) {
-                minDist = dist;
-                closestProj = p;
+            const dot = vpx * pnx + vpy * pny;
+
+            if (dot > 0) { 
+                const closestPointX = p.x + pnx * dot;
+                const closestPointY = p.y + pny * dot;
+                const distToPath = Math.sqrt(Math.pow(player.pos.x - closestPointX, 2) + Math.pow(player.pos.y - closestPointY, 2));
+
+                let danger = 0;
+                const hitThreshold = player.size * 0.8;
+
+                if (distToPath < hitThreshold) {
+                    danger = 1000 / (dot + 1); 
+                }
+
+                if (danger > highestDanger) {
+                    highestDanger = danger;
+                    bestTarget = p;
+                }
             }
         }
 
-        if (closestProj) {
-            drone.interceptTarget = closestProj;
+        if (bestTarget) {
+            drone.interceptTarget = bestTarget;
 
-            const accuracy = this._getStat(drone, 'droneAccuracy', player);
-            const lerpFactor = 1 - Math.pow(1 - accuracy, deltaTime / 16);
+            const tx = bestTarget.x - drone.x;
+            const ty = bestTarget.y - drone.y;
+            const tDist = Math.sqrt(tx * tx + ty * ty);
+            const nx = tx / tDist;
+            const ny = ty / tDist;
+
+            let boostFactor = 1.0;
+            if (highestDanger > 0) {
+                const maxBoost = this._getStat(drone, 'maxBoost', player) || 1.0;
+                boostFactor = Math.min(maxBoost, 1.0 + (highestDanger / 100));
+            }
+
+            const baseAccel = this._getStat(drone, 'droneAccuracy', player) * 0.8;
+            const finalAccel = baseAccel * boostFactor;
             
-            drone.x += (closestProj.x - drone.x) * lerpFactor;
-            drone.y += (closestProj.y - drone.y) * lerpFactor;
-            
+            drone.vx += nx * finalAccel * deltaTime;
+            drone.vy += ny * finalAccel * deltaTime;
+
+            drone.vx *= 0.90;
+            drone.vy *= 0.90;
+
+            const baseMaxSpeed = 1.5 * this.game.UNIT_SIZE;
+            const currentMaxSpeed = baseMaxSpeed * boostFactor;
+
+            const speed = Math.sqrt(drone.vx * drone.vx + drone.vy * drone.vy);
+            if (speed > currentMaxSpeed) {
+                drone.vx = (drone.vx / speed) * currentMaxSpeed;
+                drone.vy = (drone.vy / speed) * currentMaxSpeed;
+            }
+
+            drone.x += drone.vx * (deltaTime / 16);
+            drone.y += drone.vy * (deltaTime / 16);
             return true;
         }
 
+        drone.vx = 0;
+        drone.vy = 0;
         return false;
     }
-
 
     _handleRangedBehavior(drone, deltaTime) {
         const player = this.game.getModule('player');
@@ -279,11 +332,33 @@ export default class DroneManager {
     }
 
     _getStat(drone, statName, player) {
-        const val = drone[statName];
-        if (typeof val === 'function') {
-            return val(player);
+        let baseVal = drone[statName];
+        if (typeof baseVal === 'function') baseVal = baseVal(player);
+
+        const upgrades = this.game.getModule('upgrades');
+        if (!upgrades) return baseVal;
+
+        const globalMods = upgrades.droneMods['ALL'] || {};
+        const specificMods = upgrades.droneMods[drone.behavior] || {};
+
+        switch(statName) {
+            case 'damage':
+                let dmgBonus = (globalMods.damageBonus || 0) + (specificMods.damageBonus || 0);
+                return baseVal + dmgBonus;
+                
+            case 'blockRadius':
+                let blockMulti = specificMods.blockRadiusMulti || 1;
+                return baseVal * blockMulti;
+                
+            case 'fireRate':
+            case 'cooldown':
+            case 'actionRate':
+                let timeMulti = specificMods[`${statName}Multi`] || 1;
+                return baseVal * timeMulti;
+                
+            default:
+                return baseVal;
         }
-        return val;
     }
 
     draw(ctx) {

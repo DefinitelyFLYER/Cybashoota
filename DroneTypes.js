@@ -33,15 +33,17 @@ export const DRONE_TYPES = {
         orbitSpeed: 0.0015,
         
         hasCollision: true,
-        pushbackForce: 1.5,
+        pushbackForce: 1,
         collisionDamage: (player) => player.getStat('damage') * 0.2,
 
         behavior: 'INTERCEPTOR', 
         targeting: 'CLOSEST_PROJECTILE',
         
-        droneAccuracy: 0.2, 
-        blockRadius: 4,
-        cooldown: 2000         
+        droneAccuracy: 0.4,
+        maxBoost: 10,
+        blockRadius: 0.1,
+        patrolRadius: 3,
+        cooldown: 150         
     },
 
     'SABOTEUR_DRONE': {

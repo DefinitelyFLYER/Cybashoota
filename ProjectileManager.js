@@ -75,9 +75,21 @@ export default class ProjectileManager {
                         const dy = drone.y - p.y;
                         const dist = Math.sqrt(dx * dx + dy * dy);
                         
-                        if (dist < (drone.size / 2 + p.size / 2)) {
+                        let isReady = true;
+                        let effectiveRadius = drone.size / 2;
+
+                        if (drone.behavior === 'INTERCEPTOR') {
+                            isReady = drone.actionTimer >= (drone.cooldown || 0);
+                            effectiveRadius = drone.blockRadius ? (drone.blockRadius * this.game.UNIT_SIZE) : (drone.size / 2);
+                        }
+
+                        if (isReady && dist < (effectiveRadius + p.size / 2)) {
                             hitDrone = true;
                             if (particles) particles.emit(p.x, p.y, drone.color, 10);
+                            
+                            if (drone.behavior === 'INTERCEPTOR') {
+                                drone.actionTimer = 0;
+                            }
                             break; 
                         }
                     }

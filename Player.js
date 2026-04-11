@@ -4,8 +4,8 @@ export default class Player {
         this.size = 64;
         this.facing = 1;
         this.invulnerable = 0;
-        this.level = 2;
-        this.xp = 99;
+        this.level = 1;
+        this.xp = 0;
         this.xpNextLevel = 100;
 
         this.baseStats = {
@@ -34,7 +34,7 @@ export default class Player {
         this.stats = {
             hp: 2,
             maxHp: 2, 
-            //defense: 0, // irrelevant now
+            defense: 0, // irrelevant now
             damage: 1,
             dodgeChance: 0,
             projectileCount: 1,

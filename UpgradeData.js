@@ -345,7 +345,7 @@ export const UPGRADES = [
         tags: ['utility'],
         weight: 1,
         unique: true,
-        requirements: (player) => { player.stats.rerolls >= 10; },
+        requirements: (player) => player.stats.rerolls >= 10,
         requirementText: 'Requires at least 10 rerolls.',
         onApply: (player) => { 
             player.stats.rerolls += 100; 
@@ -359,7 +359,7 @@ export const UPGRADES = [
         tags: ['utility', 'xp', 'risky'],
         weight: 5,
         unique: true,
-        requirements: (player) => { player.getStat('maxHp') >= 4 && player.getStat('damage') >= 4;},
+        requirements: (player) => player.getStat('maxHp') >= 4 && player.getStat('damage') >= 4,
         requirementText: 'Requires at least 4 Max HP and 4 Damage.',
         onApply: (player) => { 
             player.multipliers.xpMultiplier += 1;
