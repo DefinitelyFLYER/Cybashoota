@@ -22,7 +22,7 @@ export const DRONE_TYPES = {
     'SHIELD_DEFENDER': {
         id: 'SHIELD_DEFENDER',
         name: 'Aegis Drone',
-        color: '#ffcc00',
+        color: '#ff7b00',
         size: 32,              
         sprite: 'assets/drones/shield_drone.png', 
         
@@ -55,10 +55,10 @@ export const DRONE_TYPES = {
         
         behavior: 'DEBUFF',    
         
-        actionRate: 1500,
+        actionRate: 5000,
         range: 8,
         debuffMultiplier: 2.0,
-        debuffTargets: 2
+        debuffTargets: 1
     },
 
     'SNIPER_DRONE': {

@@ -90,46 +90,62 @@ export default class DroneManager {
     }
 
 
-    _handleInterceptorBehavior(drone, deltaTime) {
-        const projMgr = this.game.getModule('projectiles');
-        const player = this.game.getModule('player');
-        if (!projMgr || projMgr.enemyProjectiles.length === 0 || !player) return false;
 
-        let closestProj = null;
-        let minDist = (drone.blockRadius || 4) * this.game.UNIT_SIZE;
-
-        const droneToPlayerDist = Math.sqrt(Math.pow(player.pos.x - drone.x, 2) + Math.pow(player.pos.y - drone.y, 2));
-        const tolerancePx = 0.15 * this.game.UNIT_SIZE;
-
-        for (const p of projMgr.enemyProjectiles) {
-            const toPlayerX = player.pos.x - p.x;
-            const toPlayerY = player.pos.y - p.y;
+        _handleInterceptorBehavior(drone, deltaTime) {
+            const projMgr = this.game.getModule('projectiles');
+            const player = this.game.getModule('player');
             
-            const isApproaching = (p.vx * toPlayerX) + (p.vy * toPlayerY);
-            if (isApproaching <= 0) continue; 
+            drone.interceptTarget = null; 
 
-            const dist = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY);
-            
-            if (dist < droneToPlayerDist - tolerancePx) continue;
-            
-            if (dist < minDist) {
-                minDist = dist;
-                closestProj = p;
+            if (!projMgr || projMgr.enemyProjectiles.length === 0 || !player) return false;
+
+            let closestProj = null;
+            let minDist = (drone.blockRadius || 4) * this.game.UNIT_SIZE;
+
+            const droneToPlayerDist = Math.sqrt(Math.pow(player.pos.x - drone.x, 2) + Math.pow(player.pos.y - drone.y, 2));
+            const tolerancePx = 0.15 * this.game.UNIT_SIZE;
+
+            for (const p of projMgr.enemyProjectiles) {
+                let isClaimed = false;
+                for (const otherDrone of this.drones) {
+                    if (otherDrone !== drone && otherDrone.interceptTarget === p) {
+                        isClaimed = true;
+                        break;
+                    }
+                }
+                if (isClaimed) continue;
+
+                const toPlayerX = player.pos.x - p.x;
+                const toPlayerY = player.pos.y - p.y;
+                
+                const isApproaching = (p.vx * toPlayerX) + (p.vy * toPlayerY);
+                if (isApproaching <= 0) continue; 
+
+                const dist = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY);
+                
+                if (dist < droneToPlayerDist - tolerancePx) continue;
+                
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestProj = p;
+                }
             }
+
+            if (closestProj) {
+                drone.interceptTarget = closestProj;
+
+                const accuracy = this._getStat(drone, 'droneAccuracy', player);
+                const lerpFactor = 1 - Math.pow(1 - accuracy, deltaTime / 16);
+                
+                drone.x += (closestProj.x - drone.x) * lerpFactor;
+                drone.y += (closestProj.y - drone.y) * lerpFactor;
+                
+                return true;
+            }
+
+            return false;
         }
 
-        if (closestProj) {
-            const accuracy = this._getStat(drone, 'droneAccuracy', player);
-            const lerpFactor = 1 - Math.pow(1 - accuracy, deltaTime / 16);
-            
-            drone.x += (closestProj.x - drone.x) * lerpFactor;
-            drone.y += (closestProj.y - drone.y) * lerpFactor;
-            
-            return true;
-        }
-
-        return false;
-    }
 
     _handleRangedBehavior(drone, deltaTime) {
         const player = this.game.getModule('player');

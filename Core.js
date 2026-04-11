@@ -97,7 +97,7 @@ export default class Game {
         ctx.fillStyle = '#00ffcc';
         ctx.lineWidth = 2;
 
-        const gap = 4 + (proj.crosshairPulse * 12);
+        const gap = 4 + (proj.crosshairPulse * 8);
         const lineLen = 6;
 
         ctx.fillRect(x - 1, y - 1, 2, 2);
