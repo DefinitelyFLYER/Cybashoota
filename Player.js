@@ -4,7 +4,7 @@ export default class Player {
         this.size = 64;
         this.facing = 1;
         this.invulnerable = 0;
-        this.level = 1;
+        this.level = 2;
         this.xp = 99;
         this.xpNextLevel = 100;
 
@@ -34,7 +34,7 @@ export default class Player {
         this.stats = {
             hp: 2,
             maxHp: 2, 
-            defense: 0,
+            //defense: 0, // irrelevant now
             damage: 1,
             dodgeChance: 0,
             projectileCount: 1,
@@ -43,8 +43,8 @@ export default class Player {
             critChance: 0.05,
             penetration: 0,
             ricochetCount: 0,
-            upgradeOptions: 5,
-            rerolls: 0,
+            upgradeOptions: 3,
+            rerolls: 3,
             maxDrones: 1
         };
         

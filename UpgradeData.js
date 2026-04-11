@@ -168,7 +168,7 @@ export const UPGRADES = [
         description: '+1 Defense (Reduces incoming damage).',
         rarity: 'Rare',
         tags: ['defense'],
-        weight: 40,
+        weight: 0,
         maxStack: 5,
         onApply: (player) => { player.stats.defense += 1; }
     },

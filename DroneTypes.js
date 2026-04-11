@@ -1,10 +1,11 @@
 export const DRONE_TYPES = {
     'BASIC_SHOOTER': {
         id: 'BASIC_SHOOTER',
-        name: 'Gun Drone',
+        name: 'Assault Drone',
+        description: 'Automated combat unit that follows the player and shoots at the closest targets.',
         color: '#00ffcc',
         size: 24,
-        sprite: 'assets/drones/gun_drone.png',
+        sprite: 'assets/drones/assault_drone.png',
         
         movement: 'FOLLOW',
         followOffset: { x: -0.4, y: -0.5 },
@@ -22,6 +23,7 @@ export const DRONE_TYPES = {
     'SHIELD_DEFENDER': {
         id: 'SHIELD_DEFENDER',
         name: 'Aegis Drone',
+        description: 'Defensive satellite orbiting the player. Actively seeks and destroys enemy projectiles.',
         color: '#ff7b00',
         size: 32,              
         sprite: 'assets/drones/shield_drone.png', 
@@ -45,6 +47,7 @@ export const DRONE_TYPES = {
     'SABOTEUR_DRONE': {
         id: 'SABOTEUR_DRONE',
         name: 'Saboteur Drone',
+        description: 'Support unit that marks targets. Marked enemies take double damage.',
         color: '#bc00ff',
         size: 20,
         sprite: 'assets/drones/saboteur_drone.png',
@@ -60,22 +63,23 @@ export const DRONE_TYPES = {
         debuffMultiplier: 2.0,
         debuffTargets: 1
     },
-
+    
     'SNIPER_DRONE': {
         id: 'SNIPER_DRONE',
         name: 'Sniper Drone',
+        description: 'Long-range specialist targeting your cursor. Extreme damage.',
         color: '#ff0055',
         size: 20,
         
         movement: 'FOLLOW',
         followOffset: { x: 0.4, y: -0.5 },
-        followSpeed: 0.08,
+        followSpeed: 0.06,
         
         behavior: 'RANGED',    
         targeting: 'CURSOR',
         
-        fireRate: 1500,         
-        damage: 3,              
+        fireRate: 2000,         
+        damage: 4,              
         projectileSpeed: 1.5,   
         range: 10
     }
