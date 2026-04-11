@@ -65,16 +65,22 @@ export default class DroneManager {
             if (!isIntercepting) {
                 if (drone.movement === 'ORBIT') {
                     drone.currentAngle += drone.orbitSpeed * deltaTime;
-                    const targetX = player.pos.x + Math.cos(drone.currentAngle) * drone.orbitRadius;
-                    const targetY = player.pos.y + Math.sin(drone.currentAngle) * drone.orbitRadius;
+                    
+                    const radiusPx = drone.orbitRadius * this.game.UNIT_SIZE;
+                    const targetX = player.pos.x + Math.cos(drone.currentAngle) * radiusPx;
+                    const targetY = player.pos.y + Math.sin(drone.currentAngle) * radiusPx;
                     
                     const lerpFactor = 1 - Math.pow(1 - 0.03, deltaTime / 16);
                     drone.x += (targetX - drone.x) * lerpFactor;
                     drone.y += (targetY - drone.y) * lerpFactor;
 
                 } else if (drone.movement === 'FOLLOW') {
-                    const targetX = player.pos.x + (drone.followOffset.x * player.facing);
-                    const targetY = player.pos.y + drone.followOffset.y;
+                    const offsetX = drone.followOffset.x * this.game.UNIT_SIZE;
+                    const offsetY = drone.followOffset.y * this.game.UNIT_SIZE;
+                    
+                    const targetX = player.pos.x + (offsetX * player.facing);
+                    const targetY = player.pos.y + offsetY;
+                    
                     const lerpFactor = 1 - Math.pow(1 - drone.followSpeed, deltaTime / 16);
                     drone.x += (targetX - drone.x) * lerpFactor;
                     drone.y += (targetY - drone.y) * lerpFactor;
@@ -90,9 +96,10 @@ export default class DroneManager {
         if (!projMgr || projMgr.enemyProjectiles.length === 0 || !player) return false;
 
         let closestProj = null;
-        let minDist = drone.blockRadius || 400;
+        let minDist = (drone.blockRadius || 4) * this.game.UNIT_SIZE;
 
         const droneToPlayerDist = Math.sqrt(Math.pow(player.pos.x - drone.x, 2) + Math.pow(player.pos.y - drone.y, 2));
+        const tolerancePx = 0.15 * this.game.UNIT_SIZE;
 
         for (const p of projMgr.enemyProjectiles) {
             const toPlayerX = player.pos.x - p.x;
@@ -103,7 +110,7 @@ export default class DroneManager {
 
             const dist = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY);
             
-            if (dist < droneToPlayerDist - 15) continue;
+            if (dist < droneToPlayerDist - tolerancePx) continue;
             
             if (dist < minDist) {
                 minDist = dist;
@@ -133,8 +140,7 @@ export default class DroneManager {
         if (drone.actionTimer < currentFireRate) return;
 
         let target = null;
-        
-        const currentRange = this._getStat(drone, 'range', player);
+        const currentRangePx = this._getStat(drone, 'range', player) * this.game.UNIT_SIZE;
 
         if (drone.targeting === 'CURSOR') {
             const projMgr = this.game.getModule('projectiles');
@@ -149,7 +155,7 @@ export default class DroneManager {
             if (!enemyMgr || enemyMgr.enemies.length === 0) return;
 
             if (drone.targeting === 'CLOSEST_ENEMY') {
-                let minDist = currentRange;
+                let minDist = currentRangePx;
                 for (const e of enemyMgr.enemies) {
                     const dx = e.x - drone.x;
                     const dy = e.y - drone.y;
@@ -163,7 +169,7 @@ export default class DroneManager {
                 const inRange = enemyMgr.enemies.filter(e => {
                     const dx = e.x - drone.x;
                     const dy = e.y - drone.y;
-                    return Math.sqrt(dx * dx + dy * dy) < currentRange;
+                    return Math.sqrt(dx * dx + dy * dy) < currentRangePx;
                 });
                 if (inRange.length > 0) {
                     target = inRange[Math.floor(Math.random() * inRange.length)];
@@ -187,14 +193,14 @@ export default class DroneManager {
         const enemyMgr = this.game.getModule('enemies');
         if (!enemyMgr || enemyMgr.enemies.length === 0) return;
 
-        const currentRange = this._getStat(drone, 'range', player);
+        const currentRangePx = this._getStat(drone, 'range', player) * this.game.UNIT_SIZE;
         const targetCount = this._getStat(drone, 'debuffTargets', player);
 
         const validTargets = enemyMgr.enemies.filter(e => {
             if (e.isTagged) return false; 
             const dx = e.x - drone.x;
             const dy = e.y - drone.y;
-            return Math.sqrt(dx * dx + dy * dy) < currentRange;
+            return Math.sqrt(dx * dx + dy * dy) < currentRangePx;
         });
 
         if (validTargets.length === 0) return;

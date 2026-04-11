@@ -7,7 +7,7 @@ export const DRONE_TYPES = {
         sprite: 'assets/drones/gun_drone.png',
         
         movement: 'FOLLOW',
-        followOffset: { x: -40, y: -50 },
+        followOffset: { x: -0.4, y: -0.5 },
         followSpeed: 0.1,
         
         behavior: 'RANGED',    
@@ -16,7 +16,7 @@ export const DRONE_TYPES = {
         fireRate: (player) => player.getStat('fireRate'), 
         damage: (player) => player.getStat('damage') * 0.5, 
         projectileSpeed: (player) => player.getStat('bulletSpeed') * 1.2, 
-        range: 400 
+        range: 4
     },
     
     'SHIELD_DEFENDER': {
@@ -27,7 +27,7 @@ export const DRONE_TYPES = {
         sprite: 'assets/drones/shield_drone.png', 
         
         movement: 'ORBIT',
-        orbitRadius: 120,
+        orbitRadius: 1.2,
         orbitSpeed: 0.0015,
         
         hasCollision: true,
@@ -37,8 +37,8 @@ export const DRONE_TYPES = {
         behavior: 'INTERCEPTOR', 
         targeting: 'CLOSEST_PROJECTILE',
         
-        droneAccuracy: 0.2, // for intercepting projectiles
-        blockRadius: 400,       
+        droneAccuracy: 0.2, 
+        blockRadius: 4,
         cooldown: 2000         
     },
 
@@ -50,13 +50,13 @@ export const DRONE_TYPES = {
         sprite: 'assets/drones/saboteur_drone.png',
         
         movement: 'FOLLOW',
-        followOffset: { x: 0, y: -70 }, 
+        followOffset: { x: 0, y: -0.7 },
         followSpeed: 0.1,
         
         behavior: 'DEBUFF',    
         
         actionRate: 1500,
-        range: 800,
+        range: 8,
         debuffMultiplier: 2.0,
         debuffTargets: 2
     },
@@ -68,7 +68,7 @@ export const DRONE_TYPES = {
         size: 20,
         
         movement: 'FOLLOW',
-        followOffset: { x: 40, y: -50 },
+        followOffset: { x: 0.4, y: -0.5 },
         followSpeed: 0.08,
         
         behavior: 'RANGED',    
@@ -77,6 +77,6 @@ export const DRONE_TYPES = {
         fireRate: 1500,         
         damage: 3,              
         projectileSpeed: 1.5,   
-        range: 1000             
+        range: 10
     }
 };
