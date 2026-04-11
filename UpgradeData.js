@@ -368,5 +368,28 @@ export const UPGRADES = [
             player.stats.damage = 1;
             if (player.stats.hp > player.stats.maxHp) player.stats.hp = player.stats.maxHp;
         }
+    },
+    {
+        id: 'EXTRA_DRONE_CAPACITY',
+        name: 'Mothership Protocol',
+        description: 'Increases your maximum drone capacity by 1.',
+        rarity: 'Legendary',
+        tags: ['utility', 'drone'],
+        weight: 1,
+        onApply: (player) => {
+            player.stats.maxDrones += 1;
+        }
+    },
+    {
+        id: 'extra_upgrade_choice',
+        name: 'Quantum Core',
+        description: 'Expands your interface. +1 Upgrade Choice on level up.',
+        rarity: 'Legendary',
+        tags: ['utility'],
+        weight: 2,
+        maxStack: 2,
+        onApply: (player) => {
+            player.stats.upgradeOptions += 1;
+        }
     }
 ];

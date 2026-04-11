@@ -5,7 +5,7 @@ export default class Player {
         this.facing = 1;
         this.invulnerable = 0;
         this.level = 1;
-        this.xp = 0;
+        this.xp = 99;
         this.xpNextLevel = 100;
 
         this.baseStats = {
@@ -43,7 +43,9 @@ export default class Player {
             critChance: 0.05,
             penetration: 0,
             ricochetCount: 0,
-            rerolls: 0
+            upgradeOptions: 5,
+            rerolls: 0,
+            maxDrones: 1
         };
         
         this.sprite = new Image();
