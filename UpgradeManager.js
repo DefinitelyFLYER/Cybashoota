@@ -12,6 +12,8 @@ export default class UpgradeManager {
         this.selectedCardId = null; 
         this.confirmBtnBounds = null;
         this.droneLevelInterval = 3;
+        this.pendingLevelUps = 0;
+        this._clickHandler = this._handleInput.bind(this);
 
         this.droneMods = {
             'ALL': { damageBonus: 0, speedMulti: 1.0 },
@@ -124,9 +126,20 @@ export default class UpgradeManager {
         }
     }
 
+    addLevelUp() {
+        this.pendingLevelUps++;
+        if (!this.isSelectionActive) {
+            this.showSelection('UPGRADES');
+        }
+    }
+
     showSelection(mode = 'UPGRADES') {
         const player = this.game.getModule('player');
         if (!player) return;
+
+        if (mode === 'UPGRADES' && this.pendingLevelUps > 0) {
+            this.pendingLevelUps--;
+        }
 
         this.selectionMode = mode;
         this.selectedCardId = null;
@@ -142,7 +155,7 @@ export default class UpgradeManager {
         this.reRollBtnBounds = null;
         this.confirmBtnBounds = null;
         
-        this._clickHandler = (e) => this._handleInput(e);
+        window.removeEventListener('mousedown', this._clickHandler);
         window.addEventListener('mousedown', this._clickHandler);
     }
 
@@ -164,8 +177,11 @@ export default class UpgradeManager {
 
     _triggerNextPhaseIfNeeded() {
         const player = this.game.getModule('player');
+        
         if (this.selectionMode === 'UPGRADES' && player && player.level % this.droneLevelInterval === 0) {
             setTimeout(() => this.showSelection('DRONES'), 150);
+        } else if (this.pendingLevelUps > 0) {
+            setTimeout(() => this.showSelection('UPGRADES'), 150);
         }
     }
 

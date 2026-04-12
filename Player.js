@@ -116,7 +116,7 @@ export default class Player {
         const bonusXp = amount * this.getStat('xpMultiplier');
         this.xp += bonusXp;
         
-        if (this.xp >= this.xpNextLevel) {
+        while (this.xp >= this.xpNextLevel) {
             this.levelUp();
         }
     }
@@ -132,7 +132,10 @@ export default class Player {
 
         const upgrades = this.game.getModule('upgrades');
         if (upgrades) {
-            setTimeout(() => upgrades.showSelection(), 200);
+            setTimeout(() => {
+                if (upgrades.addLevelUp) upgrades.addLevelUp();
+                else upgrades.showSelection(); 
+            }, 200);
         }
     }
 
