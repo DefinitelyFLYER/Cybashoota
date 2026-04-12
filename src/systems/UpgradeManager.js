@@ -1,7 +1,7 @@
-import { UPGRADES } from './UpgradeData.js';
-import { getFormattedStats } from './Infobox.js';
-import { DRONE_TYPES } from './DroneTypes.js';
-import { DRONE_UPGRADES } from './DroneUpgradeData.js';
+import { UPGRADES } from '../data/UpgradeData.js';
+import { getFormattedStats } from '../ui/Infobox.js';
+import { DRONE_TYPES } from '../data/DroneTypes.js';
+import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
 
 export default class UpgradeManager {
     constructor() {

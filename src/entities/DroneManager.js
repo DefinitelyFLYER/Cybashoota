@@ -1,4 +1,4 @@
-import { DRONE_TYPES } from './DroneTypes.js';
+import { DRONE_TYPES } from '../data/DroneTypes.js';
 
 export default class DroneManager {
     constructor() {

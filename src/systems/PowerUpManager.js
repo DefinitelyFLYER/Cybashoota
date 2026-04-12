@@ -1,4 +1,4 @@
-import { POWER_UPS } from './PowerUpData.js';
+import { POWER_UPS } from '../data/PowerUpData.js';
 
 export default class PowerUpManager {
     constructor() {
