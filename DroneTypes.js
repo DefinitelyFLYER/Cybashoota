@@ -25,7 +25,7 @@ export const DRONE_TYPES = {
         name: 'Aegis Drone',
         description: 'Defensive satellite orbiting the player. Actively seeks and destroys enemy projectiles.',
         color: '#ff7b00',
-        size: 32,              
+        size: 64,              
         sprite: 'assets/drones/shield_drone.png', 
         
         movement: 'ORBIT',
@@ -41,7 +41,7 @@ export const DRONE_TYPES = {
         
         droneAccuracy: 0.4,
         maxBoost: 10,
-        blockRadius: 0.1,
+        blockRadius: 0.2,
         patrolRadius: 3,
         cooldown: 150         
     },
