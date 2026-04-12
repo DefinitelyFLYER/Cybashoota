@@ -168,7 +168,7 @@ export const UPGRADES = [
         description: '+1 Defense (Reduces incoming damage).',
         rarity: 'Rare',
         tags: ['defense'],
-        weight: 40,
+        weight: 0,
         maxStack: 5,
         onApply: (player) => { player.stats.defense += 1; }
     },
@@ -345,7 +345,7 @@ export const UPGRADES = [
         tags: ['utility'],
         weight: 1,
         unique: true,
-        requirements: (player) => { player.stats.rerolls >= 10; },
+        requirements: (player) => player.stats.rerolls >= 10,
         requirementText: 'Requires at least 10 rerolls.',
         onApply: (player) => { 
             player.stats.rerolls += 100; 
@@ -359,7 +359,7 @@ export const UPGRADES = [
         tags: ['utility', 'xp', 'risky'],
         weight: 5,
         unique: true,
-        requirements: (player) => { player.getStat('maxHp') >= 4 && player.getStat('damage') >= 4;},
+        requirements: (player) => player.getStat('maxHp') >= 4 && player.getStat('damage') >= 4,
         requirementText: 'Requires at least 4 Max HP and 4 Damage.',
         onApply: (player) => { 
             player.multipliers.xpMultiplier += 1;
@@ -367,6 +367,29 @@ export const UPGRADES = [
             player.stats.maxHp = 1;
             player.stats.damage = 1;
             if (player.stats.hp > player.stats.maxHp) player.stats.hp = player.stats.maxHp;
+        }
+    },
+    {
+        id: 'EXTRA_DRONE_CAPACITY',
+        name: 'Mothership Protocol',
+        description: 'Increases your maximum drone capacity by 1.',
+        rarity: 'Legendary',
+        tags: ['utility', 'drone'],
+        weight: 1,
+        onApply: (player) => {
+            player.stats.maxDrones += 1;
+        }
+    },
+    {
+        id: 'extra_upgrade_choice',
+        name: 'Quantum Core',
+        description: 'Expands your interface. +1 Upgrade Choice on level up.',
+        rarity: 'Legendary',
+        tags: ['utility'],
+        weight: 2,
+        maxStack: 2,
+        onApply: (player) => {
+            player.stats.upgradeOptions += 1;
         }
     }
 ];

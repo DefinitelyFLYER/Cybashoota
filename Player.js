@@ -34,7 +34,7 @@ export default class Player {
         this.stats = {
             hp: 2,
             maxHp: 2, 
-            defense: 0,
+            defense: 0, // irrelevant now
             damage: 1,
             dodgeChance: 0,
             projectileCount: 1,
@@ -43,7 +43,9 @@ export default class Player {
             critChance: 0.05,
             penetration: 0,
             ricochetCount: 0,
-            rerolls: 0
+            upgradeOptions: 3,
+            rerolls: 3,
+            maxDrones: 1
         };
         
         this.sprite = new Image();
@@ -114,7 +116,7 @@ export default class Player {
         const bonusXp = amount * this.getStat('xpMultiplier');
         this.xp += bonusXp;
         
-        if (this.xp >= this.xpNextLevel) {
+        while (this.xp >= this.xpNextLevel) {
             this.levelUp();
         }
     }
@@ -130,7 +132,10 @@ export default class Player {
 
         const upgrades = this.game.getModule('upgrades');
         if (upgrades) {
-            setTimeout(() => upgrades.showSelection(), 200);
+            setTimeout(() => {
+                if (upgrades.addLevelUp) upgrades.addLevelUp();
+                else upgrades.showSelection(); 
+            }, 200);
         }
     }
 

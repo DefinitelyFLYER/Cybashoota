@@ -38,6 +38,9 @@ export default class EnemyManager {
             this._applyPhysics(e, player, deltaTime);
             this._handleRangedAttack(e, player, deltaTime);
             this._checkPlayerCollision(e, player);
+            
+            this._checkDroneCollisions(e, player);
+            
             this._checkProjectileCollisions(e);
 
             if (e.currentHp <= 0) {
@@ -192,6 +195,51 @@ export default class EnemyManager {
         }
     }
 
+    _checkDroneCollisions(e, player) {
+        const droneMgr = this.game.getModule('drones');
+        if (!droneMgr || !droneMgr.drones || !player) return;
+
+        for (const drone of droneMgr.drones) {
+            if (drone.hasCollision) {
+                const dx = e.x - drone.x;
+                const dy = e.y - drone.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                const collisionDist = (e.size + drone.size) * 0.45;
+
+                if (dist < collisionDist && e.speedModifier > 0.1) {
+                    
+                    const pDx = e.x - player.pos.x;
+                    const pDy = e.y - player.pos.y;
+                    const pDist = Math.sqrt(pDx * pDx + pDy * pDy);
+
+                    const dirX = pDx / pDist;
+                    const dirY = pDy / pDist;
+
+                    const knockbackPower = drone.pushbackForce || 0.5;
+                    e.kbX = dirX * knockbackPower;
+                    e.kbY = dirY * knockbackPower;
+                    
+                    e.speedModifier = 0;
+                    e.turboCooldown = 1500;
+
+                    let dmg = droneMgr._getStat(drone, 'collisionDamage', player);
+
+                    if (e.isTagged && e.tagMultiplier) {
+                        dmg *= e.tagMultiplier;
+                    }
+
+                    if (dmg > 0) {
+                        e.currentHp -= dmg;
+                        
+                        const particles = this.game.getModule('particles');
+                        if (particles) particles.emit(e.x, e.y, drone.color, 5);
+                    }
+                }
+            }
+        }
+    }
+
     _checkProjectileCollisions(e) {
         const pm = this.game.getModule('projectiles');
         if (!pm) return;
@@ -269,6 +317,10 @@ export default class EnemyManager {
             damage *= (playerMod ? playerMod.getStat('critMultiplier') : 2);
             const particles = this.game.getModule('particles');
             if (particles) particles.emit(p.x, p.y, '#ffffff', 5);
+        }
+
+        if (e.isTagged && e.tagMultiplier) {
+            damage *= e.tagMultiplier;
         }
 
         e.currentHp -= damage;
@@ -407,6 +459,10 @@ export default class EnemyManager {
             if (e.currentHp < e.maxHp) {
                 this._drawHealthBar(ctx, drawX, drawY, e);
             }
+            
+            if (e.isTagged) {
+                this._drawTag(ctx, drawX, drawY, e);
+            }
             ctx.restore();
         }
     }
@@ -472,5 +528,36 @@ export default class EnemyManager {
         const hpPercent = e.currentHp / e.maxHp;
         ctx.fillStyle = hpPercent > 0.5 ? '#00ffcc' : '#ff0055'; 
         ctx.fillRect(drawX, drawY, barWidth * hpPercent, 4);
+    }
+
+    _drawTag(ctx, x, y, e) {
+        e.tagAnimationTimer = (e.tagAnimationTimer || 0) + 0.015; 
+        
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(e.tagAnimationTimer);
+        
+        ctx.strokeStyle = '#bc00ff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#bc00ff';
+
+        const r = (e.size / 2) * 1.25;
+        
+        ctx.beginPath();
+        ctx.setLineDash([8, 8]);
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.setLineDash([]);
+        const stickLength = 16;
+        ctx.beginPath();
+        ctx.moveTo(-r - stickLength, 0); ctx.lineTo(-r, 0);
+        ctx.moveTo(r, 0); ctx.lineTo(r + stickLength, 0);
+        ctx.moveTo(0, -r - stickLength); ctx.lineTo(0, -r);
+        ctx.moveTo(0, r); ctx.lineTo(0, r + stickLength);
+        ctx.stroke();
+
+        ctx.restore();
     }
 }
