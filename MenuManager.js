@@ -2,6 +2,7 @@ export default class MenuManager {
     constructor() {
         this.buttons = [];
         this.mousePos = { x: 0, y: 0 };
+        this._gamepadActionHeld = false;
         this.logo = new Image();
         this.logoLoaded = false;
         this.logo.onload = () => {
@@ -32,16 +33,23 @@ export default class MenuManager {
     }
 
     update(deltaTime) {
+        if (this.game.gameState !== 'MENU') return;
+
         const gamepad = this.game.getModule('gamepad');
         const proj = this.game.getModule('projectiles');
-        if (!proj) return;
+        const hasPad = gamepad && gamepad.gamepadIndex !== null;
 
-        if (gamepad && gamepad.gamepadIndex !== null) {
+        if (hasPad && proj) {
             this.mousePos.x = proj.crosshairX ?? proj.mouseX;
             this.mousePos.y = proj.crosshairY ?? proj.mouseY;
-            if (gamepad.justPressed.A || gamepad.justPressed.X) {
+
+            const actionDown = gamepad.buttons.A || gamepad.buttons.X;
+            if (actionDown && !this._gamepadActionHeld) {
                 this._handleClick();
             }
+            this._gamepadActionHeld = actionDown;
+        } else {
+            this._gamepadActionHeld = false;
         }
     }
 

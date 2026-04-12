@@ -14,6 +14,7 @@ export default class UpgradeManager {
         this.droneLevelInterval = 3;
         this.pendingLevelUps = 0;
         this._clickHandler = this._handleInput.bind(this);
+        this._gamepadActionHeld = false;
 
         this.droneMods = {
             'ALL': { damageBonus: 0, speedMulti: 1.0 },
@@ -25,6 +26,64 @@ export default class UpgradeManager {
 
     init(game) {
         this.game = game;
+    }
+
+    update(deltaTime) {
+        if (!this.isSelectionActive) return;
+
+        const gamepad = this.game.getModule('gamepad');
+        const proj = this.game.getModule('projectiles');
+        const hasPad = gamepad && gamepad.gamepadIndex !== null && proj;
+        if (!hasPad) return;
+
+        const pointerX = proj.crosshairX ?? proj.mouseX;
+        const pointerY = proj.crosshairY ?? proj.mouseY;
+
+        let hoveredCardId = null;
+        if (this.cardBounds) {
+            for (const card of this.cardBounds) {
+                if (pointerX >= card.x && pointerX <= card.x + card.w &&
+                    pointerY >= card.y && pointerY <= card.y + card.h) {
+                    hoveredCardId = card.id;
+                    break;
+                }
+            }
+        }
+
+        const actionDown = gamepad.buttons.A || gamepad.buttons.X;
+        const actionPressed = actionDown && !this._gamepadActionHeld;
+
+        if (hoveredCardId) {
+            this.selectedCardId = hoveredCardId;
+            if (actionPressed) {
+                this._executeSelection(hoveredCardId);
+            }
+            this._gamepadActionHeld = actionDown;
+            return;
+        }
+
+        if (this.reRollBtnBounds && pointerX >= this.reRollBtnBounds.x && pointerX <= this.reRollBtnBounds.x + this.reRollBtnBounds.w &&
+            pointerY >= this.reRollBtnBounds.y && pointerY <= this.reRollBtnBounds.y + this.reRollBtnBounds.h) {
+            if (actionPressed) {
+                const player = this.game.getModule('player');
+                if (player) this._executeReroll(player);
+            }
+            this._gamepadActionHeld = actionDown;
+            return;
+        }
+
+        if (this.confirmBtnBounds && pointerX >= this.confirmBtnBounds.x && pointerX <= this.confirmBtnBounds.x + this.confirmBtnBounds.w &&
+            pointerY >= this.confirmBtnBounds.y && pointerY <= this.confirmBtnBounds.y + this.confirmBtnBounds.h) {
+            if (actionPressed) {
+                if (this.selectedCardId !== null || this.currentOptions.length === 0) {
+                    this._executeSelection(this.selectedCardId);
+                }
+            }
+            this._gamepadActionHeld = actionDown;
+            return;
+        }
+
+        this._gamepadActionHeld = actionDown;
     }
 
     getAvailableUpgrades(count = 3) {

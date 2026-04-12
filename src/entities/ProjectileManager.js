@@ -6,10 +6,14 @@ export default class ProjectileManager {
         
         this.mouseX = 0;
         this.mouseY = 0;
+        this.crosshairX = 0;
+        this.crosshairY = 0;
+        this.crosshairRadius = 160;
         this.isMouseDown = false;
         this.gamepadAimX = 0;
         this.gamepadAimY = 0;
         this.gamepadFire = false;
+        this.menuCursorSpeed = 0.55;
 
         this.HOMING_RANGE = 3;
         this.RICOCHET_RANGE = 8;
@@ -46,12 +50,47 @@ export default class ProjectileManager {
         if (!player) return;
 
         this._updateGamepadState();
+        this._updateCrosshairPosition(player);
         this._handlePlayerFiring(player);
         this._updateProjectiles(player, deltaTime);
         this._updateEnemyProjectiles(player, deltaTime);
         if (this.crosshairPulse > 0) {
             this.crosshairPulse -= deltaTime * 0.0025;
             if (this.crosshairPulse < 0) this.crosshairPulse = 0;
+        }
+    }
+
+    updateMenu(deltaTime) {
+        const player = this.game.getModule('player');
+        if (!player) return;
+
+        this._updateGamepadState();
+        this._updateMenuCrosshairPosition(deltaTime);
+        if (this.crosshairPulse > 0) {
+            this.crosshairPulse -= deltaTime * 0.0025;
+            if (this.crosshairPulse < 0) this.crosshairPulse = 0;
+        }
+    }
+
+    _updateMenuCrosshairPosition(deltaTime) {
+        const gamepad = this.game.getModule('gamepad');
+        const hasPad = gamepad && gamepad.gamepadIndex !== null;
+
+        if (hasPad) {
+            if (this.crosshairX === 0 && this.crosshairY === 0) {
+                this.crosshairX = this.game.center.x;
+                this.crosshairY = this.game.center.y;
+            }
+
+            this.crosshairX += this.gamepadAimX * this.menuCursorSpeed * deltaTime;
+            this.crosshairY += this.gamepadAimY * this.menuCursorSpeed * deltaTime;
+
+            const canvas = this.game.canvas;
+            this.crosshairX = Math.max(0, Math.min(this.crosshairX, canvas.width));
+            this.crosshairY = Math.max(0, Math.min(this.crosshairY, canvas.height));
+        } else {
+            this.crosshairX = this.mouseX;
+            this.crosshairY = this.mouseY;
         }
     }
 
@@ -64,12 +103,39 @@ export default class ProjectileManager {
             return;
         }
 
-        const aimX = Math.abs(gamepad.axes[2]) > 0.2 ? gamepad.axes[2] : 0;
-        const aimY = Math.abs(gamepad.axes[3]) > 0.2 ? gamepad.axes[3] : 0;
+        const rawAimX = gamepad.axes[2] || 0;
+        const rawAimY = gamepad.axes[3] || 0;
+        const magnitude = Math.sqrt(rawAimX * rawAimX + rawAimY * rawAimY);
+        const deadzone = 0.2;
 
-        this.gamepadAimX = aimX;
-        this.gamepadAimY = aimY;
+        if (magnitude > deadzone) {
+            this.gamepadAimX = rawAimX;
+            this.gamepadAimY = rawAimY;
+        } else {
+            this.gamepadAimX = 0;
+            this.gamepadAimY = 0;
+        }
+
         this.gamepadFire = gamepad.buttons.RT;
+    }
+
+    _updateCrosshairPosition(player) {
+        const gamepad = this.game.getModule('gamepad');
+        const hasGamepad = gamepad && gamepad.gamepadIndex !== null;
+
+        if (hasGamepad && (this.gamepadAimX !== 0 || this.gamepadAimY !== 0)) {
+            const angle = Math.atan2(this.gamepadAimY, this.gamepadAimX);
+            this.crosshairX = this.game.center.x + Math.cos(angle) * this.crosshairRadius;
+            this.crosshairY = this.game.center.y + Math.sin(angle) * this.crosshairRadius;
+        } else if (hasGamepad) {
+            if (this.crosshairX === 0 && this.crosshairY === 0) {
+                this.crosshairX = this.game.center.x + this.crosshairRadius;
+                this.crosshairY = this.game.center.y;
+            }
+        } else {
+            this.crosshairX = this.mouseX;
+            this.crosshairY = this.mouseY;
+        }
     }
 
     _updateEnemyProjectiles(player, deltaTime) {

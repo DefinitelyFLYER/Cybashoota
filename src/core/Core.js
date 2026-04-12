@@ -1,3 +1,5 @@
+import { getFormattedStats } from '../ui/Infobox.js';
+
 export default class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -5,15 +7,19 @@ export default class Game {
         this.modules = new Map();
         this.lastTime = 0;
         this.isPaused = false;
+        this.isGameOver = false;
         this.gameState = 'MENU';
+        this.pauseButtons = [];
 
         this._resizeCanvas();
         window.addEventListener('resize', () => this._resizeCanvas());
+        window.addEventListener('keydown', (e) => this._handleGlobalKeydown(e));
+        window.addEventListener('mousedown', (e) => this._handlePauseMouseClick(e));
         this.UNIT_SIZE = 100;
 
         this.center = {
-        x: this.canvas.width / 2,
-        y: this.canvas.height / 2
+            x: this.canvas.width / 2,
+            y: this.canvas.height / 2
         };
     }
 
@@ -41,6 +47,8 @@ export default class Game {
 
     startGame() {
         this.gameState = 'PLAYING';
+        this.isPaused = false;
+        this.isGameOver = false;
         this.lastTime = performance.now();
     }
 
@@ -52,13 +60,43 @@ export default class Game {
         const upgrades = this.getModule('upgrades');
         const isMenuOpen = upgrades && upgrades.isSelectionActive;
 
-        if (this.gameState === 'PLAYING' && !isMenuOpen && !this.isPaused) {
+        if (this.gameState === 'PLAYING' && !isMenuOpen && !this.isPaused && !this.isGameOver) {
             this._update(deltaTime);
+        }
+
+        if (this.gameState === 'MENU' || isMenuOpen || (this.isPaused && !this.isGameOver)) {
+            this._updateMenuInput(deltaTime);
         }
 
         this._draw();
 
         requestAnimationFrame(this._gameLoop.bind(this));
+    }
+
+    _updateMenuInput(deltaTime) {
+        const gamepad = this.getModule('gamepad');
+        if (gamepad && typeof gamepad.update === 'function') {
+            gamepad.update();
+        }
+
+        const proj = this.getModule('projectiles');
+        if (proj && typeof proj.updateMenu === 'function') {
+            proj.updateMenu(deltaTime);
+        }
+
+        const menu = this.getModule('menu');
+        if (menu && typeof menu.update === 'function') {
+            menu.update(deltaTime);
+        }
+
+        const upgrades = this.getModule('upgrades');
+        if (upgrades && upgrades.isSelectionActive && typeof upgrades.update === 'function') {
+            upgrades.update(deltaTime);
+        }
+
+        if (this.isPaused && !this.isGameOver) {
+            this._updatePauseInput(deltaTime);
+        }
     }
 
     _update(deltaTime) {
@@ -92,7 +130,11 @@ export default class Game {
             }
         }
 
-        if (this.isPaused && this.gameState !== 'MENU') {
+        if (this.isPaused && !this.isGameOver) {
+            this._drawPauseMenu();
+        }
+
+        if (this.isGameOver) {
             this._drawGameOverScreen();
         }
 
@@ -110,8 +152,8 @@ export default class Game {
     _drawCrosshair(ctx, proj) {
         ctx.save();
         
-        const x = proj.mouseX;
-        const y = proj.mouseY;
+        const x = proj.crosshairX ?? proj.mouseX;
+        const y = proj.crosshairY ?? proj.mouseY;
         
         ctx.strokeStyle = '#00ffcc';
         ctx.fillStyle = '#00ffcc';
@@ -132,8 +174,159 @@ export default class Game {
         ctx.restore();
     }
 
+    _handleGlobalKeydown(e) {
+        if (e.code !== 'Escape') return;
+        if (this.gameState !== 'PLAYING' || this.isGameOver) return;
+
+        const upgrades = this.getModule('upgrades');
+        if (upgrades && upgrades.isSelectionActive) return;
+
+        this.isPaused = !this.isPaused;
+    }
+
+    _handlePauseMouseClick(e) {
+        if (!this.isPaused || this.isGameOver) return;
+        if (!this.pauseButtons || this.pauseButtons.length === 0) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        for (const button of this.pauseButtons) {
+            if (x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h) {
+                button.action();
+                return;
+            }
+        }
+    }
+
+    _updatePauseInput(deltaTime) {
+        const gamepad = this.getModule('gamepad');
+        const proj = this.getModule('projectiles');
+        if (!proj) return;
+
+        const hasPad = gamepad && gamepad.gamepadIndex !== null;
+        if (!hasPad) return;
+
+        const pointerX = proj.crosshairX ?? proj.mouseX;
+        const pointerY = proj.crosshairY ?? proj.mouseY;
+        const actionPressed = gamepad.justPressed.A || gamepad.justPressed.X;
+
+        if (!actionPressed) return;
+
+        for (const button of this.pauseButtons) {
+            if (pointerX >= button.x && pointerX <= button.x + button.w && pointerY >= button.y && pointerY <= button.y + button.h) {
+                button.action();
+                return;
+            }
+        }
+    }
+
+    _drawPauseMenu() {
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = 'bold 64px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#00ffcc';
+        ctx.fillText('PAUSED', w / 2, 120);
+        ctx.restore();
+
+        const player = this.getModule('player');
+        if (player) {
+            this._drawPauseStatsInfobox(ctx, 40, h / 2 - 200, player);
+        }
+
+        const btnW = 260;
+        const btnH = 64;
+        const btnX = w - btnW - 40;
+        const btnY = h / 2 - btnH - 10;
+
+        const pointer = this._getPausePointer();
+        this.pauseButtons = [
+            { x: btnX, y: btnY, w: btnW, h: btnH, action: () => this.resumeGame(), text: 'CONTINUE' },
+            { x: btnX, y: btnY + btnH + 24, w: btnW, h: btnH, action: () => window.location.reload(), text: 'RESTART' }
+        ];
+
+        this.pauseButtons.forEach((button) => {
+            const isHovered = pointer && pointer.x >= button.x && pointer.x <= button.x + button.w && pointer.y >= button.y && pointer.y <= button.y + button.h;
+            ctx.save();
+            ctx.fillStyle = isHovered ? '#0a2d30' : '#050606';
+            ctx.strokeStyle = isHovered ? '#00ffcc' : '#333';
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = isHovered ? 18 : 0;
+            ctx.shadowColor = '#00ffcc';
+            ctx.fillRect(button.x, button.y, button.w, button.h);
+            ctx.strokeRect(button.x, button.y, button.w, button.h);
+            ctx.fillStyle = isHovered ? '#ffffff' : '#88c8d0';
+            ctx.font = 'bold 22px "Courier New", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(button.text, button.x + button.w / 2, button.y + button.h / 2);
+            ctx.restore();
+        });
+    }
+
+    _resumeGame() {
+        this.isPaused = false;
+    }
+
+    resumeGame() {
+        this.isPaused = false;
+    }
+
+    _getPausePointer() {
+        const proj = this.getModule('projectiles');
+        const gamepad = this.getModule('gamepad');
+        const hasPad = gamepad && gamepad.gamepadIndex !== null;
+        if (hasPad && proj) {
+            return { x: proj.crosshairX ?? proj.mouseX, y: proj.crosshairY ?? proj.mouseY };
+        }
+        if (proj) {
+            return { x: proj.mouseX, y: proj.mouseY };
+        }
+        return null;
+    }
+
+    _drawPauseStatsInfobox(ctx, x, y, player) {
+        const rowH = 22; const panelW = 260; const panelH = 420;
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 40, 40, 0.5)';
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 2;
+        ctx.fillRect(x - 10, y - 40, panelW, panelH);
+        ctx.strokeRect(x - 10, y - 40, panelW, panelH);
+
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = 'bold 16px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('STATUS', x, y - 15);
+        ctx.font = '12px monospace';
+
+        const displayStats = getFormattedStats(player);
+        displayStats.forEach((s, i) => {
+            const curY = y + (i * rowH);
+            ctx.fillStyle = '#00ffcc';
+            ctx.fillText(s.label, x, curY);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(s.val, x + panelW - 30, curY);
+            ctx.textAlign = 'left';
+        });
+        ctx.restore();
+    }
+
     gameOver() {
         this.isPaused = true;
+        this.isGameOver = true;
         console.log("Game Over state triggered.");
     }
 

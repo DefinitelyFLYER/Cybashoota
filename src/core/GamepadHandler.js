@@ -13,6 +13,8 @@ export default class GamepadHandler {
             left: false,
             right: false
         };
+        this.lastButtons = { ...this.buttons };
+        this.justPressed = { ...this.buttons };
         
         window.addEventListener('gamepadconnected', (e) => {
             this.gamepadIndex = e.gamepad.index;
@@ -49,6 +51,8 @@ export default class GamepadHandler {
             this.buttons.down = false;
             this.buttons.left = false;
             this.buttons.right = false;
+            this.justPressed = { ...this.buttons };
+            this.lastButtons = { ...this.buttons };
             return;
         }
 
@@ -66,5 +70,17 @@ export default class GamepadHandler {
         this.buttons.down = gp.buttons[13] ? gp.buttons[13].pressed : false;
         this.buttons.left = gp.buttons[14] ? gp.buttons[14].pressed : false;
         this.buttons.right = gp.buttons[15] ? gp.buttons[15].pressed : false;
+
+        this.justPressed.RT = this.buttons.RT && !this.lastButtons.RT;
+        this.justPressed.A = this.buttons.A && !this.lastButtons.A;
+        this.justPressed.B = this.buttons.B && !this.lastButtons.B;
+        this.justPressed.X = this.buttons.X && !this.lastButtons.X;
+        this.justPressed.Y = this.buttons.Y && !this.lastButtons.Y;
+        this.justPressed.up = this.buttons.up && !this.lastButtons.up;
+        this.justPressed.down = this.buttons.down && !this.lastButtons.down;
+        this.justPressed.left = this.buttons.left && !this.lastButtons.left;
+        this.justPressed.right = this.buttons.right && !this.lastButtons.right;
+
+        this.lastButtons = { ...this.buttons };
     }
 }
