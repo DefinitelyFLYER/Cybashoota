@@ -4,7 +4,7 @@ export const DRONE_TYPES = {
         name: 'Assault Drone',
         description: 'Automated combat unit that follows the player and shoots at the closest targets.',
         color: '#00ffcc',
-        size: 24,
+        size: 48,
         sprite: 'assets/drones/assault_drone.png',
         
         movement: 'FOLLOW',
@@ -51,7 +51,7 @@ export const DRONE_TYPES = {
         name: 'Saboteur Drone',
         description: 'Support unit that marks targets. Marked enemies take double damage.',
         color: '#bc00ff',
-        size: 20,
+        size: 48,
         sprite: 'assets/drones/saboteur_drone.png',
         
         movement: 'FOLLOW',
@@ -71,7 +71,8 @@ export const DRONE_TYPES = {
         name: 'Sniper Drone',
         description: 'Long-range specialist targeting your cursor. Extreme damage.',
         color: '#ff0055',
-        size: 20,
+        size: 48,
+        sprite: 'assets/drones/sniper_drone.png',
         
         movement: 'FOLLOW',
         followOffset: { x: 0.4, y: -0.5 },
