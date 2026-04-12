@@ -5,6 +5,7 @@ export default class Game {
         this.modules = new Map();
         this.lastTime = 0;
         this.isPaused = false;
+        this.gameState = 'MENU';
 
         this._resizeCanvas();
         window.addEventListener('resize', () => this._resizeCanvas());
@@ -38,15 +39,20 @@ export default class Game {
         requestAnimationFrame(this._gameLoop.bind(this));
     }
 
-    _gameLoop(timestamp) {
-        const deltaTime = timestamp - this.lastTime;
-        this.lastTime = timestamp;
+    startGame() {
+        this.gameState = 'PLAYING';
+        this.lastTime = performance.now();
+    }
 
+    _gameLoop(timestamp) {
+        let deltaTime = timestamp - this.lastTime;
+        if (deltaTime > 100) deltaTime = 16; 
+        this.lastTime = timestamp;
 
         const upgrades = this.getModule('upgrades');
         const isMenuOpen = upgrades && upgrades.isSelectionActive;
 
-        if (!isMenuOpen && !this.isPaused) {
+        if (this.gameState === 'PLAYING' && !isMenuOpen && !this.isPaused) {
             this._update(deltaTime);
         }
 
@@ -66,13 +72,27 @@ export default class Game {
     _draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
+        const bg = this.getModule('background');
+        if (bg && bg.draw) bg.draw(this.ctx);
+
+        if (this.gameState === 'MENU') {
+            const menu = this.getModule('menu');
+            if (menu && menu.draw) menu.draw(this.ctx);
+
+            const proj = this.getModule('projectiles');
+            if (proj) {
+                this._drawCrosshair(this.ctx, proj);
+            }
+            return;
+        }
+
         for (const [key, module] of this.modules) {
-            if (module.draw && key !== 'upgrades') {
+            if (module.draw && key !== 'upgrades' && key !== 'background' && key !== 'menu') {
                 module.draw(this.ctx);
             }
         }
 
-        if (this.isPaused) {
+        if (this.isPaused && this.gameState !== 'MENU') {
             this._drawGameOverScreen();
         }
 

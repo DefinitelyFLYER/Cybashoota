@@ -11,6 +11,7 @@ import ExperienceManager from './ExperienceManager.js';
 import UpgradeManager from './UpgradeManager.js';
 import PowerUpManager from './PowerUpManager.js';
 import DroneManager from './DroneManager.js';
+import MenuManager from './MenuManager.js';
 
 const game = new Game('gameCanvas');
 
@@ -18,6 +19,7 @@ game.addModule('background', new Background());
 game.addModule('drones', new DroneManager());
 game.addModule('input', new InputHandler());
 game.addModule('ui', new UIManager());
+game.addModule('menu', new MenuManager());
 game.addModule('projectiles', new ProjectileManager());
 game.addModule('experience', new ExperienceManager());
 game.addModule('enemies', new EnemyManager());
