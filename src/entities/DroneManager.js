@@ -1,4 +1,4 @@
-import { DRONE_TYPES } from './DroneTypes.js';
+import { DRONE_TYPES } from '../data/DroneTypes.js';
 
 export default class DroneManager {
     constructor() {
@@ -17,6 +17,17 @@ export default class DroneManager {
     init(game) {
         this.game = game;
         this._preloadSprites();
+    }
+
+    reset() {
+        this.drones = [];
+        this.testSpawnCooldown = 0;
+        this.droneMods = {
+            'ALL': { damageBonus: 0, speedMulti: 1.0 },
+            'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
+            'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
+            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 }
+        };
     }
 
     _preloadSprites() {
