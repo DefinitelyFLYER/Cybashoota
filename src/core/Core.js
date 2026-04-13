@@ -33,7 +33,13 @@ export default class Game {
         this._resizeCanvas();
         window.addEventListener('resize', () => this._resizeCanvas());
         window.addEventListener('keydown', (e) => this._handleGlobalKeydown(e));
-        window.addEventListener('mousedown', (e) => this._handlePauseMouseClick(e));
+
+        if (window.PointerEvent) {
+            window.addEventListener('pointerdown', (e) => this._handlePauseMouseClick(e));
+        } else {
+            window.addEventListener('mousedown', (e) => this._handlePauseMouseClick(e));
+            window.addEventListener('touchstart', (e) => this._handlePauseMouseClick(e), { passive: false });
+        }
         this.UNIT_SIZE = 100;
 
         this.center = {
@@ -338,7 +344,8 @@ export default class Game {
         ctx.fillRect(0, 0, w, h);
 
         ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 56px "Courier New", monospace';
+        const titleFontSize = Math.round(Math.max(32, Math.min(56, w * 0.045)));
+        ctx.font = `bold ${titleFontSize}px "Courier New", monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowBlur = 20;
@@ -346,11 +353,12 @@ export default class Game {
         ctx.fillText('SETTINGS', w / 2, 100);
         ctx.restore();
 
-        const tabWidth = 220;
-        const tabHeight = 52;
-        const tabSpacing = 18;
-        const startX = (w - (tabWidth * 3 + tabSpacing * 2)) / 2;
-        const tabY = 170;
+        const tabHeight = Math.min(52, Math.max(42, h * 0.06));
+        const tabSpacing = Math.min(18, Math.max(10, w * 0.015));
+        const tabCount = Object.keys(tabTitles).length;
+        const tabWidth = Math.min(240, Math.max(160, (w - 120 - tabSpacing * (tabCount - 1)) / tabCount));
+        const startX = (w - (tabWidth * tabCount + tabSpacing * (tabCount - 1))) / 2;
+        const tabY = h * 0.16;
 
         const proj = this.getModule('projectiles');
         const pointer = proj ? { x: proj.crosshairX ?? proj.mouseX, y: proj.crosshairY ?? proj.mouseY } : null;
@@ -379,10 +387,10 @@ export default class Game {
 
             this.settingsButtons.push({ x, y, w: tabWidth, h: tabHeight, action: () => { this.settingsTab = tab; } });
         });
-        const panelX = 80;
-        const panelY = 250;
-        const panelW = w - 160;
-        const lineHeight = 42;
+        const panelX = w < 700 ? 24 : 80;
+        const panelW = w - panelX * 2;
+        const panelY = tabY + tabHeight + 40;
+        const lineHeight = Math.min(40, Math.max(32, h * 0.045));
 
         ctx.save();
         ctx.fillStyle = 'rgba(0, 40, 40, 0.7)';
@@ -401,7 +409,7 @@ export default class Game {
             ctx.textAlign = 'left';
             ctx.fillText(label, optionX, optionY + 8);
 
-            const btnW = 180;
+            const btnW = Math.min(180, Math.max(140, panelW * 0.38));
             const btnH = 38;
             const btnX = panelX + panelW - btnW - 30;
             const btnY = optionY - 16;
@@ -487,7 +495,7 @@ export default class Game {
             ctx.fillText('Audio settings are work in progress.', optionX, optionY + 8);
         }
 
-        const backW = 200;
+        const backW = Math.min(260, Math.max(180, w * 0.24));
         const backH = 50;
         const backX = w / 2 - backW / 2;
         const backY = h - 90;
@@ -513,6 +521,20 @@ export default class Game {
         return pointer.x >= x && pointer.x <= x + w && pointer.y >= y && pointer.y <= y + h;
     }
 
+    _getEventClientCoords(e) {
+        if (typeof TouchEvent !== 'undefined' && e instanceof TouchEvent) {
+            const touch = e.changedTouches[0] || e.touches[0];
+            if (!touch) return null;
+            return { clientX: touch.clientX, clientY: touch.clientY };
+        }
+
+        if (typeof PointerEvent !== 'undefined' && e instanceof PointerEvent) {
+            return { clientX: e.clientX, clientY: e.clientY };
+        }
+
+        return { clientX: e.clientX, clientY: e.clientY };
+    }
+
     _handlePauseMouseClick(e) {
         if (this.settingsOpen) {
             this._handleSettingsMouseClick(e);
@@ -524,9 +546,12 @@ export default class Game {
         const buttons = this.isGameOver ? this.gameOverButtons : this.pauseButtons;
         if (!buttons || buttons.length === 0) return;
 
+        const coords = this._getEventClientCoords(e);
+        if (!coords) return;
+
         const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const x = coords.clientX - rect.left;
+        const y = coords.clientY - rect.top;
 
         for (const button of buttons) {
             if (x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h) {
@@ -537,9 +562,12 @@ export default class Game {
     }
 
     _handleSettingsMouseClick(e) {
+        const coords = this._getEventClientCoords(e);
+        if (!coords) return;
+
         const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const x = coords.clientX - rect.left;
+        const y = coords.clientY - rect.top;
 
         for (const button of this.settingsButtons) {
             if (x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h) {
@@ -612,7 +640,8 @@ export default class Game {
         ctx.fillRect(0, 0, w, h);
 
         ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 64px "Courier New", monospace';
+        const titleFontSize = Math.round(Math.max(36, Math.min(64, w * 0.05)));
+        ctx.font = `bold ${titleFontSize}px "Courier New", monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowBlur = 20;
@@ -621,14 +650,20 @@ export default class Game {
         ctx.restore();
 
         const player = this.getModule('player');
+        const isWide = w > 900;
+        const infoPanelW = Math.min(320, Math.max(240, w * 0.24));
+        const infoPanelH = Math.min(440, Math.max(320, h * 0.55));
+        const infoPanelX = isWide ? 40 : (w - infoPanelW) / 2;
+        const infoPanelY = isWide ? h / 2 - infoPanelH / 2 : 140;
+
         if (player) {
-            this._drawPauseStatsInfobox(ctx, 40, h / 2 - 200, player);
+            this._drawPauseStatsInfobox(ctx, infoPanelX, infoPanelY, player, infoPanelW, infoPanelH);
         }
 
-        const btnW = 260;
-        const btnH = 64;
-        const btnX = w - btnW - 40;
-        const btnY = h / 2 - btnH - 10;
+        const btnW = Math.min(300, Math.max(220, w * 0.28));
+        const btnH = Math.min(72, Math.max(56, h * 0.08));
+        const btnX = isWide ? w - btnW - 40 : (w - btnW) / 2;
+        const btnY = isWide ? h / 2 - btnH - 10 : infoPanelY + infoPanelH + 24;
 
         const pointer = this._getPausePointer();
         this.pauseButtons = [
@@ -683,14 +718,14 @@ export default class Game {
         return null;
     }
 
-    _drawPauseStatsInfobox(ctx, x, y, player) {
-        const rowH = 22; const panelW = 260; const panelH = 420;
+    _drawPauseStatsInfobox(ctx, x, y, player, panelW = 260, panelH = 420) {
+        const rowH = 22; const panelHeight = panelH;
         ctx.save();
         ctx.fillStyle = 'rgba(0, 40, 40, 0.5)';
         ctx.strokeStyle = '#00ffcc';
         ctx.lineWidth = 2;
-        ctx.fillRect(x - 10, y - 40, panelW, panelH);
-        ctx.strokeRect(x - 10, y - 40, panelW, panelH);
+        ctx.fillRect(x - 10, y - 40, panelW, panelHeight);
+        ctx.strokeRect(x - 10, y - 40, panelW, panelHeight);
 
         ctx.fillStyle = '#00ffcc';
         ctx.font = 'bold 16px monospace';
@@ -744,14 +779,20 @@ export default class Game {
         ctx.restore();
 
         const player = this.getModule('player');
+        const isWide = w > 900;
+        const infoPanelW = Math.min(320, Math.max(240, w * 0.24));
+        const infoPanelH = Math.min(440, Math.max(320, h * 0.55));
+        const infoPanelX = isWide ? 40 : (w - infoPanelW) / 2;
+        const infoPanelY = isWide ? h / 2 - infoPanelH / 2 : 160;
+
         if (player) {
-            this._drawPauseStatsInfobox(ctx, 40, h / 2 - 200, player);
+            this._drawPauseStatsInfobox(ctx, infoPanelX, infoPanelY, player, infoPanelW, infoPanelH);
         }
 
-        const btnW = 260;
-        const btnH = 64;
-        const btnX = w - btnW - 40;
-        const btnY = h / 2 - btnH - 10;
+        const btnW = Math.min(300, Math.max(220, w * 0.28));
+        const btnH = Math.min(72, Math.max(56, h * 0.08));
+        const btnX = isWide ? w - btnW - 40 : (w - btnW) / 2;
+        const btnY = isWide ? h / 2 - btnH - 10 : infoPanelY + infoPanelH + 24;
 
         const pointer = this._getPausePointer();
         this.gameOverButtons = [

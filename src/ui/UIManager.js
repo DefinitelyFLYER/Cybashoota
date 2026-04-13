@@ -105,7 +105,7 @@ export default class UIManager {
         if (!player) return;
 
         const w = this.game.canvas.width;
-        const barHeight = 6;
+        const barHeight = Math.max(4, Math.round(w / 1100 * 6));
         
         ctx.fillStyle = 'rgba(0, 20, 20, 0.8)';
         ctx.fillRect(0, 0, w, barHeight);
@@ -121,15 +121,6 @@ export default class UIManager {
             ctx.fillRect(0, 0, barWidth, barHeight);
             ctx.restore();
         }
-
-        ctx.save();
-        ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 14px "Courier New", monospace';
-        ctx.textAlign = 'right';
-        ctx.shadowBlur = 5;
-        ctx.shadowColor = '#00ffcc';
-        ctx.fillText(`LVL ${player.level}`, w - 20, barHeight + 20);
-        ctx.restore();
     }
 
     reset() {
@@ -145,9 +136,15 @@ export default class UIManager {
         const h = this.game.canvas.height;
         const player = this.game.getModule('player');
         const director = this.game.getModule('director');
+        const uiScale = Math.min(1, Math.max(0.75, w / 1100));
+        const scoreFontSize = Math.round(24 * uiScale);
+        const hudFontSize = Math.round(24 * uiScale);
+        const smallFontSize = Math.round(16 * uiScale);
+        const timeFontSize = Math.round(28 * uiScale);
+        const xpHeight = Math.max(4, Math.round(6 * uiScale));
         
         ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 24px "Courier New", monospace';
+        ctx.font = `bold ${scoreFontSize}px "Courier New", monospace`;
         ctx.textAlign = 'left';
         ctx.shadowBlur = 8;
         ctx.shadowColor = '#00ffcc';
@@ -155,7 +152,7 @@ export default class UIManager {
         
         if (player) {
             ctx.save();
-            ctx.font = 'bold 24px "Courier New", monospace';
+            ctx.font = `bold ${hudFontSize}px "Courier New", monospace`;
             ctx.textAlign = 'left';
             ctx.shadowBlur = 8;
             
@@ -183,9 +180,13 @@ export default class UIManager {
             ctx.restore();
         }
 
+        const touch = this.game.getModule('touch');
+        const rightTextX = touch && touch.showControls ? (touch.pauseButtonBounds.x - 12) : (w - 20);
+
         ctx.textAlign = 'right';
-        ctx.font = '16px "Courier New", monospace';
-        ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, w - 20, 40);
+        ctx.font = `${smallFontSize}px "Courier New", monospace`;
+        ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, rightTextX, 40);
+        ctx.fillText(`LVL ${player ? player.level : 0}`, rightTextX, 40 + smallFontSize + 10);
         
         ctx.shadowBlur = 0;
 
@@ -221,10 +222,10 @@ export default class UIManager {
                 ctx.fillStyle = '#00ffcc';
                 ctx.shadowBlur = 15 * scale;
                 ctx.shadowColor = '#00ffcc';
-                ctx.font = 'bold 30px "Courier New", monospace';
+                ctx.font = `bold ${timeFontSize}px "Courier New", monospace`;
                 ctx.fillText(timeStr, 0, 0);
 
-                ctx.font = '12px "Courier New", monospace';
+                ctx.font = `${Math.max(12, Math.round(12 * uiScale))}px "Courier New", monospace`;
                 ctx.globalAlpha = alpha * 0.7;
                 ctx.fillText(director.getPhaseName().toUpperCase(), 0, 20);
 

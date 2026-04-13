@@ -45,6 +45,7 @@ export default class UpgradeManager {
             'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 }
         };
         window.removeEventListener('mousedown', this._clickHandler);
+        window.removeEventListener('touchstart', this._clickHandler);
     }
 
     update(deltaTime) {
@@ -234,14 +235,24 @@ export default class UpgradeManager {
         this.confirmBtnBounds = null;
         
         window.removeEventListener('mousedown', this._clickHandler);
+        window.removeEventListener('touchstart', this._clickHandler);
         window.addEventListener('mousedown', this._clickHandler);
+        window.addEventListener('touchstart', this._clickHandler, { passive: false });
     }
 
     _handleInput(e) {
         if (!this.isSelectionActive) return;
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+        if (e instanceof TouchEvent) {
+            const touch = e.changedTouches[0] || e.touches[0];
+            if (!touch) return;
+            clientX = touch.clientX;
+            clientY = touch.clientY;
+        }
         const rect = this.game.canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+        const mouseX = clientX - rect.left;
+        const mouseY = clientY - rect.top;
 
         if (this._checkRerollClick(mouseX, mouseY)) return; 
         if (this._checkConfirmClick(mouseX, mouseY)) return;
@@ -346,12 +357,16 @@ export default class UpgradeManager {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
         ctx.fillRect(0, 0, width, height);
 
-        const infoX = 40;
-        const infoY = height / 2 - 150;
+        const isNarrow = width < 900;
+        const infoPanelW = Math.min(320, Math.max(240, width * 0.26));
+        const infoX = isNarrow ? (width - infoPanelW) / 2 : 40;
+        const infoY = isNarrow ? 90 : height / 2 - 150;
+        const infoH = Math.min(420, Math.max(320, height * 0.45));
+
         if (player) {
-            this._drawStatsInfobox(ctx, infoX, infoY, player);
+            this._drawStatsInfobox(ctx, infoX, infoY, player, infoPanelW, infoH);
             if (player.stats.rerolls > 0) {
-                this._drawRerollButton(ctx, player, infoX, infoY + 380);
+                this._drawRerollButton(ctx, player, infoX, infoY + infoH - 70);
             }
         }
         const bottomY = this._drawCards(ctx, width, height);
@@ -371,7 +386,10 @@ export default class UpgradeManager {
             return height / 2 + 40; 
         }
 
-        const cardW = 220; const cardH = 320; const spacing = 40; const maxPerRow = 3;
+        const maxPerRow = width < 760 ? 1 : width < 1100 ? 2 : 3;
+        const spacing = Math.min(40, Math.max(24, width * 0.035));
+        const cardW = Math.min(280, Math.max(200, (width - 80 - (maxPerRow - 1) * spacing) / maxPerRow));
+        const cardH = cardW * 1.28;
         this.cardBounds = [];
         const rows = [];
         for (let i = 0; i < this.currentOptions.length; i += maxPerRow) {
@@ -473,7 +491,11 @@ export default class UpgradeManager {
     }
 
     _drawRerollButton(ctx, player, x, y) {
-        const btnW = 220; const btnH = 50; const btnX = x - 10; const btnY = y; 
+        const canvasWidth = this.game.canvas.width;
+        const btnW = Math.min(220, Math.max(180, canvasWidth * 0.2));
+        const btnH = 50;
+        const btnX = x - 10;
+        const btnY = y;
         this.reRollBtnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
         ctx.save(); ctx.fillStyle = '#050505'; ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2;
         ctx.shadowBlur = 15; ctx.shadowColor = '#ffcc00';
@@ -483,7 +505,7 @@ export default class UpgradeManager {
     }
 
     _drawConfirmButton(ctx, width, bottomY) {
-        const btnW = 220; const btnH = 50; const btnX = (width - btnW) / 2; const btnY = bottomY + 40; 
+        const btnW = Math.min(260, Math.max(180, width * 0.25)); const btnH = 50; const btnX = (width - btnW) / 2; const btnY = bottomY + 40; 
         this.confirmBtnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
         const isActive = this.selectedCardId !== null || this.currentOptions.length === 0;
         
@@ -497,8 +519,8 @@ export default class UpgradeManager {
         ctx.fillText("CONFIRM", btnX + btnW / 2, btnY + 32); ctx.restore();
     }
 
-    _drawStatsInfobox(ctx, x, y, player) {
-        const rowH = 22; const panelW = 220; const panelH = 400;
+    _drawStatsInfobox(ctx, x, y, player, panelW = 220, panelH = 400) {
+        const rowH = 22;
         ctx.save(); ctx.fillStyle = 'rgba(0, 40, 40, 0.4)'; ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
         ctx.strokeRect(x - 10, y - 40, panelW, panelH); ctx.fillRect(x - 10, y - 40, panelW, panelH);
         ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'left';

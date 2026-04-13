@@ -6,15 +6,19 @@ export default class ProjectileManager {
         
         this.mouseX = 0;
         this.mouseY = 0;
+        this.touchX = 0;
+        this.touchY = 0;
         this.crosshairX = 0;
         this.crosshairY = 0;
         this.crosshairRadius = 160;
         this.isMouseDown = false;
+        this.isTouching = false;
         this.gamepadAimX = 0;
         this.gamepadAimY = 0;
         this.gamepadFire = false;
         this.menuCursorSpeed = 0.55;
         this.lastMouseMoveTime = 0;
+        this.lastTouchInputTime = 0;
         this.lastGamepadInputTime = 0;
 
         this.HOMING_RANGE = 3;
@@ -28,6 +32,38 @@ export default class ProjectileManager {
         });
         window.addEventListener('mousedown', () => this.isMouseDown = true);
         window.addEventListener('mouseup', () => this.isMouseDown = false);
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.cancelable) e.preventDefault();
+            const touch = e.changedTouches[0];
+            if (!touch) return;
+            this.touchX = touch.clientX;
+            this.touchY = touch.clientY;
+            this.isTouching = true;
+            this.lastTouchInputTime = Date.now();
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (e) => {
+            if (e.cancelable) e.preventDefault();
+            const touch = e.changedTouches[0];
+            if (!touch) return;
+            this.touchX = touch.clientX;
+            this.touchY = touch.clientY;
+            this.lastTouchInputTime = Date.now();
+        }, { passive: false });
+
+        window.addEventListener('touchend', (e) => {
+            if (e.cancelable) e.preventDefault();
+            this.isTouching = false;
+            this.lastTouchInputTime = Date.now();
+        }, { passive: false });
+
+        window.addEventListener('touchcancel', (e) => {
+            if (e.cancelable) e.preventDefault();
+            this.isTouching = false;
+            this.lastTouchInputTime = Date.now();
+        }, { passive: false });
+
         this.crosshairPulse = 0;
     }
 
@@ -40,6 +76,7 @@ export default class ProjectileManager {
         this.enemyProjectiles = [];
         this.lastFireTime = 0;
         this.isMouseDown = false;
+        this.isTouching = false;
         this.gamepadAimX = 0;
         this.gamepadAimY = 0;
         this.gamepadFire = false;
@@ -47,7 +84,22 @@ export default class ProjectileManager {
         if (this.game) {
             this.crosshairX = this.game.center.x;
             this.crosshairY = this.game.center.y;
+            this.touchX = this.game.center.x;
+            this.touchY = this.game.center.y;
+            this.mouseX = this.game.center.x;
+            this.mouseY = this.game.center.y;
         }
+    }
+
+    _getPointerTime() {
+        return Math.max(this.lastMouseMoveTime, this.lastTouchInputTime);
+    }
+
+    _getPointerCoords() {
+        if (this.lastTouchInputTime >= this.lastMouseMoveTime) {
+            return { x: this.touchX, y: this.touchY };
+        }
+        return { x: this.mouseX, y: this.mouseY };
     }
 
     spawnEnemyProjectile(config) {
@@ -92,8 +144,10 @@ export default class ProjectileManager {
 
     _updateMenuCrosshairPosition(deltaTime) {
         const gamepad = this.game.getModule('gamepad');
+        const touch = this.game.getModule('touch');
         const hasPad = gamepad && gamepad.gamepadIndex !== null;
-        const useGamepad = hasPad && this.lastGamepadInputTime >= this.lastMouseMoveTime;
+        const lastPointerTime = Math.max(this._getPointerTime(), touch?.lastInputTime || 0);
+        const useGamepad = hasPad && this.lastGamepadInputTime >= lastPointerTime;
 
         if (useGamepad) {
             if (this.crosshairX === 0 && this.crosshairY === 0) {
@@ -107,9 +161,13 @@ export default class ProjectileManager {
             const canvas = this.game.canvas;
             this.crosshairX = Math.max(0, Math.min(this.crosshairX, canvas.width));
             this.crosshairY = Math.max(0, Math.min(this.crosshairY, canvas.height));
+        } else if (touch && touch.isAiming) {
+            this.crosshairX = this.game.center.x + touch.aimVector.x * this.crosshairRadius;
+            this.crosshairY = this.game.center.y + touch.aimVector.y * this.crosshairRadius;
         } else {
-            this.crosshairX = this.mouseX;
-            this.crosshairY = this.mouseY;
+            const pointer = this._getPointerCoords();
+            this.crosshairX = pointer.x;
+            this.crosshairY = pointer.y;
         }
     }
 
@@ -151,8 +209,10 @@ export default class ProjectileManager {
 
     _updateCrosshairPosition(player) {
         const gamepad = this.game.getModule('gamepad');
+        const touch = this.game.getModule('touch');
         const hasGamepad = gamepad && gamepad.gamepadIndex !== null;
-        const useGamepad = hasGamepad && this.lastGamepadInputTime >= this.lastMouseMoveTime;
+        const lastPointerTime = Math.max(this._getPointerTime(), touch?.lastInputTime || 0);
+        const useGamepad = hasGamepad && this.lastGamepadInputTime >= lastPointerTime;
 
         if (useGamepad && (this.gamepadAimX !== 0 || this.gamepadAimY !== 0)) {
             const angle = Math.atan2(this.gamepadAimY, this.gamepadAimX);
@@ -163,9 +223,13 @@ export default class ProjectileManager {
                 this.crosshairX = this.game.center.x + this.crosshairRadius;
                 this.crosshairY = this.game.center.y;
             }
+        } else if (touch && touch.isAiming) {
+            this.crosshairX = this.game.center.x + touch.aimVector.x * this.crosshairRadius;
+            this.crosshairY = this.game.center.y + touch.aimVector.y * this.crosshairRadius;
         } else {
-            this.crosshairX = this.mouseX;
-            this.crosshairY = this.mouseY;
+            const pointer = this._getPointerCoords();
+            this.crosshairX = pointer.x;
+            this.crosshairY = pointer.y;
         }
     }
 
@@ -234,8 +298,9 @@ export default class ProjectileManager {
     }
 
     _handlePlayerFiring(player) {
+        const touch = this.game.getModule('touch');
         const autoFire = this.game?.settings?.gameplay?.autoFire;
-        const fireRequested = autoFire || this.isMouseDown || this.gamepadFire;
+        const fireRequested = autoFire || this.isMouseDown || this.isTouching || this.gamepadFire || (touch && touch.isShooting);
         if (!fireRequested) return;
 
         const now = Date.now();
@@ -248,12 +313,16 @@ export default class ProjectileManager {
     _spawnBurst(player) {
         const center = player.getCenter();
         let baseAngle;
+        const touch = this.game.getModule('touch');
 
         if (this.gamepadAimX !== 0 || this.gamepadAimY !== 0) {
             baseAngle = Math.atan2(this.gamepadAimY, this.gamepadAimX);
+        } else if (touch && touch.isAiming) {
+            baseAngle = Math.atan2(touch.aimVector.y, touch.aimVector.x);
         } else {
-            const worldMouseX = this.mouseX + player.pos.x - this.game.center.x;
-            const worldMouseY = this.mouseY + player.pos.y - this.game.center.y;
+            const pointer = this._getPointerCoords();
+            const worldMouseX = pointer.x + player.pos.x - this.game.center.x;
+            const worldMouseY = pointer.y + player.pos.y - this.game.center.y;
             baseAngle = Math.atan2(worldMouseY - center.y, worldMouseX - center.x);
         }
 
