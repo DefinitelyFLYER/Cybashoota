@@ -1,4 +1,4 @@
-import { POWER_UPS } from '../data/PowerUpData.js';
+import { POWER_UPS } from './PowerUpData.js';
 
 export default class PowerUpManager {
     constructor() {
@@ -10,11 +10,6 @@ export default class PowerUpManager {
     init(game) {
         this.game = game;
         this._preloadSprites();
-    }
-
-    reset() {
-        this.drops = [];
-        this.activeEffects = [];
     }
 
     _preloadSprites() {

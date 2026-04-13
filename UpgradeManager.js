@@ -1,7 +1,7 @@
-import { UPGRADES } from '../data/UpgradeData.js';
-import { getFormattedStats } from '../ui/Infobox.js';
-import { DRONE_TYPES } from '../data/DroneTypes.js';
-import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
+import { UPGRADES } from './UpgradeData.js';
+import { getFormattedStats } from './Infobox.js';
+import { DRONE_TYPES } from './DroneTypes.js';
+import { DRONE_UPGRADES } from './DroneUpgradeData.js';
 
 export default class UpgradeManager {
     constructor() {
@@ -14,7 +14,6 @@ export default class UpgradeManager {
         this.droneLevelInterval = 3;
         this.pendingLevelUps = 0;
         this._clickHandler = this._handleInput.bind(this);
-        this._gamepadActionHeld = false;
 
         this.droneMods = {
             'ALL': { damageBonus: 0, speedMulti: 1.0 },
@@ -26,84 +25,6 @@ export default class UpgradeManager {
 
     init(game) {
         this.game = game;
-    }
-
-    reset() {
-        this.inventory = {};
-        this.isSelectionActive = false;
-        this.currentOptions = [];
-        this.selectionMode = 'UPGRADES';
-        this.selectedCardId = null;
-        this.confirmBtnBounds = null;
-        this.reRollBtnBounds = null;
-        this.pendingLevelUps = 0;
-        this._gamepadActionHeld = false;
-        this.droneMods = {
-            'ALL': { damageBonus: 0, speedMulti: 1.0 },
-            'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
-            'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
-            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 }
-        };
-        window.removeEventListener('mousedown', this._clickHandler);
-        window.removeEventListener('touchstart', this._clickHandler);
-    }
-
-    update(deltaTime) {
-        if (!this.isSelectionActive) return;
-
-        const gamepad = this.game.getModule('gamepad');
-        const proj = this.game.getModule('projectiles');
-        const hasPad = gamepad && gamepad.gamepadIndex !== null && proj;
-        if (!hasPad) return;
-
-        const pointerX = proj.crosshairX ?? proj.mouseX;
-        const pointerY = proj.crosshairY ?? proj.mouseY;
-
-        let hoveredCardId = null;
-        if (this.cardBounds) {
-            for (const card of this.cardBounds) {
-                if (pointerX >= card.x && pointerX <= card.x + card.w &&
-                    pointerY >= card.y && pointerY <= card.y + card.h) {
-                    hoveredCardId = card.id;
-                    break;
-                }
-            }
-        }
-
-        const actionDown = gamepad.buttons.A || gamepad.buttons.X;
-        const actionPressed = actionDown && !this._gamepadActionHeld;
-
-        if (hoveredCardId) {
-            this.selectedCardId = hoveredCardId;
-            if (actionPressed) {
-                this._executeSelection(hoveredCardId);
-            }
-            this._gamepadActionHeld = actionDown;
-            return;
-        }
-
-        if (this.reRollBtnBounds && pointerX >= this.reRollBtnBounds.x && pointerX <= this.reRollBtnBounds.x + this.reRollBtnBounds.w &&
-            pointerY >= this.reRollBtnBounds.y && pointerY <= this.reRollBtnBounds.y + this.reRollBtnBounds.h) {
-            if (actionPressed) {
-                const player = this.game.getModule('player');
-                if (player) this._executeReroll(player);
-            }
-            this._gamepadActionHeld = actionDown;
-            return;
-        }
-
-        if (this.confirmBtnBounds && pointerX >= this.confirmBtnBounds.x && pointerX <= this.confirmBtnBounds.x + this.confirmBtnBounds.w &&
-            pointerY >= this.confirmBtnBounds.y && pointerY <= this.confirmBtnBounds.y + this.confirmBtnBounds.h) {
-            if (actionPressed) {
-                if (this.selectedCardId !== null || this.currentOptions.length === 0) {
-                    this._executeSelection(this.selectedCardId);
-                }
-            }
-            this._gamepadActionHeld = actionDown;
-            return;
-        }
-
-        this._gamepadActionHeld = actionDown;
     }
 
     getAvailableUpgrades(count = 3) {
@@ -235,24 +156,14 @@ export default class UpgradeManager {
         this.confirmBtnBounds = null;
         
         window.removeEventListener('mousedown', this._clickHandler);
-        window.removeEventListener('touchstart', this._clickHandler);
         window.addEventListener('mousedown', this._clickHandler);
-        window.addEventListener('touchstart', this._clickHandler, { passive: false });
     }
 
     _handleInput(e) {
         if (!this.isSelectionActive) return;
-        let clientX = e.clientX;
-        let clientY = e.clientY;
-        if (e instanceof TouchEvent) {
-            const touch = e.changedTouches[0] || e.touches[0];
-            if (!touch) return;
-            clientX = touch.clientX;
-            clientY = touch.clientY;
-        }
         const rect = this.game.canvas.getBoundingClientRect();
-        const mouseX = clientX - rect.left;
-        const mouseY = clientY - rect.top;
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
 
         if (this._checkRerollClick(mouseX, mouseY)) return; 
         if (this._checkConfirmClick(mouseX, mouseY)) return;
@@ -357,16 +268,12 @@ export default class UpgradeManager {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
         ctx.fillRect(0, 0, width, height);
 
-        const isNarrow = width < 900;
-        const infoPanelW = Math.min(320, Math.max(240, width * 0.26));
-        const infoX = isNarrow ? (width - infoPanelW) / 2 : 40;
-        const infoY = isNarrow ? 90 : height / 2 - 150;
-        const infoH = Math.min(420, Math.max(320, height * 0.45));
-
+        const infoX = 40;
+        const infoY = height / 2 - 150;
         if (player) {
-            this._drawStatsInfobox(ctx, infoX, infoY, player, infoPanelW, infoH);
+            this._drawStatsInfobox(ctx, infoX, infoY, player);
             if (player.stats.rerolls > 0) {
-                this._drawRerollButton(ctx, player, infoX, infoY + infoH - 70);
+                this._drawRerollButton(ctx, player, infoX, infoY + 380);
             }
         }
         const bottomY = this._drawCards(ctx, width, height);
@@ -386,10 +293,7 @@ export default class UpgradeManager {
             return height / 2 + 40; 
         }
 
-        const maxPerRow = width < 760 ? 1 : width < 1100 ? 2 : 3;
-        const spacing = Math.min(40, Math.max(24, width * 0.035));
-        const cardW = Math.min(280, Math.max(200, (width - 80 - (maxPerRow - 1) * spacing) / maxPerRow));
-        const cardH = cardW * 1.28;
+        const cardW = 220; const cardH = 320; const spacing = 40; const maxPerRow = 3;
         this.cardBounds = [];
         const rows = [];
         for (let i = 0; i < this.currentOptions.length; i += maxPerRow) {
@@ -491,11 +395,7 @@ export default class UpgradeManager {
     }
 
     _drawRerollButton(ctx, player, x, y) {
-        const canvasWidth = this.game.canvas.width;
-        const btnW = Math.min(220, Math.max(180, canvasWidth * 0.2));
-        const btnH = 50;
-        const btnX = x - 10;
-        const btnY = y;
+        const btnW = 220; const btnH = 50; const btnX = x - 10; const btnY = y; 
         this.reRollBtnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
         ctx.save(); ctx.fillStyle = '#050505'; ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2;
         ctx.shadowBlur = 15; ctx.shadowColor = '#ffcc00';
@@ -505,7 +405,7 @@ export default class UpgradeManager {
     }
 
     _drawConfirmButton(ctx, width, bottomY) {
-        const btnW = Math.min(260, Math.max(180, width * 0.25)); const btnH = 50; const btnX = (width - btnW) / 2; const btnY = bottomY + 40; 
+        const btnW = 220; const btnH = 50; const btnX = (width - btnW) / 2; const btnY = bottomY + 40; 
         this.confirmBtnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
         const isActive = this.selectedCardId !== null || this.currentOptions.length === 0;
         
@@ -519,8 +419,8 @@ export default class UpgradeManager {
         ctx.fillText("CONFIRM", btnX + btnW / 2, btnY + 32); ctx.restore();
     }
 
-    _drawStatsInfobox(ctx, x, y, player, panelW = 220, panelH = 400) {
-        const rowH = 22;
+    _drawStatsInfobox(ctx, x, y, player) {
+        const rowH = 22; const panelW = 220; const panelH = 400;
         ctx.save(); ctx.fillStyle = 'rgba(0, 40, 40, 0.4)'; ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
         ctx.strokeRect(x - 10, y - 40, panelW, panelH); ctx.fillRect(x - 10, y - 40, panelW, panelH);
         ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'left';
