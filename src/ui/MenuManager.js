@@ -49,7 +49,7 @@ export default class MenuManager {
     _setupMenu() {
         this.menuItems = [
             { id: 'play', text: 'PLAY', action: () => this.game.startGame() },
-            { id: 'settings', text: 'SETTINGS (WIP)', action: () => console.log('Settings WIP - Not yet implemented') }
+            { id: 'settings', text: 'SETTINGS', action: () => this.game.openSettingsMenu('menu') }
         ];
     }
 

@@ -14,6 +14,13 @@ export default class EnemyManager {
         this._preloadSprites();
     }
 
+    reset() {
+        this.enemies = [];
+        this.spawnTimer = 0;
+        this.spawnRate = 1500;
+        this.activePhase = null;
+    }
+
     _preloadSprites() {
         for (const key in ENEMY_TYPES) {
             const config = ENEMY_TYPES[key];
@@ -456,7 +463,7 @@ export default class EnemyManager {
                 this._drawShape(ctx, drawX, drawY, e);
             }
 
-            if (e.currentHp < e.maxHp) {
+            if (e.currentHp < e.maxHp && this.game.settings.performance.enemyHealthBars) {
                 this._drawHealthBar(ctx, drawX, drawY, e);
             }
             

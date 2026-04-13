@@ -12,6 +12,11 @@ export default class PowerUpManager {
         this._preloadSprites();
     }
 
+    reset() {
+        this.drops = [];
+        this.activeEffects = [];
+    }
+
     _preloadSprites() {
         for (const key in POWER_UPS) {
             const config = POWER_UPS[key];

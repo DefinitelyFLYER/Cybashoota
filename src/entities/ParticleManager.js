@@ -1,10 +1,19 @@
 export default class ParticleManager {
     constructor() {
         this.particles = [];
+        this.enabled = true;
     }
 
     init(game) {
         this.game = game;
+    }
+
+    reset() {
+        this.particles = [];
+    }
+
+    isEnabled() {
+        return !this.game || !this.game.settings || this.game.settings.performance.particles;
     }
 
     /**
@@ -15,6 +24,7 @@ export default class ParticleManager {
      * @param {number} count
      */
     emit(x, y, color = '#ff0055', count = 10) {
+        if (!this.isEnabled()) return;
         for (let i = 0; i < count; i++) {
             this.particles.push({
                 x: x,
@@ -38,6 +48,7 @@ export default class ParticleManager {
      * @param {number} count
      */
     emitMuzzle(x, y, angle, color = '#00ffcc', count = 15) {
+        if (!this.isEnabled()) return;
         for (let i = 0; i < count; i++) {
             const spread = (Math.random() - 0.5) * 0.5;
             const finalAngle = angle + spread;
@@ -65,6 +76,7 @@ export default class ParticleManager {
      * @param {string} color
      */
     emitTrail(x, y, color = '#00ffcc') {
+        if (!this.isEnabled()) return;
         this.particles.push({
             x: x + (Math.random() - 0.5) * 4,
             y: y + (Math.random() - 0.5) * 4,
@@ -78,6 +90,11 @@ export default class ParticleManager {
     }
 
     update(deltaTime) {
+        if (!this.isEnabled()) {
+            this.particles = [];
+            return;
+        }
+
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             
@@ -93,6 +110,10 @@ export default class ParticleManager {
     }
 
     draw(ctx) {
+        if (!this.isEnabled()) {
+            return;
+        }
+
         const player = this.game.getModule('player');
         const center = this.game.center;
         if (!player) return;

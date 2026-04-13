@@ -28,6 +28,25 @@ export default class UpgradeManager {
         this.game = game;
     }
 
+    reset() {
+        this.inventory = {};
+        this.isSelectionActive = false;
+        this.currentOptions = [];
+        this.selectionMode = 'UPGRADES';
+        this.selectedCardId = null;
+        this.confirmBtnBounds = null;
+        this.reRollBtnBounds = null;
+        this.pendingLevelUps = 0;
+        this._gamepadActionHeld = false;
+        this.droneMods = {
+            'ALL': { damageBonus: 0, speedMulti: 1.0 },
+            'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
+            'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
+            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 }
+        };
+        window.removeEventListener('mousedown', this._clickHandler);
+    }
+
     update(deltaTime) {
         if (!this.isSelectionActive) return;
 

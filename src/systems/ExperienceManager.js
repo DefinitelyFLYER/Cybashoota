@@ -8,6 +8,11 @@ export default class ExperienceManager {
         this.game = game;
     }
 
+    reset() {
+        this.orbs = [];
+        this.totalXp = 0;
+    }
+
     spawnOrb(x, y, value, color) {
         this.orbs.push({
             x: x,

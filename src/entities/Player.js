@@ -88,6 +88,49 @@ export default class Player {
         this.game = game;
     }
 
+    reset() {
+        const center = this.game ? this.game.center : { x: this.pos.x, y: this.pos.y };
+        this.pos = { x: center.x, y: center.y };
+        this.size = 64;
+        this.facing = 1;
+        this.invulnerable = 0;
+        this.level = 1;
+        this.xp = 0;
+        this.xpNextLevel = 100;
+        this.multipliers = {
+            moveSpeed: 1.0,
+            fireRate: 1.0,
+            bulletSpeed: 1.0,
+            projectileSize: 1.0,
+            critMultiplier: 1.0,
+            magnetRange: 1.0,
+            xpMultiplier: 1.0,
+            luck: 1.0
+        };
+        this.stats = {
+            hp: 2,
+            maxHp: 2,
+            defense: 0,
+            damage: 1,
+            dodgeChance: 0,
+            projectileCount: 1,
+            projectileSpread: 5,
+            aimAssist: 0,
+            critChance: 0.05,
+            penetration: 0,
+            ricochetCount: 0,
+            upgradeOptions: 3,
+            rerolls: 3,
+            maxDrones: 1
+        };
+        this.weaponAnchorDist = 5;
+        this.weaponAngle = 0;
+        this.shockwaveActive = false;
+        this.shockwaveRadius = 0;
+        this.shockwaveMaxRadius = 400;
+        this.shockwaveTimer = 0;
+    }
+
     takeDamage(amount = 1) {
         if (this.invulnerable > 0) return;
 

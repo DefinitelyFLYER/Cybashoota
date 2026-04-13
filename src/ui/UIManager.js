@@ -132,6 +132,11 @@ export default class UIManager {
         ctx.restore();
     }
 
+    reset() {
+        this.score = 0;
+        this.notifications = [];
+    }
+
     update(deltaTime) {
     }
 

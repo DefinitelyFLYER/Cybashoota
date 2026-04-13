@@ -12,6 +12,13 @@ export default class SpawnDirector {
         this.game = game;
     }
 
+    reset() {
+        this.gameTime = 0;
+        this.currentPhase = null;
+        this.phaseChanged = false;
+        this.phaseTimer = 0;
+    }
+
     update(deltaTime) {
         this.gameTime += deltaTime;
         const seconds = this.gameTime / 1000;

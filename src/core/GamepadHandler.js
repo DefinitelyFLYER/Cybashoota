@@ -11,7 +11,8 @@ export default class GamepadHandler {
             up: false,
             down: false,
             left: false,
-            right: false
+            right: false,
+            menu: false
         };
         this.lastButtons = { ...this.buttons };
         this.justPressed = { ...this.buttons };
@@ -70,6 +71,7 @@ export default class GamepadHandler {
         this.buttons.down = gp.buttons[13] ? gp.buttons[13].pressed : false;
         this.buttons.left = gp.buttons[14] ? gp.buttons[14].pressed : false;
         this.buttons.right = gp.buttons[15] ? gp.buttons[15].pressed : false;
+        this.buttons.menu = (gp.buttons[8] ? gp.buttons[8].pressed : false) || (gp.buttons[9] ? gp.buttons[9].pressed : false);
 
         this.justPressed.RT = this.buttons.RT && !this.lastButtons.RT;
         this.justPressed.A = this.buttons.A && !this.lastButtons.A;
@@ -80,6 +82,7 @@ export default class GamepadHandler {
         this.justPressed.down = this.buttons.down && !this.lastButtons.down;
         this.justPressed.left = this.buttons.left && !this.lastButtons.left;
         this.justPressed.right = this.buttons.right && !this.lastButtons.right;
+        this.justPressed.menu = this.buttons.menu && !this.lastButtons.menu;
 
         this.lastButtons = { ...this.buttons };
     }

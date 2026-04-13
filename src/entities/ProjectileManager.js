@@ -14,6 +14,8 @@ export default class ProjectileManager {
         this.gamepadAimY = 0;
         this.gamepadFire = false;
         this.menuCursorSpeed = 0.55;
+        this.lastMouseMoveTime = 0;
+        this.lastGamepadInputTime = 0;
 
         this.HOMING_RANGE = 3;
         this.RICOCHET_RANGE = 8;
@@ -22,6 +24,7 @@ export default class ProjectileManager {
         window.addEventListener('mousemove', (e) => {
             this.mouseX = e.clientX;
             this.mouseY = e.clientY;
+            this.lastMouseMoveTime = Date.now();
         });
         window.addEventListener('mousedown', () => this.isMouseDown = true);
         window.addEventListener('mouseup', () => this.isMouseDown = false);
@@ -30,6 +33,21 @@ export default class ProjectileManager {
 
     init(game) {
         this.game = game;
+    }
+
+    reset() {
+        this.projectiles = [];
+        this.enemyProjectiles = [];
+        this.lastFireTime = 0;
+        this.isMouseDown = false;
+        this.gamepadAimX = 0;
+        this.gamepadAimY = 0;
+        this.gamepadFire = false;
+        this.crosshairPulse = 0;
+        if (this.game) {
+            this.crosshairX = this.game.center.x;
+            this.crosshairY = this.game.center.y;
+        }
     }
 
     spawnEnemyProjectile(config) {
@@ -75,8 +93,9 @@ export default class ProjectileManager {
     _updateMenuCrosshairPosition(deltaTime) {
         const gamepad = this.game.getModule('gamepad');
         const hasPad = gamepad && gamepad.gamepadIndex !== null;
+        const useGamepad = hasPad && this.lastGamepadInputTime >= this.lastMouseMoveTime;
 
-        if (hasPad) {
+        if (useGamepad) {
             if (this.crosshairX === 0 && this.crosshairY === 0) {
                 this.crosshairX = this.game.center.x;
                 this.crosshairY = this.game.center.y;
@@ -111,23 +130,35 @@ export default class ProjectileManager {
         if (magnitude > deadzone) {
             this.gamepadAimX = rawAimX;
             this.gamepadAimY = rawAimY;
+            this.lastGamepadInputTime = Date.now();
         } else {
             this.gamepadAimX = 0;
             this.gamepadAimY = 0;
         }
 
         this.gamepadFire = gamepad.buttons.RT;
+        if (this.gamepadFire) {
+            this.lastGamepadInputTime = Date.now();
+        }
+
+        const buttonUsed = gamepad.buttons.A || gamepad.buttons.B || gamepad.buttons.X || gamepad.buttons.Y ||
+                           gamepad.buttons.up || gamepad.buttons.down || gamepad.buttons.left || gamepad.buttons.right ||
+                           gamepad.buttons.menu;
+        if (buttonUsed) {
+            this.lastGamepadInputTime = Date.now();
+        }
     }
 
     _updateCrosshairPosition(player) {
         const gamepad = this.game.getModule('gamepad');
         const hasGamepad = gamepad && gamepad.gamepadIndex !== null;
+        const useGamepad = hasGamepad && this.lastGamepadInputTime >= this.lastMouseMoveTime;
 
-        if (hasGamepad && (this.gamepadAimX !== 0 || this.gamepadAimY !== 0)) {
+        if (useGamepad && (this.gamepadAimX !== 0 || this.gamepadAimY !== 0)) {
             const angle = Math.atan2(this.gamepadAimY, this.gamepadAimX);
             this.crosshairX = this.game.center.x + Math.cos(angle) * this.crosshairRadius;
             this.crosshairY = this.game.center.y + Math.sin(angle) * this.crosshairRadius;
-        } else if (hasGamepad) {
+        } else if (useGamepad) {
             if (this.crosshairX === 0 && this.crosshairY === 0) {
                 this.crosshairX = this.game.center.x + this.crosshairRadius;
                 this.crosshairY = this.game.center.y;
@@ -203,7 +234,8 @@ export default class ProjectileManager {
     }
 
     _handlePlayerFiring(player) {
-        const fireRequested = this.isMouseDown || this.gamepadFire;
+        const autoFire = this.game?.settings?.gameplay?.autoFire;
+        const fireRequested = autoFire || this.isMouseDown || this.gamepadFire;
         if (!fireRequested) return;
 
         const now = Date.now();
@@ -256,12 +288,13 @@ export default class ProjectileManager {
 
         const particles = this.game.getModule('particles');
         if (particles && player.weaponAngle !== undefined) {
+            const color = this.game?.settings?.gameplay?.crosshairColor || '#00ffcc';
             const barrelDist = player.weaponAnchorDist + 32; 
             
             const barrelX = center.x + Math.cos(player.weaponAngle) * barrelDist;
             const barrelY = center.y + Math.sin(player.weaponAngle) * barrelDist;
             
-            particles.emitMuzzle(barrelX, barrelY, player.weaponAngle, '#00ffcc', 5);
+            particles.emitMuzzle(barrelX, barrelY, player.weaponAngle, color, 5);
         }
     }
 
