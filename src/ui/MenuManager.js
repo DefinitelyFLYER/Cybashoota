@@ -28,32 +28,6 @@ export default class MenuManager {
             this._handleClick();
         });
 
-        window.addEventListener('touchmove', (e) => {
-            if (this.game.gameState !== 'MENU') return;
-            if (e.cancelable) e.preventDefault();
-            const touch = e.changedTouches[0];
-            if (!touch) return;
-            const rect = this.game.canvas.getBoundingClientRect();
-            this.mousePos.x = touch.clientX - rect.left;
-            this.mousePos.y = touch.clientY - rect.top;
-        }, { passive: false });
-
-        window.addEventListener('touchstart', (e) => {
-            if (this.game.gameState !== 'MENU') return;
-            if (e.cancelable) e.preventDefault();
-            const touch = e.changedTouches[0];
-            if (!touch) return;
-            const rect = this.game.canvas.getBoundingClientRect();
-            this.mousePos.x = touch.clientX - rect.left;
-            this.mousePos.y = touch.clientY - rect.top;
-            this._handleClick();
-        }, { passive: false });
-
-        window.addEventListener('touchend', (e) => {
-            if (this.game.gameState !== 'MENU') return;
-            this._handleClick();
-        });
-
         this._setupMenu();
     }
 
@@ -115,20 +89,18 @@ export default class MenuManager {
 
             ctx.drawImage(this.logo, (w - logoWidth) / 2, h / 3 - logoHeight / 2, logoWidth, logoHeight);
         } else {
-            const titleFontSize = Math.round(Math.max(42, Math.min(72, Math.min(w * 0.07, h * 0.12))));
-            ctx.font = `bold ${titleFontSize}px "Courier New", monospace`;
+            ctx.font = 'bold 80px "Courier New", monospace';
             ctx.fillStyle = '#00ffcc';
             ctx.fillText('CYBASHOOTA', w / 2, h / 3);
         }
 
         ctx.restore();
 
-        const menuScale = Math.min(w / 1400, h / 900, 1);
         this.buttons = [];
-        const btnW = Math.max(240, Math.min(340, w * 0.62));
-        const btnH = Math.max(56, Math.min(80, h * 0.1));
-        const spacing = btnH * 0.75;
-        const startY = h * 0.52;
+        const btnW = 300;
+        const btnH = 60;
+        const spacing = 30;
+        const startY = h / 2;
 
         ctx.save();
         this.menuItems.forEach((item, index) => {
@@ -155,7 +127,7 @@ export default class MenuManager {
             ctx.strokeRect(btnX, btnY, btnW, btnH);
 
             ctx.fillStyle = isHovered ? '#fff' : '#888';
-            ctx.font = `bold ${Math.round(18 + 4 * menuScale)}px "Courier New", monospace`;
+            ctx.font = 'bold 24px "Courier New", monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(item.text, btnX + btnW / 2, btnY + btnH / 2);

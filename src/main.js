@@ -2,7 +2,6 @@
 import Game from './core/Core.js';
 import InputHandler from './core/InputHandler.js';
 import GamepadHandler from './core/GamepadHandler.js';
-import TouchControls from './core/TouchControls.js';
 
 // entities
 import DroneManager from './entities/DroneManager.js';
@@ -38,11 +37,9 @@ game.addModule('particles', new ParticleManager());
 game.addModule('upgrades', new UpgradeManager());
 game.addModule('powerups', new PowerUpManager());
 game.addModule('director', new SpawnDirector());
-game.addModule('touch', new TouchControls());
 
 
 const player = new Player(window.innerWidth / 2, window.innerHeight / 2);
 game.addModule('player', player);
-game.addModule('touch', new TouchControls());
 
 game.start();

@@ -192,39 +192,32 @@ export default class Player {
         let moveX = 0;
         let moveY = 0;
 
-        const touch = this.game.getModule('touch');
-        if (touch && touch.isTouchActive) {
-            moveX = touch.moveVector.x;
-            moveY = touch.moveVector.y;
-            if (moveX !== 0) this.facing = moveX > 0 ? 1 : -1;
-        } else {
-            if (input) {
-                if (input.isKeyDown('KeyW')) moveY -= 1;
-                if (input.isKeyDown('KeyS')) moveY += 1;
-                if (input.isKeyDown('KeyA')) {
-                    moveX -= 1;
-                    this.facing = -1;
-                }
-                if (input.isKeyDown('KeyD')) {
-                    moveX += 1;
-                    this.facing = 1;
-                }
+        if (input) {
+            if (input.isKeyDown('KeyW')) moveY -= 1;
+            if (input.isKeyDown('KeyS')) moveY += 1;
+            if (input.isKeyDown('KeyA')) {
+                moveX -= 1;
+                this.facing = -1;
             }
+            if (input.isKeyDown('KeyD')) {
+                moveX += 1;
+                this.facing = 1;
+            }
+        }
 
-            const gamepad = this.game.getModule('gamepad');
-            if (gamepad) {
-                const padX = gamepad.axes[0] || 0;
-                const padY = gamepad.axes[1] || 0;
-                if (Math.abs(padX) > 0.2 || Math.abs(padY) > 0.2) {
-                    moveX += padX;
-                    moveY += padY;
-                    if (padX !== 0) this.facing = padX > 0 ? 1 : -1;
-                }
-                if (gamepad.buttons.left) moveX -= 1;
-                if (gamepad.buttons.right) moveX += 1;
-                if (gamepad.buttons.up) moveY -= 1;
-                if (gamepad.buttons.down) moveY += 1;
+        const gamepad = this.game.getModule('gamepad');
+        if (gamepad) {
+            const padX = gamepad.axes[0] || 0;
+            const padY = gamepad.axes[1] || 0;
+            if (Math.abs(padX) > 0.2 || Math.abs(padY) > 0.2) {
+                moveX += padX;
+                moveY += padY;
+                if (padX !== 0) this.facing = padX > 0 ? 1 : -1;
             }
+            if (gamepad.buttons.left) moveX -= 1;
+            if (gamepad.buttons.right) moveX += 1;
+            if (gamepad.buttons.up) moveY -= 1;
+            if (gamepad.buttons.down) moveY += 1;
         }
 
         const mag = Math.sqrt(moveX * moveX + moveY * moveY);
@@ -238,13 +231,6 @@ export default class Player {
     }
 
     _handleWeaponAim(projMgr) {
-        const touch = this.game.getModule('touch');
-        if (touch && touch.isAiming) {
-            const aim = touch.aimVector;
-            this.weaponAngle = Math.atan2(aim.y, aim.x);
-            return;
-        }
-
         const gamepad = this.game.getModule('gamepad');
         if (gamepad) {
             const aimX = gamepad.axes[2] || 0;
