@@ -146,6 +146,9 @@ export default class UIManager {
         const x = inputModule.mouseX ?? 0;
         const y = inputModule.mouseY ?? 0;
         const color = settings.gameplay?.crosshairColor || '#00ffcc';
+        
+        const skin = settings.gameplay?.cursorSkin || 'classic'; 
+        
         const proj = this.game.getModule('projectiles');
         const pulse = proj?.crosshairPulse || 0;
 
@@ -155,17 +158,35 @@ export default class UIManager {
         ctx.lineWidth = 2;
 
         const gap = 4 + (pulse * 8);
-        const lineLen = 6;
 
-        ctx.fillRect(x - 1, y - 1, 2, 2);
+        switch(skin.toLowerCase()) {
+            case 'dot':
+                const dotRadius = 3 + (pulse * 2);
+                ctx.beginPath();
+                ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+                ctx.fill();
+                break;
 
-        ctx.beginPath();
-        ctx.moveTo(x, y - gap); ctx.lineTo(x, y - gap - lineLen);
-        ctx.moveTo(x, y + gap); ctx.lineTo(x, y + gap + lineLen);
-        ctx.moveTo(x - gap, y); ctx.lineTo(x - gap - lineLen, y);
-        ctx.moveTo(x + gap, y); ctx.lineTo(x + gap + lineLen, y);
-        ctx.stroke();
+            case 'circle':
+                const circleRadius = 10 + (pulse * 6);
+                ctx.beginPath();
+                ctx.arc(x, y, circleRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillRect(x - 1, y - 1, 2, 2);
+                break;
 
+            case 'classic':
+            default:
+                const lineLen = 6;
+                ctx.fillRect(x - 1, y - 1, 2, 2);
+                ctx.beginPath();
+                ctx.moveTo(x, y - gap); ctx.lineTo(x, y - gap - lineLen);
+                ctx.moveTo(x, y + gap); ctx.lineTo(x, y + gap + lineLen);
+                ctx.moveTo(x - gap, y); ctx.lineTo(x - gap - lineLen, y);
+                ctx.moveTo(x + gap, y); ctx.lineTo(x + gap + lineLen, y);
+                ctx.stroke();
+                break;
+        }
         ctx.restore();
     }
 

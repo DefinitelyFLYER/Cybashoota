@@ -390,6 +390,47 @@ export default class MenuManager {
             });
 
             optionY += swatchSize + 40;
+
+            ctx.fillStyle = '#00ffcc';
+            ctx.font = '18px "Courier New", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText('Crosshair Style', optionX, optionY + 8);
+            optionY += 40;
+
+            const styles = ['classic', 'dot', 'circle'];
+            const btnW = 150;
+            const btnH = 38;
+            const btnSpacing = 16;
+            let btnX = optionX;
+
+            styles.forEach((style) => {
+                const selected = settings.gameplay.cursorSkin === style;
+                const isHovered = pointer && this._isHovered(pointer, btnX, optionY, btnW, btnH);
+
+                ctx.save();
+                ctx.fillStyle = selected ? '#00ffcc' : '#050606';
+                ctx.strokeStyle = isHovered ? '#ffffff' : '#333';
+                ctx.lineWidth = selected ? 3 : 2;
+                ctx.shadowBlur = isHovered ? 10 : 0;
+                ctx.shadowColor = '#00ffcc';
+                ctx.fillRect(btnX, optionY, btnW, btnH);
+                ctx.strokeRect(btnX, optionY, btnW, btnH);
+                ctx.fillStyle = selected ? '#050606' : '#88c8d0';
+                ctx.font = 'bold 14px "Courier New", monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(style.toUpperCase(), btnX + btnW / 2, optionY + btnH / 2);
+                ctx.restore();
+
+                this.settingsButtons.push({ x: btnX, y: optionY, w: btnW, h: btnH, action: () => {
+                    settings.gameplay.cursorSkin = style;
+                    this.game._savePersistentSettings();
+                }});
+
+                btnX += btnW + btnSpacing;
+            });
+
+            optionY += btnH + 40;
         }
 
         if (this.settingsTab === 'audio') {

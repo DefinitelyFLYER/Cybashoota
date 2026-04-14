@@ -17,7 +17,8 @@ export default class Game {
             gameplay: {
                 autoFire: false,
                 resumeCooldown: true,
-                crosshairColor: '#00ffcc'
+                crosshairColor: '#00ffcc',
+                cursorSkin: 'classic'
             },
             audio: {
                 // work in progress
