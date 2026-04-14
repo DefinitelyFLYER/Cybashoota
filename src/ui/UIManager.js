@@ -143,49 +143,70 @@ export default class UIManager {
     drawCursor(ctx, inputModule, settings) {
         if (!inputModule || !settings) return;
 
-        const x = inputModule.mouseX ?? 0;
-        const y = inputModule.mouseY ?? 0;
-        const color = settings.gameplay?.crosshairColor || '#00ffcc';
+        const { mouseX: x = 0, mouseY: y = 0 } = inputModule;
+        const gp = settings.gameplay || {};
         
-        const skin = settings.gameplay?.cursorSkin || 'classic'; 
-        
-        const proj = this.game.getModule('projectiles');
-        const pulse = proj?.crosshairPulse || 0;
+        const color = gp.crosshairColor || '#00ffcc';
+        const skin = gp.cursorSkin || 'classic'; 
+        const borderEnabled = gp.cursorBorderEnabled || false;
+        const borderColor = gp.cursorBorderColor || '#ffffff';
+        const cursorWidth = Math.max(1, Number(gp.cursorWidth ?? 2));
+        const cursorSize = Math.max(0.5, Number(gp.cursorSize ?? 1));
+        const borderW = Math.max(1, Number(gp.cursorBorderWidth ?? 4));
+
+        const pulse = this.game.getModule('projectiles')?.crosshairPulse || 0;
+        const gap = (4 + pulse * 8) * cursorSize;
 
         ctx.save();
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
-        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
 
-        const gap = 4 + (pulse * 8);
+        const drawShape = (pathBuilder, isFill = false, borderOffset = 0) => {
+            if (borderEnabled) {
+                ctx.beginPath();
+                pathBuilder(borderOffset);
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = borderW;
+                ctx.globalAlpha = 0.9;
+                ctx.stroke();
+            }
+            
+            ctx.beginPath();
+            pathBuilder(0);
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = cursorWidth;
+            ctx.globalAlpha = 1.0;
+            
+            if (isFill) ctx.fill(); 
+            else ctx.stroke();
+        };
 
         switch(skin.toLowerCase()) {
-            case 'dot':
-                const dotRadius = 3 + (pulse * 2);
-                ctx.beginPath();
-                ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
-                ctx.fill();
+            case 'dot': {
+                const r = (3 + pulse * 2) * cursorSize;
+                drawShape((offset) => ctx.arc(x, y, r + offset, 0, Math.PI * 2), true, borderW * 0.5);
                 break;
-
-            case 'circle':
-                const circleRadius = 10 + (pulse * 6);
-                ctx.beginPath();
-                ctx.arc(x, y, circleRadius, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.fillRect(x - 1, y - 1, 2, 2);
+            }
+            case 'circle': {
+                const r = (10 + pulse * 6) * cursorSize;
+                drawShape((offset) => ctx.arc(x, y, r + offset, 0, Math.PI * 2), false, borderW * 0.5);
+                drawShape(() => ctx.rect(x - 1, y - 1, 2, 2), true, 0);
                 break;
-
+            }
             case 'classic':
-            default:
-                const lineLen = 6;
-                ctx.fillRect(x - 1, y - 1, 2, 2);
-                ctx.beginPath();
-                ctx.moveTo(x, y - gap); ctx.lineTo(x, y - gap - lineLen);
-                ctx.moveTo(x, y + gap); ctx.lineTo(x, y + gap + lineLen);
-                ctx.moveTo(x - gap, y); ctx.lineTo(x - gap - lineLen, y);
-                ctx.moveTo(x + gap, y); ctx.lineTo(x + gap + lineLen, y);
-                ctx.stroke();
+            default: {
+                const len = 6 * cursorSize;
+                const buildCross = () => {
+                    ctx.moveTo(x, y - gap); ctx.lineTo(x, y - gap - len);
+                    ctx.moveTo(x, y + gap); ctx.lineTo(x, y + gap + len);
+                    ctx.moveTo(x - gap, y); ctx.lineTo(x - gap - len, y);
+                    ctx.moveTo(x + gap, y); ctx.lineTo(x + gap + len, y);
+                };
+                
+                drawShape(() => ctx.rect(x - 1, y - 1, 2, 2), true, 0);
+                drawShape(buildCross, false, 0);
                 break;
+            }
         }
         ctx.restore();
     }
@@ -209,10 +230,9 @@ export default class UIManager {
             ctx.textAlign = 'left';
             ctx.shadowBlur = 8;
             
-            let healthText = "HP: ";
-            for(let i = 0; i < player.stats.maxHp; i++) {
-                healthText += (i < player.stats.hp) ? "▮" : "▯";
-            }
+            const currentHp = Math.min(player.stats.hp, player.stats.maxHp);
+            const missingHp = player.stats.maxHp - currentHp;
+            const healthText = "HP: " + "▮".repeat(Math.max(0, currentHp)) + "▯".repeat(Math.max(0, missingHp));
             
             ctx.fillStyle = '#00ffcc'; 
             ctx.shadowColor = '#00ffcc';

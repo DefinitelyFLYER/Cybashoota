@@ -18,6 +18,11 @@ export default class Game {
                 autoFire: false,
                 resumeCooldown: true,
                 crosshairColor: '#00ffcc',
+                cursorBorderEnabled: false,
+                cursorBorderColor: '#ffffff',
+                cursorBorderWidth: 4,
+                cursorWidth: 2,
+                cursorSize: 1,
                 cursorSkin: 'classic'
             },
             audio: {
