@@ -22,6 +22,7 @@ export default class Game {
             },
             gameplay: {
                 autoFire: false,
+                resumeCooldown: true,
                 crosshairColor: '#00ffcc'
             },
             audio: {
@@ -29,11 +30,20 @@ export default class Game {
             }
         };
 
+        this.pauseResumeCooldownTimer = 0;
+        this.pauseResumeCooldownDuration = 3000;
+
         this._loadPersistentSettings();
         this._resizeCanvas();
         window.addEventListener('resize', () => this._resizeCanvas());
         window.addEventListener('keydown', (e) => this._handleGlobalKeydown(e));
         window.addEventListener('mousedown', (e) => this._handlePauseMouseClick(e));
+        window.addEventListener('blur', () => this._handleWindowInactivity());
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this._handleWindowInactivity();
+            }
+        });
         this.UNIT_SIZE = 100;
 
         this.center = {
@@ -89,6 +99,7 @@ export default class Game {
         this.isGameOver = false;
         this.pauseButtons = [];
         this.gameOverButtons = [];
+        this.pauseResumeCooldownTimer = 0;
     }
 
     _loadPersistentSettings() {
@@ -122,6 +133,14 @@ export default class Game {
         let deltaTime = timestamp - this.lastTime;
         if (deltaTime > 100) deltaTime = 16; 
         this.lastTime = timestamp;
+
+        if (this.pauseResumeCooldownTimer > 0) {
+            this.pauseResumeCooldownTimer -= deltaTime;
+            if (this.pauseResumeCooldownTimer <= 0) {
+                this.pauseResumeCooldownTimer = 0;
+                this.isPaused = false;
+            }
+        }
 
         const upgrades = this.getModule('upgrades');
         const isMenuOpen = upgrades && upgrades.isSelectionActive;
@@ -219,7 +238,9 @@ export default class Game {
         }
 
         if (this.isPaused && !this.isGameOver) {
-            this._drawPauseMenu();
+            if (this.pauseResumeCooldownTimer <= 0) {
+                this._drawPauseMenu();
+            }
         }
 
         if (this.isGameOver) {
@@ -235,6 +256,22 @@ export default class Game {
         if (proj) {
             this._drawCrosshair(this.ctx, proj);
         }
+
+        if (this.pauseResumeCooldownTimer > 0 && this.isPaused && !this.isGameOver && this.gameState === 'PLAYING') {
+            this._drawPauseCountdown();
+        }
+    }
+
+    _drawPauseCountdown() {
+        const seconds = Math.ceil(this.pauseResumeCooldownTimer / 1000);
+        this.ctx.save();
+
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 22px "Courier New", monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(seconds.toString(), this.canvas.width / 2, this.canvas.height / 2 + 100);
+        this.ctx.restore();
     }
 
     _drawCrosshair(ctx, proj) {
@@ -266,11 +303,16 @@ export default class Game {
     _handleGlobalKeydown(e) {
         if (e.code !== 'Escape') return;
         if (this.gameState !== 'PLAYING' || this.isGameOver) return;
+        if (this.pauseResumeCooldownTimer > 0) return;
 
         const upgrades = this.getModule('upgrades');
         if (upgrades && upgrades.isSelectionActive) return;
 
-        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+            this.resumeGame();
+        } else {
+            this.isPaused = true;
+        }
     }
 
     _updateGamepadMenuButton() {
@@ -278,11 +320,24 @@ export default class Game {
         if (!gamepad || gamepad.gamepadIndex === null) return;
         if (!gamepad.justPressed.menu) return;
         if (this.gameState !== 'PLAYING' || this.isGameOver) return;
+        if (this.pauseResumeCooldownTimer > 0) return;
 
         const upgrades = this.getModule('upgrades');
         if (upgrades && upgrades.isSelectionActive) return;
 
-        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+            this.resumeGame();
+        } else {
+            this.isPaused = true;
+        }
+    }
+
+    _handleWindowInactivity() {
+        if (this.gameState !== 'PLAYING' || this.isGameOver) return;
+        if (this.pauseResumeCooldownTimer > 0) {
+            this.pauseResumeCooldownTimer = 0;
+        }
+        this.isPaused = true;
     }
 
     openSettingsMenu(origin = 'menu') {
@@ -442,6 +497,11 @@ export default class Game {
                 this._savePersistentSettings();
             });
 
+            drawToggle('Cooldown after pause', settings.gameplay.resumeCooldown, () => {
+                settings.gameplay.resumeCooldown = !settings.gameplay.resumeCooldown;
+                this._savePersistentSettings();
+            });
+
             ctx.fillStyle = '#00ffcc';
             ctx.font = '18px "Courier New", monospace';
             ctx.textAlign = 'left';
@@ -520,6 +580,7 @@ export default class Game {
         }
 
         if (!this.isPaused && !this.isGameOver) return;
+        if (this.pauseResumeCooldownTimer > 0) return;
 
         const buttons = this.isGameOver ? this.gameOverButtons : this.pauseButtons;
         if (!buttons || buttons.length === 0) return;
@@ -550,12 +611,11 @@ export default class Game {
     }
 
     _updatePauseInput(deltaTime) {
+        if (this.pauseResumeCooldownTimer > 0) return;
+
         const gamepad = this.getModule('gamepad');
         const proj = this.getModule('projectiles');
         if (!proj) return;
-
-        const hasPad = gamepad && gamepad.gamepadIndex !== null;
-        if (!hasPad) return;
 
         const pointerX = proj.crosshairX ?? proj.mouseX;
         const pointerY = proj.crosshairY ?? proj.mouseY;
@@ -656,12 +716,14 @@ export default class Game {
         });
     }
 
-    _resumeGame() {
-        this.isPaused = false;
-    }
-
     resumeGame() {
-        this.isPaused = false;
+        if (this.settings.gameplay.resumeCooldown) {
+            this.pauseResumeCooldownTimer = this.pauseResumeCooldownDuration;
+            this.isPaused = true;
+            this.pauseButtons = [];
+        } else {
+            this.isPaused = false;
+        }
     }
 
     returnToMainMenu() {
