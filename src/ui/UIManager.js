@@ -1,4 +1,4 @@
-export default class UIManager {
+﻿export default class UIManager {
     constructor() {
         this.score = 0;
         this.highScore = localStorage.getItem('cyberpunk_highscore') || 0;
@@ -58,7 +58,7 @@ export default class UIManager {
             ctx.shadowBlur = 0;
 
             ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 12px monospace';
+            ctx.font = 'bold 12px "VT323", monospace';
             ctx.textAlign = 'left';
             ctx.fillText(effect.name.toUpperCase(), rowX + iconSize + 10, rowY + 12);
 
@@ -86,7 +86,7 @@ export default class UIManager {
             ctx.save();
             ctx.globalAlpha = n.alpha;
             ctx.fillStyle = n.color;
-            ctx.font = 'bold 24px "Courier New"';
+            ctx.font = 'bold 24px "VT323"';
             ctx.textAlign = 'center';
             ctx.shadowBlur = 15;
             ctx.shadowColor = n.color;
@@ -124,7 +124,7 @@ export default class UIManager {
 
         ctx.save();
         ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.font = 'bold 14px "VT323", monospace';
         ctx.textAlign = 'right';
         ctx.shadowBlur = 5;
         ctx.shadowColor = '#00ffcc';
@@ -218,7 +218,7 @@ export default class UIManager {
         const director = this.game.getModule('director');
         
         ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 24px "Courier New", monospace';
+        ctx.font = 'bold 24px "VT323", monospace';
         ctx.textAlign = 'left';
         ctx.shadowBlur = 8;
         ctx.shadowColor = '#00ffcc';
@@ -226,7 +226,7 @@ export default class UIManager {
         
         if (player) {
             ctx.save();
-            ctx.font = 'bold 24px "Courier New", monospace';
+            ctx.font = 'bold 24px "VT323", monospace';
             ctx.textAlign = 'left';
             ctx.shadowBlur = 8;
             
@@ -254,7 +254,7 @@ export default class UIManager {
         }
 
         ctx.textAlign = 'right';
-        ctx.font = '16px "Courier New", monospace';
+        ctx.font = '16px "VT323", monospace';
         ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, w - 20, 40);
         
         ctx.shadowBlur = 0;
@@ -291,10 +291,10 @@ export default class UIManager {
                 ctx.fillStyle = '#00ffcc';
                 ctx.shadowBlur = 15 * scale;
                 ctx.shadowColor = '#00ffcc';
-                ctx.font = 'bold 30px "Courier New", monospace';
+                ctx.font = 'bold 30px "VT323", monospace';
                 ctx.fillText(timeStr, 0, 0);
 
-                ctx.font = '12px "Courier New", monospace';
+                ctx.font = '12px "VT323", monospace';
                 ctx.globalAlpha = alpha * 0.7;
                 ctx.fillText(director.getPhaseName().toUpperCase(), 0, 20);
 

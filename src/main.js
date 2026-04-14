@@ -1,4 +1,4 @@
-// core
+﻿// core
 import Game from './core/Core.js';
 import InputHandler from './core/InputHandler.js';
 import GamepadHandler from './core/GamepadHandler.js';

@@ -1,7 +1,4 @@
-/**
- * Background.js - Cache verze (eliminace zdvojených čar)
- */
-export default class Background {
+﻿export default class Background {
     constructor() {
         this.gridSize = 100;
         this.offscreenCanvas = null;

@@ -1,4 +1,4 @@
-import { UPGRADES } from '../data/UpgradeData.js';
+﻿import { UPGRADES } from '../data/UpgradeData.js';
 import { getFormattedStats } from '../ui/Infobox.js';
 import { DRONE_TYPES } from '../data/DroneTypes.js';
 import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
@@ -362,7 +362,7 @@ export default class UpgradeManager {
         if (this.currentOptions.length === 0) {
             ctx.save();
             ctx.fillStyle = '#ffcc00'; 
-            ctx.font = 'bold 24px monospace'; 
+            ctx.font = 'bold 24px "VT323", monospace'; 
             ctx.textAlign = 'center';
             ctx.shadowBlur = 10;
             ctx.shadowColor = '#ffcc00';
@@ -432,7 +432,7 @@ export default class UpgradeManager {
         ctx.strokeStyle = '#333';
         ctx.strokeRect(px, py, size, size);
         if (!item.sprite) {
-            ctx.fillStyle = '#333'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+            ctx.fillStyle = '#333'; ctx.font = '10px "VT323", monospace'; ctx.textAlign = 'center';
             ctx.fillText('NO_DATA', x + cardW / 2, py + size / 2 + 4);
         }
     }
@@ -440,13 +440,13 @@ export default class UpgradeManager {
     _drawCardText(ctx, item, x, y, cardW) {
         ctx.fillStyle = '#fff'; ctx.font = 'bold 18px Orbitron, sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(item.name.toUpperCase(), x + cardW / 2, y + 140);
-        ctx.font = '12px monospace'; ctx.fillStyle = '#aaa';
+        ctx.font = '12px "VT323", monospace'; ctx.fillStyle = '#aaa';
         this._wrapText(ctx, item.description, x + 20, y + 180, cardW - 40, 16);
     }
 
     _drawCardFooter(ctx, item, x, y, cardW, cardH, mainColor) {
         if (item.requirementText) {
-            ctx.save(); ctx.font = 'italic bold 10px monospace'; ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
+            ctx.save(); ctx.font = 'italic bold 10px "VT323", monospace'; ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
             ctx.shadowBlur = 5; ctx.shadowColor = '#ffcc00';
             ctx.fillText(item.requirementText.toUpperCase(), x + cardW / 2, y + cardH - 45);
             ctx.restore();
@@ -454,7 +454,7 @@ export default class UpgradeManager {
         
         ctx.save(); 
         ctx.fillStyle = mainColor; 
-        ctx.font = 'bold 11px monospace'; 
+        ctx.font = 'bold 11px "VT323", monospace'; 
         ctx.textAlign = 'center';
         ctx.shadowBlur = 8; 
         ctx.shadowColor = mainColor;
@@ -478,7 +478,7 @@ export default class UpgradeManager {
         ctx.save(); ctx.fillStyle = '#050505'; ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2;
         ctx.shadowBlur = 15; ctx.shadowColor = '#ffcc00';
         ctx.fillRect(btnX, btnY, btnW, btnH); ctx.strokeRect(btnX, btnY, btnW, btnH);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 16px "VT323", monospace'; ctx.textAlign = 'center';
         ctx.fillText(`RE-ROLL (${player.stats.rerolls})`, btnX + btnW / 2, btnY + 32); ctx.restore();
     }
 
@@ -493,7 +493,7 @@ export default class UpgradeManager {
         ctx.lineWidth = 2;
         if (isActive) { ctx.shadowBlur = 15; ctx.shadowColor = '#00ffcc'; }
         ctx.fillRect(btnX, btnY, btnW, btnH); ctx.strokeRect(btnX, btnY, btnW, btnH);
-        ctx.fillStyle = isActive ? '#fff' : '#666'; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
+        ctx.fillStyle = isActive ? '#fff' : '#666'; ctx.font = 'bold 16px "VT323", monospace'; ctx.textAlign = 'center';
         ctx.fillText("CONFIRM", btnX + btnW / 2, btnY + 32); ctx.restore();
     }
 
@@ -501,8 +501,8 @@ export default class UpgradeManager {
         const rowH = 22; const panelW = 220; const panelH = 400;
         ctx.save(); ctx.fillStyle = 'rgba(0, 40, 40, 0.4)'; ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
         ctx.strokeRect(x - 10, y - 40, panelW, panelH); ctx.fillRect(x - 10, y - 40, panelW, panelH);
-        ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'left';
-        ctx.fillText("STATUS", x, y - 15); ctx.font = '12px monospace';
+        ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 16px "VT323", monospace'; ctx.textAlign = 'left';
+        ctx.fillText("STATUS", x, y - 15); ctx.font = '12px "VT323", monospace';
         const displayStats = getFormattedStats(player);
         displayStats.forEach((s, i) => {
             const curY = y + (i * rowH);
