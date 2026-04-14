@@ -207,36 +207,11 @@ export default class Game {
             menu.draw(this.ctx);
         }
 
-        const proj = this.getModule('projectiles');
-        if (proj) {
-            this._drawCrosshair(this.ctx, proj);
+        const ui = this.getModule('ui');
+        const input = this.getModule('input');
+        if (ui && ui.drawCursor && input) {
+            ui.drawCursor(this.ctx, input, this.settings);
         }
-    }
-
-    _drawCrosshair(ctx, proj) {
-        ctx.save();
-        
-        const x = proj.crosshairX ?? proj.mouseX;
-        const y = proj.crosshairY ?? proj.mouseY;
-        const color = this.settings?.gameplay?.crosshairColor || '#00ffcc';
-        
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
-        ctx.lineWidth = 2;
-
-        const gap = 4 + (proj.crosshairPulse * 8);
-        const lineLen = 6;
-
-        ctx.fillRect(x - 1, y - 1, 2, 2);
-
-        ctx.beginPath();
-        ctx.moveTo(x, y - gap); ctx.lineTo(x, y - gap - lineLen);
-        ctx.moveTo(x, y + gap); ctx.lineTo(x, y + gap + lineLen);
-        ctx.moveTo(x - gap, y); ctx.lineTo(x - gap - lineLen, y);
-        ctx.moveTo(x + gap, y); ctx.lineTo(x + gap + lineLen, y);
-        ctx.stroke();
-
-        ctx.restore();
     }
 
     _handleGlobalKeydown(e) {

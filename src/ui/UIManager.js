@@ -140,6 +140,35 @@ export default class UIManager {
     update(deltaTime) {
     }
 
+    drawCursor(ctx, inputModule, settings) {
+        if (!inputModule || !settings) return;
+
+        const x = inputModule.mouseX ?? 0;
+        const y = inputModule.mouseY ?? 0;
+        const color = settings.gameplay?.crosshairColor || '#00ffcc';
+        const proj = this.game.getModule('projectiles');
+        const pulse = proj?.crosshairPulse || 0;
+
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2;
+
+        const gap = 4 + (pulse * 8);
+        const lineLen = 6;
+
+        ctx.fillRect(x - 1, y - 1, 2, 2);
+
+        ctx.beginPath();
+        ctx.moveTo(x, y - gap); ctx.lineTo(x, y - gap - lineLen);
+        ctx.moveTo(x, y + gap); ctx.lineTo(x, y + gap + lineLen);
+        ctx.moveTo(x - gap, y); ctx.lineTo(x - gap - lineLen, y);
+        ctx.moveTo(x + gap, y); ctx.lineTo(x + gap + lineLen, y);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
     draw(ctx) {
         const w = this.game.canvas.width;
         const h = this.game.canvas.height;
