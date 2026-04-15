@@ -691,6 +691,57 @@ export default class MenuManager {
             optionY += 80;
         };
 
+        const drawCrosshairPreview = (ctx, x, y, w, h, skin) => {
+            const cx = x + w / 2;
+            const cy = y + h / 2;
+            const radius = Math.min(w, h) * 0.18;
+
+            ctx.save();
+            ctx.strokeStyle = this.styleConfig.colors.title;
+            ctx.fillStyle = this.styleConfig.colors.title;
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+
+            switch (skin.toLowerCase()) {
+                case 'dot': {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                }
+                case 'circle': {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius * 0.35, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                }
+                case 'classic':
+                default: {
+                    const lineLen = radius * 1.4;
+                    const gap = radius * 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - gap - lineLen, cy);
+                    ctx.lineTo(cx - gap, cy);
+                    ctx.moveTo(cx + gap, cy);
+                    ctx.lineTo(cx + gap + lineLen, cy);
+                    ctx.moveTo(cx, cy - gap - lineLen);
+                    ctx.lineTo(cx, cy - gap);
+                    ctx.moveTo(cx, cy + gap);
+                    ctx.lineTo(cx, cy + gap + lineLen);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                }
+            }
+
+            ctx.restore();
+        };
+
         const drawSelection = (item) => {
             const value = this._getSettingsValue(item.path);
             ctx.fillStyle = this.styleConfig.colors.title;
@@ -708,9 +759,13 @@ export default class MenuManager {
                 const isSelected = value === optionValue;
                 const isHovered = pointer && this._isHovered(pointer, btnX, optionY, btnWidth, btnHeight);
                 const style = isSelected ? 'selectedTab' : 'default';
-                const text = optionValue.toUpperCase();
+                const text = item.id === 'cursorSkin' ? '' : optionValue.toUpperCase();
 
                 this.drawButton(ctx, btnX, optionY, btnWidth, btnHeight, text, isHovered || isSelected, style);
+                if (item.id === 'cursorSkin') {
+                    drawCrosshairPreview(ctx, btnX, optionY, btnWidth, btnHeight, optionValue);
+                }
+
                 this.settingsButtons.push({
                     x: btnX,
                     y: optionY,
