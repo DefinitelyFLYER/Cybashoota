@@ -1,4 +1,4 @@
-export default class Player {
+﻿export default class Player {
     constructor(x, y) {
         this.pos = { x: x, y: y };
         this.size = 64;
@@ -150,7 +150,7 @@ export default class Player {
             if (this.game.gameOver) {
                 this.game.gameOver();
             } else {
-                console.log("GAME OVER - Hráč zemřel");
+                console.log("GAME OVER - the player died");
             }
         }
     }

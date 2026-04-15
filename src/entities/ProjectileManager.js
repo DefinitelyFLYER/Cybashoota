@@ -21,13 +21,6 @@ export default class ProjectileManager {
         this.RICOCHET_RANGE = 8;
         this.NEARBY_LIMIT = 0.5;
 
-        window.addEventListener('mousemove', (e) => {
-            this.mouseX = e.clientX;
-            this.mouseY = e.clientY;
-            this.lastMouseMoveTime = Date.now();
-        });
-        window.addEventListener('mousedown', () => this.isMouseDown = true);
-        window.addEventListener('mouseup', () => this.isMouseDown = false);
         this.crosshairPulse = 0;
     }
 
@@ -64,6 +57,14 @@ export default class ProjectileManager {
     }
 
     update(deltaTime) {
+        const input = this.game.getModule('input');
+        if (input) {
+            this.mouseX = input.mouseX;
+            this.mouseY = input.mouseY;
+            this.isMouseDown = input.isMouseDown;
+            this.lastMouseMoveTime = input.lastMouseMoveTime || this.lastMouseMoveTime;
+        }
+
         const player = this.game.getModule('player');
         if (!player) return;
 
@@ -79,6 +80,14 @@ export default class ProjectileManager {
     }
 
     updateMenu(deltaTime) {
+        const input = this.game.getModule('input');
+        if (input) {
+            this.mouseX = input.mouseX;
+            this.mouseY = input.mouseY;
+            this.isMouseDown = input.isMouseDown;
+            this.lastMouseMoveTime = input.lastMouseMoveTime || this.lastMouseMoveTime;
+        }
+
         const player = this.game.getModule('player');
         if (!player) return;
 
