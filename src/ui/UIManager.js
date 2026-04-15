@@ -124,7 +124,7 @@
 
         ctx.save();
         ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 14px "VT323", monospace';
+        ctx.font = 'bold 20px "VT323", monospace';
         ctx.textAlign = 'right';
         ctx.shadowBlur = 5;
         ctx.shadowColor = '#00ffcc';
@@ -218,7 +218,7 @@
         const director = this.game.getModule('director');
         
         ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 24px "VT323", monospace';
+        ctx.font = 'bold 28px "VT323", monospace';
         ctx.textAlign = 'left';
         ctx.shadowBlur = 8;
         ctx.shadowColor = '#00ffcc';
@@ -226,7 +226,7 @@
         
         if (player) {
             ctx.save();
-            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.font = 'bold 28px "VT323", monospace';
             ctx.textAlign = 'left';
             ctx.shadowBlur = 8;
             
@@ -254,7 +254,7 @@
         }
 
         ctx.textAlign = 'right';
-        ctx.font = '16px "VT323", monospace';
+        ctx.font = '20px "VT323", monospace';
         ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, w - 20, 40);
         
         ctx.shadowBlur = 0;
@@ -274,8 +274,8 @@
                 if (director.phaseChanged) {
                     const elapsed = director.phaseTimer || 0;
                     
-                    const pulse = Math.sin(Date.now() / 200) * 0.05;
-                    scale = 1.05 + pulse;
+                    const pulse = Math.sin(Date.now() / 200) * 0.1;
+                    scale = 1.15 + pulse;
                     alpha = 0.7 + Math.abs(Math.sin(Date.now() / 400) * 0.3);
 
                     if (elapsed > 5000) {
@@ -294,7 +294,7 @@
                 ctx.font = 'bold 30px "VT323", monospace';
                 ctx.fillText(timeStr, 0, 0);
 
-                ctx.font = '12px "VT323", monospace';
+                ctx.font = '20px "VT323", monospace';
                 ctx.globalAlpha = alpha * 0.7;
                 ctx.fillText(director.getPhaseName().toUpperCase(), 0, 20);
 

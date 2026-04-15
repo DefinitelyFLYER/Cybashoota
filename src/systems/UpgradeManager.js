@@ -28,6 +28,25 @@ export default class UpgradeManager {
         this.game = game;
     }
 
+    _getMenuFonts() {
+        const menu = this.game && this.game.getModule('menu');
+        if (menu && menu.styleConfig && menu.styleConfig.fonts) {
+            return menu.styleConfig.fonts;
+        }
+
+        return {
+            cardUnavailable: 'bold 24px "VT323", monospace',
+            cardIcon: '10px "VT323", monospace',
+            cardName: 'bold 18px Orbitron, sans-serif',
+            cardDescription: '12px "VT323", monospace',
+            cardRequirement: 'italic bold 10px "VT323", monospace',
+            cardFooter: 'bold 11px "VT323", monospace',
+            button: 'bold 16px "VT323", monospace',
+            infoTitle: 'bold 16px "VT323", monospace',
+            infoText: '12px "VT323", monospace'
+        };
+    }
+
     reset() {
         this.inventory = {};
         this.isSelectionActive = false;
@@ -343,7 +362,9 @@ export default class UpgradeManager {
         if (!this.isSelectionActive) return;
         const { width, height } = this.game.canvas;
         const player = this.game.getModule('player');
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+        const menu = this.game.getModule('menu');
+        const overlayFill = menu?.styleConfig?.panel?.overlay?.fill || 'rgba(0, 0, 0, 0.70)';
+        ctx.fillStyle = overlayFill;
         ctx.fillRect(0, 0, width, height);
 
         const infoX = 40;
@@ -359,10 +380,11 @@ export default class UpgradeManager {
     }
 
     _drawCards(ctx, width, height) {
+        const fonts = this._getMenuFonts();
         if (this.currentOptions.length === 0) {
             ctx.save();
             ctx.fillStyle = '#ffcc00'; 
-            ctx.font = 'bold 24px "VT323", monospace'; 
+            ctx.font = fonts.cardUnavailable; 
             ctx.textAlign = 'center';
             ctx.shadowBlur = 10;
             ctx.shadowColor = '#ffcc00';
@@ -432,21 +454,24 @@ export default class UpgradeManager {
         ctx.strokeStyle = '#333';
         ctx.strokeRect(px, py, size, size);
         if (!item.sprite) {
-            ctx.fillStyle = '#333'; ctx.font = '10px "VT323", monospace'; ctx.textAlign = 'center';
+            const fonts = this._getMenuFonts();
+            ctx.fillStyle = '#333'; ctx.font = fonts.cardIcon; ctx.textAlign = 'center';
             ctx.fillText('NO_DATA', x + cardW / 2, py + size / 2 + 4);
         }
     }
 
     _drawCardText(ctx, item, x, y, cardW) {
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 18px Orbitron, sans-serif'; ctx.textAlign = 'center';
+        const fonts = this._getMenuFonts();
+        ctx.fillStyle = '#fff'; ctx.font = fonts.cardTitle || fonts.cardName; ctx.textAlign = 'center';
         ctx.fillText(item.name.toUpperCase(), x + cardW / 2, y + 140);
-        ctx.font = '12px "VT323", monospace'; ctx.fillStyle = '#aaa';
+        ctx.font = fonts.cardDescription; ctx.fillStyle = '#aaa';
         this._wrapText(ctx, item.description, x + 20, y + 180, cardW - 40, 16);
     }
 
     _drawCardFooter(ctx, item, x, y, cardW, cardH, mainColor) {
+        const fonts = this._getMenuFonts();
         if (item.requirementText) {
-            ctx.save(); ctx.font = 'italic bold 10px "VT323", monospace'; ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
+            ctx.save(); ctx.font = fonts.cardRequirement; ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
             ctx.shadowBlur = 5; ctx.shadowColor = '#ffcc00';
             ctx.fillText(item.requirementText.toUpperCase(), x + cardW / 2, y + cardH - 45);
             ctx.restore();
@@ -454,7 +479,7 @@ export default class UpgradeManager {
         
         ctx.save(); 
         ctx.fillStyle = mainColor; 
-        ctx.font = 'bold 11px "VT323", monospace'; 
+        ctx.font = fonts.cardFooter; 
         ctx.textAlign = 'center';
         ctx.shadowBlur = 8; 
         ctx.shadowColor = mainColor;
@@ -475,10 +500,11 @@ export default class UpgradeManager {
     _drawRerollButton(ctx, player, x, y) {
         const btnW = 220; const btnH = 50; const btnX = x - 10; const btnY = y; 
         this.reRollBtnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
+        const fonts = this._getMenuFonts();
         ctx.save(); ctx.fillStyle = '#050505'; ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2;
         ctx.shadowBlur = 15; ctx.shadowColor = '#ffcc00';
         ctx.fillRect(btnX, btnY, btnW, btnH); ctx.strokeRect(btnX, btnY, btnW, btnH);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 16px "VT323", monospace'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff'; ctx.font = fonts.button; ctx.textAlign = 'center';
         ctx.fillText(`RE-ROLL (${player.stats.rerolls})`, btnX + btnW / 2, btnY + 32); ctx.restore();
     }
 
@@ -493,16 +519,18 @@ export default class UpgradeManager {
         ctx.lineWidth = 2;
         if (isActive) { ctx.shadowBlur = 15; ctx.shadowColor = '#00ffcc'; }
         ctx.fillRect(btnX, btnY, btnW, btnH); ctx.strokeRect(btnX, btnY, btnW, btnH);
-        ctx.fillStyle = isActive ? '#fff' : '#666'; ctx.font = 'bold 16px "VT323", monospace'; ctx.textAlign = 'center';
+        const fonts = this._getMenuFonts();
+        ctx.fillStyle = isActive ? '#fff' : '#666'; ctx.font = fonts.button; ctx.textAlign = 'center';
         ctx.fillText("CONFIRM", btnX + btnW / 2, btnY + 32); ctx.restore();
     }
 
     _drawStatsInfobox(ctx, x, y, player) {
         const rowH = 22; const panelW = 220; const panelH = 400;
+        const fonts = this._getMenuFonts();
         ctx.save(); ctx.fillStyle = 'rgba(0, 40, 40, 0.4)'; ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
         ctx.strokeRect(x - 10, y - 40, panelW, panelH); ctx.fillRect(x - 10, y - 40, panelW, panelH);
-        ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 16px "VT323", monospace'; ctx.textAlign = 'left';
-        ctx.fillText("STATUS", x, y - 15); ctx.font = '12px "VT323", monospace';
+        ctx.fillStyle = '#00ffcc'; ctx.font = fonts.infoTitle; ctx.textAlign = 'left';
+        ctx.fillText("STATUS", x, y - 15); ctx.font = fonts.infoText;
         const displayStats = getFormattedStats(player);
         displayStats.forEach((s, i) => {
             const curY = y + (i * rowH);

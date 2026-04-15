@@ -1,4 +1,5 @@
 ﻿import { getFormattedStats } from '../ui/Infobox.js';
+import { MENU_DEFINITIONS } from '../data/MenuDefinitions.js';
 
 export default class MenuManager {
     constructor() {
@@ -25,9 +26,18 @@ export default class MenuManager {
             fonts: {
                 title: 'bold 64px "VT323", monospace',
                 bigTitle: 'bold 80px "VT323", monospace',
-                button: 'bold 22px "VT323", monospace',
-                label: '18px "VT323", monospace',
-                small: '14px "VT323", monospace'
+                button: 'bold 24px "VT323", monospace',
+                label: '24px "VT323", monospace',
+                small: '20px "VT323", monospace',
+                cardTitle: 'bold 24px "VT323", monospace',
+                cardName: 'bold 24px "VT323", monospace',
+                cardDescription: '20px "VT323", monospace',
+                cardRarity: 'bold 18px "VT323", monospace',
+                cardIcon: '10px "VT323", monospace',
+                cardRequirement: 'italic bold 10px "VT323", monospace',
+                cardFooter: 'bold 11px "VT323", monospace',
+                infoTitle: 'bold 22px "VT323", monospace',
+                infoText: '18px "VT323", monospace'
             },
             button: {
                 default: {
@@ -105,10 +115,17 @@ export default class MenuManager {
                     shadowBlur: 0
                 },
                 overlay: {
-                    fill: 'rgba(0, 0, 0, 0.92)',
+                    fill: 'rgba(0, 0, 0, 0.5)',
                     stroke: 'transparent',
                     shadowColor: '#00ffcc',
                     shadowBlur: 0
+                },
+                card: {
+                    fill: 'rgba(0, 40, 40, 0.75)',
+                    stroke: '#00ffcc',
+                    shadowColor: '#00ffcc',
+                    shadowBlur: 0,
+                    titleFont: 'bold 24px "VT323", monospace'
                 }
             },
             colors: {
@@ -116,29 +133,6 @@ export default class MenuManager {
                 accent: '#ff0055',
                 text: '#ffffff'
             }
-        };
-    }
-
-    get menuDefinitions() {
-        return {
-            MAIN_MENU: [
-                { id: 'play', text: 'PLAY', action: () => this.game.startGame(), style: 'default' },
-                { id: 'settings', text: 'SETTINGS', action: () => this.openSettingsMenu('menu'), style: 'default' }
-            ],
-            PAUSE_MENU: [
-                { id: 'continue', text: 'CONTINUE', action: () => this.game.resumeGame(), style: 'default' },
-                { id: 'settings', text: 'SETTINGS', action: () => this.openSettingsMenu('pause'), style: 'default' },
-                { id: 'restart', text: 'RESTART', action: () => window.location.reload(), style: 'default' }
-            ],
-            GAME_OVER_MENU: [
-                { id: 'play_again', text: 'PLAY AGAIN', action: () => this.game.startGame(), style: 'danger' },
-                { id: 'main_menu', text: 'MAIN MENU', action: () => this.game.returnToMainMenu(), style: 'default' }
-            ],
-            SETTINGS_TABS: [
-                { id: 'performance', text: 'Performance', action: () => { this.settingsTab = 'performance'; }, style: 'tab' },
-                { id: 'gameplay', text: 'Gameplay', action: () => { this.settingsTab = 'gameplay'; }, style: 'tab' },
-                { id: 'audio', text: 'Audio (WIP)', action: () => { this.settingsTab = 'audio'; }, style: 'tab' }
-            ]
         };
     }
 
@@ -254,7 +248,8 @@ export default class MenuManager {
 
         if (title) {
             ctx.fillStyle = this.styleConfig.colors.title;
-            ctx.font = this.styleConfig.fonts.title;
+            const titleFont = style.titleFont || this.styleConfig.fonts.title;
+            ctx.font = titleFont;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
             ctx.fillText(title, x + w / 2, y + 20);
@@ -263,7 +258,7 @@ export default class MenuManager {
     }
 
     renderMenu(ctx, menuKey, layout = {}) {
-        const menu = this.menuDefinitions[menuKey];
+        const menu = MENU_DEFINITIONS[menuKey];
         if (!menu || !menu.length) return [];
 
         const pointer = layout.pointer || this.mousePos;
@@ -280,13 +275,14 @@ export default class MenuManager {
             const text = typeof item.text === 'function' ? item.text() : item.text;
             const style = item.style || 'default';
             const isHovered = this._isHovered(pointer, x, nextY, width, itemHeight);
+            const action = this._resolveAction(item);
 
             buttons.push({
                 x,
                 y: nextY,
                 w: width,
                 h: itemHeight,
-                action: item.action,
+                action,
                 text,
                 style,
                 drag: item.drag
@@ -390,6 +386,69 @@ export default class MenuManager {
         this.settingsOrigin = null;
     }
 
+    _resolveAction(item) {
+        if (typeof item.action === 'function') {
+            return item.action;
+        }
+
+        if (typeof item.action !== 'string') {
+            return () => {};
+        }
+
+        const method = this[item.action];
+        if (typeof method !== 'function') {
+            return () => {};
+        }
+
+        return () => method.apply(this, item.args || []);
+    }
+
+    _getSettingsValue(path) {
+        return path.reduce((current, key) => {
+            if (current && Object.prototype.hasOwnProperty.call(current, key)) {
+                return current[key];
+            }
+            return undefined;
+        }, this.game.settings);
+    }
+
+    _setSettingsValue(path, value) {
+        let current = this.game.settings;
+        for (let i = 0; i < path.length - 1; i += 1) {
+            const key = path[i];
+            if (typeof current[key] !== 'object' || current[key] === null) {
+                current[key] = {};
+            }
+            current = current[key];
+        }
+        current[path[path.length - 1]] = value;
+        this.game._savePersistentSettings();
+    }
+
+    startGame() {
+        this.game.startGame();
+    }
+
+    returnToMainMenu() {
+        this.game.returnToMainMenu();
+    }
+
+    resumeGame() {
+        this.game.resumeGame();
+    }
+
+    reloadGame() {
+        window.location.reload();
+    }
+
+    setSettingsTab(tab) {
+        this.settingsTab = tab;
+    }
+
+    selectUpgrade() {
+        // Placeholder for future upgrade menu handling
+    }
+
     _getPointer() {
         const proj = this.game.getModule('projectiles');
         if (!proj) return null;
@@ -466,14 +525,14 @@ export default class MenuManager {
 
         this.settingsButtons = [];
 
-        this.menuDefinitions.SETTINGS_TABS.forEach((tab, index) => {
+        MENU_DEFINITIONS.SETTINGS_MENU.tabs.forEach((tab, index) => {
             const x = startX + index * (tabWidth + tabSpacing);
             const isSelected = this.settingsTab === tab.id;
             const style = isSelected ? 'selectedTab' : 'tab';
             const isHovered = pointer && this._isHovered(pointer, x, tabY, tabWidth, tabHeight);
 
             this.drawButton(ctx, x, tabY, tabWidth, tabHeight, tab.text, isHovered || isSelected, style);
-            this.settingsButtons.push({ x, y: tabY, w: tabWidth, h: tabHeight, action: tab.action });
+            this.settingsButtons.push({ x, y: tabY, w: tabWidth, h: tabHeight, action: this._resolveAction(tab) });
         });
 
         const panelX = 80;
@@ -484,12 +543,17 @@ export default class MenuManager {
 
         let optionY = panelY + 40;
         const optionX = panelX + 30;
+        const swatchSize = 38;
+        const swatchSpacing = 16;
+        const sliderWidth = 360;
+        const sliderHeight = 10;
 
-        const drawToggle = (label, value, action) => {
+        const drawToggle = (item) => {
+            const value = this._getSettingsValue(item.path);
             ctx.fillStyle = this.styleConfig.colors.title;
             ctx.font = this.styleConfig.fonts.label;
             ctx.textAlign = 'left';
-            ctx.fillText(label, optionX, optionY + 8);
+            ctx.fillText(item.label, optionX, optionY + 8);
 
             const btnWidth = 180;
             const btnHeight = 38;
@@ -500,208 +564,136 @@ export default class MenuManager {
             const style = value ? 'selectedTab' : 'toggle';
 
             this.drawButton(ctx, btnX, btnY, btnWidth, btnHeight, text, isHovered || value, style);
-            this.settingsButtons.push({ x: btnX, y: btnY, w: btnWidth, h: btnHeight, action });
+            this.settingsButtons.push({
+                x: btnX,
+                y: btnY,
+                w: btnWidth,
+                h: btnHeight,
+                action: () => this._setSettingsValue(item.path, !value)
+            });
             optionY += 70;
         };
 
-        if (this.settingsTab === 'performance') {
-            drawToggle('Particle Effects', settings.performance.particles, () => {
-                settings.performance.particles = !settings.performance.particles;
-                this.game._savePersistentSettings();
-            });
-            drawToggle('Enemy Health Bars', settings.performance.enemyHealthBars, () => {
-                settings.performance.enemyHealthBars = !settings.performance.enemyHealthBars;
-                this.game._savePersistentSettings();
-            });
-        }
-
-        if (this.settingsTab === 'gameplay') {
-            drawToggle('Auto-Fire', settings.gameplay.autoFire, () => {
-                settings.gameplay.autoFire = !settings.gameplay.autoFire;
-                this.game._savePersistentSettings();
-            });
-            drawToggle('Cooldown after pause', settings.gameplay.resumeCooldown, () => {
-                settings.gameplay.resumeCooldown = !settings.gameplay.resumeCooldown;
-                this.game._savePersistentSettings();
-            });
-
+        const drawSwatch = (item) => {
+            const value = this._getSettingsValue(item.path);
             ctx.fillStyle = this.styleConfig.colors.title;
             ctx.font = this.styleConfig.fonts.label;
             ctx.textAlign = 'left';
-            ctx.fillText('Cursor Color', optionX, optionY + 8);
+            ctx.fillText(item.label, optionX, optionY + 8);
             optionY += 50;
 
-            const colors = ['#000000', '#ffffff', '#00ffcc', '#ff55aa', '#55ff55', '#ffff55', '#ff5500'];
-            const swatchSize = 38;
-            const swatchSpacing = 16;
             let swatchX = optionX;
-
-            colors.forEach((color) => {
-                const selected = settings.gameplay.crosshairColor === color;
+            item.options.forEach((optionValue) => {
+                const selected = value === optionValue;
                 ctx.save();
-                ctx.fillStyle = color;
+                ctx.fillStyle = optionValue;
                 ctx.fillRect(swatchX, optionY, swatchSize, swatchSize);
                 ctx.strokeStyle = selected ? '#00ffcc' : '#444';
                 ctx.lineWidth = selected ? 4 : 2;
                 ctx.strokeRect(swatchX, optionY, swatchSize, swatchSize);
                 ctx.restore();
 
-                const swatchHovered = pointer && this._isHovered(pointer, swatchX, optionY, swatchSize, swatchSize);
-                ctx.save();
-                ctx.strokeStyle = swatchHovered ? '#00ffcc' : (selected ? '#00ffcc' : '#444');
-                ctx.lineWidth = swatchHovered ? 4 : (selected ? 4 : 2);
-                ctx.strokeRect(swatchX, optionY, swatchSize, swatchSize);
-                ctx.restore();
+                const isHovered = pointer && this._isHovered(pointer, swatchX, optionY, swatchSize, swatchSize);
+                if (isHovered) {
+                    ctx.save();
+                    ctx.strokeStyle = '#00ffcc';
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(swatchX, optionY, swatchSize, swatchSize);
+                    ctx.restore();
+                }
 
                 this.settingsButtons.push({
                     x: swatchX,
                     y: optionY,
                     w: swatchSize,
                     h: swatchSize,
-                    action: () => {
-                        settings.gameplay.crosshairColor = color;
-                        this.game._savePersistentSettings();
-                    }
+                    action: () => this._setSettingsValue(item.path, optionValue)
                 });
                 swatchX += swatchSize + swatchSpacing;
             });
-
             optionY += swatchSize + 40;
+        };
 
-            const drawSlider = (label, value, min, max, step, action) => {
-                const displayValue = step < 1 ? value.toFixed(1) : value.toString();
-                ctx.fillStyle = this.styleConfig.colors.title;
-                ctx.font = this.styleConfig.fonts.label;
-                ctx.textAlign = 'left';
-                ctx.fillText(`${label}: ${displayValue}`, optionX, optionY + 8);
-                optionY += 30;
+        const drawSlider = (item) => {
+            const value = this._getSettingsValue(item.path);
+            const displayValue = item.step < 1 ? value.toFixed(1) : value.toString();
+            ctx.fillStyle = this.styleConfig.colors.title;
+            ctx.font = this.styleConfig.fonts.label;
+            ctx.textAlign = 'left';
+            ctx.fillText(`${item.label}: ${displayValue}`, optionX, optionY + 8);
+            optionY += 30;
 
-                const trackW = 360;
-                const trackH = 10;
-                const trackX = optionX;
-                const trackY = optionY;
-                const progress = (value - min) / (max - min);
-                const handleRadius = 10;
-                const handleX = trackX + progress * trackW;
-                const isHovered = pointer && this._isHovered(pointer, trackX, trackY - handleRadius, trackW, trackH + handleRadius * 2);
+            const trackX = optionX;
+            const trackY = optionY;
+            const progress = (value - item.min) / (item.max - item.min);
+            const handleRadius = 10;
+            const handleX = trackX + progress * sliderWidth;
+            const isHovered = pointer && this._isHovered(pointer, trackX, trackY - handleRadius, sliderWidth, sliderHeight + handleRadius * 2);
 
-                ctx.save();
-                ctx.fillStyle = '#111';
-                ctx.fillRect(trackX, trackY, trackW, trackH);
-                ctx.strokeStyle = '#444';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(trackX, trackY, trackW, trackH);
-                ctx.fillStyle = '#00ffcc';
-                ctx.fillRect(trackX, trackY, trackW * progress, trackH);
-                ctx.restore();
+            ctx.save();
+            ctx.fillStyle = '#111';
+            ctx.fillRect(trackX, trackY, sliderWidth, sliderHeight);
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(trackX, trackY, sliderWidth, sliderHeight);
+            ctx.fillStyle = '#00ffcc';
+            ctx.fillRect(trackX, trackY, sliderWidth * progress, sliderHeight);
+            ctx.restore();
 
-                ctx.save();
-                ctx.fillStyle = '#00ffcc';
-                ctx.strokeStyle = isHovered ? '#ffffff' : '#88c8d0';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(handleX, trackY + trackH / 2, handleRadius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.restore();
+            ctx.save();
+            ctx.fillStyle = '#00ffcc';
+            ctx.strokeStyle = isHovered ? '#ffffff' : '#88c8d0';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(handleX, trackY + sliderHeight / 2, handleRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
 
-                this.settingsButtons.push({
-                    x: trackX,
-                    y: trackY - handleRadius,
-                    w: trackW,
-                    h: trackH + handleRadius * 2,
-                    action: () => {
-                        const pointer = this._getPointer() || this.mousePos;
-                        if (!pointer) return;
-                        let ratio = (pointer.x - trackX) / trackW;
-                        ratio = Math.max(0, Math.min(1, ratio));
-                        const raw = min + ratio * (max - min);
-                        const stepped = Math.round(raw / step) * step;
-                        action(stepped);
-                    },
-                    drag: (pointer) => {
-                        let ratio = (pointer.x - trackX) / trackW;
-                        ratio = Math.max(0, Math.min(1, ratio));
-                        const raw = min + ratio * (max - min);
-                        const stepped = Math.round(raw / step) * step;
-                        action(stepped);
-                    }
-                });
-
-                optionY += 65;
+            const updateValue = (pointer) => {
+                let ratio = (pointer.x - trackX) / sliderWidth;
+                ratio = Math.max(0, Math.min(1, ratio));
+                const raw = item.min + ratio * (item.max - item.min);
+                const stepped = Math.round(raw / item.step) * item.step;
+                this._setSettingsValue(item.path, stepped);
             };
 
-            drawSlider('Cursor Size', settings.gameplay.cursorSize, 0.5, 2, 0.1, (value) => {
-                settings.gameplay.cursorSize = value;
-                this.game._savePersistentSettings();
-            });
-            drawSlider('Cursor Width', settings.gameplay.cursorWidth, 1, 6, 1, (value) => {
-                settings.gameplay.cursorWidth = value;
-                this.game._savePersistentSettings();
-            });
-            drawSlider('Border Width', settings.gameplay.cursorBorderWidth, 1, 10, 1, (value) => {
-                settings.gameplay.cursorBorderWidth = value;
-                this.game._savePersistentSettings();
+            this.settingsButtons.push({
+                x: trackX,
+                y: trackY - handleRadius,
+                w: sliderWidth,
+                h: sliderHeight + handleRadius * 2,
+                action: () => {
+                    const pointer = this._getPointer() || this.mousePos;
+                    if (!pointer) return;
+                    updateValue(pointer);
+                },
+                drag: (pointer) => {
+                    updateValue(pointer);
+                }
             });
 
+            optionY += 65;
+        };
+
+        const drawSelection = (item) => {
+            const value = this._getSettingsValue(item.path);
             ctx.fillStyle = this.styleConfig.colors.title;
             ctx.font = this.styleConfig.fonts.label;
             ctx.textAlign = 'left';
-            ctx.fillText('Border Color', optionX, optionY + 8);
-            optionY += 50;
-
-            const borderColors = ['#000000', '#ffffff', '#00ffcc', '#ff55aa', '#55ff55', '#ffff55', '#ff5500'];
-            swatchX = optionX;
-
-            borderColors.forEach((color) => {
-                const selected = settings.gameplay.cursorBorderColor === color;
-                ctx.save();
-                ctx.fillStyle = color;
-                ctx.fillRect(swatchX, optionY, swatchSize, swatchSize);
-                ctx.strokeStyle = selected ? '#00ffcc' : '#444';
-                ctx.lineWidth = selected ? 4 : 2;
-                ctx.strokeRect(swatchX, optionY, swatchSize, swatchSize);
-                ctx.restore();
-
-                const swatchHovered = pointer && this._isHovered(pointer, swatchX, optionY, swatchSize, swatchSize);
-                ctx.save();
-                ctx.strokeStyle = swatchHovered ? '#00ffcc' : (selected ? '#00ffcc' : '#444');
-                ctx.lineWidth = swatchHovered ? 4 : (selected ? 4 : 2);
-                ctx.strokeRect(swatchX, optionY, swatchSize, swatchSize);
-                ctx.restore();
-
-                this.settingsButtons.push({
-                    x: swatchX,
-                    y: optionY,
-                    w: swatchSize,
-                    h: swatchSize,
-                    action: () => {
-                        settings.gameplay.cursorBorderColor = color;
-                        this.game._savePersistentSettings();
-                    }
-                });
-                swatchX += swatchSize + swatchSpacing;
-            });
-
-            optionY += swatchSize + 40;
-
-            ctx.fillStyle = this.styleConfig.colors.title;
-            ctx.font = this.styleConfig.fonts.label;
-            ctx.textAlign = 'left';
-            ctx.fillText('Crosshair Style', optionX, optionY + 8);
+            ctx.fillText(item.label, optionX, optionY + 8);
             optionY += 40;
 
-            const styles = ['classic', 'dot', 'circle'];
             const btnWidth = 150;
             const btnHeight = 38;
             const btnSpacing = 16;
             let btnX = optionX;
 
-            styles.forEach((styleName) => {
-                const isSelected = settings.gameplay.cursorSkin === styleName;
+            item.options.forEach((optionValue) => {
+                const isSelected = value === optionValue;
                 const isHovered = pointer && this._isHovered(pointer, btnX, optionY, btnWidth, btnHeight);
                 const style = isSelected ? 'selectedTab' : 'default';
-                const text = styleName.toUpperCase();
+                const text = optionValue.toUpperCase();
 
                 this.drawButton(ctx, btnX, optionY, btnWidth, btnHeight, text, isHovered || isSelected, style);
                 this.settingsButtons.push({
@@ -709,32 +701,53 @@ export default class MenuManager {
                     y: optionY,
                     w: btnWidth,
                     h: btnHeight,
-                    action: () => {
-                        settings.gameplay.cursorSkin = styleName;
-                        this.game._savePersistentSettings();
-                    }
+                    action: () => this._setSettingsValue(item.path, optionValue)
                 });
                 btnX += btnWidth + btnSpacing;
             });
 
             optionY += btnHeight + 40;
-        }
+        };
 
-        if (this.settingsTab === 'audio') {
+        const drawLabel = (item) => {
             ctx.fillStyle = this.styleConfig.colors.title;
             ctx.font = this.styleConfig.fonts.label;
             ctx.textAlign = 'left';
-            ctx.fillText('Audio settings are work in progress.', optionX, optionY + 8);
-        }
+            ctx.fillText(item.label, optionX, optionY + 8);
+            optionY += 50;
+        };
 
+        const settingsItems = MENU_DEFINITIONS.SETTINGS_MENU.body[this.settingsTab] || [];
+        settingsItems.forEach((item) => {
+            switch (item.type) {
+                case 'toggle':
+                    drawToggle(item);
+                    break;
+                case 'swatch':
+                    drawSwatch(item);
+                    break;
+                case 'slider':
+                    drawSlider(item);
+                    break;
+                case 'selection':
+                    drawSelection(item);
+                    break;
+                case 'label':
+                default:
+                    drawLabel(item);
+                    break;
+            }
+        });
+
+        const backDefinition = MENU_DEFINITIONS.SETTINGS_MENU.footer[0];
         const backWidth = 200;
         const backHeight = 50;
         const backX = w / 2 - backWidth / 2;
         const backY = h - 90;
         const backHovered = pointer && this._isHovered(pointer, backX, backY, backWidth, backHeight);
 
-        this.drawButton(ctx, backX, backY, backWidth, backHeight, 'BACK', backHovered, 'default');
-        this.settingsButtons.push({ x: backX, y: backY, w: backWidth, h: backHeight, action: () => this.closeSettingsMenu() });
+        this.drawButton(ctx, backX, backY, backWidth, backHeight, backDefinition.text, backHovered, backDefinition.style);
+        this.settingsButtons.push({ x: backX, y: backY, w: backWidth, h: backHeight, action: this._resolveAction(backDefinition) });
     }
 
     _drawPauseMenu(ctx) {
@@ -792,10 +805,10 @@ export default class MenuManager {
         this.drawPanel(ctx, x - 10, y - 40, panelWidth, panelHeight);
 
         ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 16px "VT323", monospace';
+        ctx.font = this.styleConfig.fonts.infoTitle;
         ctx.textAlign = 'left';
         ctx.fillText('STATUS', x, y - 15);
-        ctx.font = '12px "VT323", monospace';
+        ctx.font = this.styleConfig.fonts.infoText;
 
         const displayStats = getFormattedStats(player);
         displayStats.forEach((stat, index) => {
@@ -871,17 +884,17 @@ export default class MenuManager {
             const cardX = x + index * (cardWidth + gap);
             const cardY = y;
             const isSelected = selectedCardId === card.id;
-            this.drawPanel(ctx, cardX, cardY, cardWidth, cardHeight, card.name);
+            this.drawPanel(ctx, cardX, cardY, cardWidth, cardHeight, card.name, 'card');
 
             ctx.fillStyle = '#ffffff';
-            ctx.font = this.styleConfig.fonts.small;
+            ctx.font = this.styleConfig.fonts.cardDescription;
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
             ctx.fillText(card.description, cardX + 16, cardY + 60, cardWidth - 32);
 
             if (card.rarity) {
                 ctx.fillStyle = '#00ffcc';
-                ctx.font = 'bold 14px "VT323", monospace';
+                ctx.font = this.styleConfig.fonts.cardRarity;
                 ctx.fillText(card.rarity.toUpperCase(), cardX + 16, cardY + 34);
             }
 
