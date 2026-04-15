@@ -76,9 +76,9 @@
         });
     }
 
-    _drawNotifications(ctx) {
-        const w = this.game.canvas.width;
-        const h = this.game.canvas.height;
+    _drawNotifications(ctx, width = this.game.canvas.width, height = this.game.canvas.height) {
+        const w = width;
+        const h = height;
 
         for (let i = this.notifications.length - 1; i >= 0; i--) {
             const n = this.notifications[i];
@@ -100,11 +100,11 @@
         }
     }
 
-    _drawXpBar(ctx) {
+    _drawXpBar(ctx, width = this.game.canvas.width) {
         const player = this.game.getModule('player');
         if (!player) return;
 
-        const w = this.game.canvas.width;
+        const w = width;
         const barHeight = 6;
         
         ctx.fillStyle = 'rgba(0, 20, 20, 0.8)';
@@ -138,6 +138,10 @@
     }
 
     update(deltaTime) {
+    }
+
+    _getUiScale() {
+        return Math.max(0.5, Math.min(2, Number(this.game?.settings?.ui?.scale ?? 1)));
     }
 
     drawCursor(ctx, inputModule, settings) {
@@ -216,7 +220,15 @@
         const h = this.game.canvas.height;
         const player = this.game.getModule('player');
         const director = this.game.getModule('director');
-        
+        const uiScale = this._getUiScale();
+        const virtualW = w / uiScale;
+        const virtualH = h / uiScale;
+
+        if (uiScale !== 1) {
+            ctx.save();
+            ctx.scale(uiScale, uiScale);
+        }
+
         ctx.fillStyle = '#00ffcc';
         ctx.font = 'bold 28px "VT323", monospace';
         ctx.textAlign = 'left';
@@ -255,54 +267,58 @@
 
         ctx.textAlign = 'right';
         ctx.font = '20px "VT323", monospace';
-        ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, w - 20, 40);
+        ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, virtualW - 20, 40);
         
         ctx.shadowBlur = 0;
 
         if (director) {
-                const totalSeconds = Math.floor(director.gameTime / 1000);
-                const mins = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-                const secs = (totalSeconds % 60).toString().padStart(2, '0');
-                const timeStr = `${mins}:${secs}`;
+            const totalSeconds = Math.floor(director.gameTime / 1000);
+            const mins = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const secs = (totalSeconds % 60).toString().padStart(2, '0');
+            const timeStr = `${mins}:${secs}`;
 
-                ctx.save();
-                ctx.textAlign = 'center';
+            ctx.save();
+            ctx.textAlign = 'center';
+            
+            let scale = 1;
+            let alpha = 1;
+
+            if (director.phaseChanged) {
+                const elapsed = director.phaseTimer || 0;
                 
-                let scale = 1;
-                let alpha = 1;
+                const pulse = Math.sin(Date.now() / 200) * 0.1;
+                scale = 1.15 + pulse;
+                alpha = 0.7 + Math.abs(Math.sin(Date.now() / 400) * 0.3);
 
-                if (director.phaseChanged) {
-                    const elapsed = director.phaseTimer || 0;
-                    
-                    const pulse = Math.sin(Date.now() / 200) * 0.1;
-                    scale = 1.15 + pulse;
-                    alpha = 0.7 + Math.abs(Math.sin(Date.now() / 400) * 0.3);
-
-                    if (elapsed > 5000) {
-                        director.phaseChanged = false;
-                    }
-                    director.phaseTimer = elapsed + 16;
+                if (elapsed > 5000) {
+                    director.phaseChanged = false;
                 }
+                director.phaseTimer = elapsed + 16;
+            }
 
-                ctx.translate(w / 2, h - 40);
-                ctx.scale(scale, scale);
-                ctx.globalAlpha = alpha;
+            ctx.translate(virtualW / 2, virtualH - 40);
+            ctx.scale(scale, scale);
+            ctx.globalAlpha = alpha;
 
-                ctx.fillStyle = '#00ffcc';
-                ctx.shadowBlur = 15 * scale;
-                ctx.shadowColor = '#00ffcc';
-                ctx.font = 'bold 30px "VT323", monospace';
-                ctx.fillText(timeStr, 0, 0);
+            ctx.fillStyle = '#00ffcc';
+            ctx.shadowBlur = 15 * scale;
+            ctx.shadowColor = '#00ffcc';
+            ctx.font = 'bold 30px "VT323", monospace';
+            ctx.fillText(timeStr, 0, 0);
 
-                ctx.font = '20px "VT323", monospace';
-                ctx.globalAlpha = alpha * 0.7;
-                ctx.fillText(director.getPhaseName().toUpperCase(), 0, 20);
+            ctx.font = '20px "VT323", monospace';
+            ctx.globalAlpha = alpha * 0.7;
+            ctx.fillText(director.getPhaseName().toUpperCase(), 0, 20);
 
-                ctx.restore();
+            ctx.restore();
         }
 
-        this._drawXpBar(ctx);
-        this._drawActiveBuffs(ctx);
-        this._drawNotifications(ctx);
+        this._drawXpBar(ctx, virtualW);
+        this._drawActiveBuffs(ctx, virtualW, virtualH);
+        this._drawNotifications(ctx, virtualW, virtualH);
+
+        if (uiScale !== 1) {
+            ctx.restore();
+        }
     }
 }

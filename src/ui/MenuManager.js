@@ -232,10 +232,13 @@ export default class MenuManager {
         ctx.restore();
     }
 
-    drawPanel(ctx, x, y, w, h, title = '', styleType = 'default') {
+    drawPanel(ctx, x, y, w, h, title = '', styleType = 'default', alphaOverride = null) {
         const style = this.styleConfig.panel[styleType] || this.styleConfig.panel.default;
 
         ctx.save();
+        if (alphaOverride !== null) {
+            ctx.globalAlpha = alphaOverride;
+        }
         ctx.fillStyle = style.fill;
         ctx.strokeStyle = style.stroke;
         ctx.lineWidth = 2;
@@ -245,16 +248,18 @@ export default class MenuManager {
         if (style.stroke !== 'transparent') {
             ctx.strokeRect(x, y, w, h);
         }
+        ctx.restore();
 
         if (title) {
+            ctx.save();
             ctx.fillStyle = this.styleConfig.colors.title;
             const titleFont = style.titleFont || this.styleConfig.fonts.title;
             ctx.font = titleFont;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
             ctx.fillText(title, x + w / 2, y + 20);
+            ctx.restore();
         }
-        ctx.restore();
     }
 
     renderMenu(ctx, menuKey, layout = {}) {
@@ -507,11 +512,21 @@ export default class MenuManager {
         const tabWidth = 220;
         const tabHeight = 52;
         const tabSpacing = 18;
-        const startX = (w - (tabWidth * 3 + tabSpacing * 2)) / 2;
+        const tabCount = MENU_DEFINITIONS.SETTINGS_MENU.tabs.length;
+        const startX = (w - (tabWidth * tabCount + tabSpacing * (tabCount - 1))) / 2;
         const tabY = 170;
         const pointer = this._getPointer() || this.mousePos;
+        const panelX = 80;
+        const panelY = 250;
+        const panelW = w - 160;
+        const panelH = h - panelY - 140;
+        const optionX = panelX + 30;
+        const swatchSize = 38;
+        const swatchSpacing = 16;
+        const sliderWidth = 360;
+        const sliderHeight = 10;
 
-        this.drawPanel(ctx, 0, 0, w, h, '', 'overlay');
+        this.drawPanel(ctx, 0, 0, w, h, '', 'overlay', 0.5);
 
         ctx.save();
         ctx.fillStyle = this.styleConfig.colors.title;
@@ -535,18 +550,9 @@ export default class MenuManager {
             this.settingsButtons.push({ x, y: tabY, w: tabWidth, h: tabHeight, action: this._resolveAction(tab) });
         });
 
-        const panelX = 80;
-        const panelY = 250;
-        const panelW = w - 160;
-        const panelH = h - panelY - 140;
-        this.drawPanel(ctx, panelX, panelY, panelW, panelH, '');
+        this.drawPanel(ctx, panelX, panelY, panelW, panelH, '', 'default', 0.75);
 
         let optionY = panelY + 40;
-        const optionX = panelX + 30;
-        const swatchSize = 38;
-        const swatchSpacing = 16;
-        const sliderWidth = 360;
-        const sliderHeight = 10;
 
         const drawToggle = (item) => {
             const value = this._getSettingsValue(item.path);
@@ -617,38 +623,47 @@ export default class MenuManager {
         const drawSlider = (item) => {
             const value = this._getSettingsValue(item.path);
             const displayValue = item.step < 1 ? value.toFixed(1) : value.toString();
-            ctx.fillStyle = this.styleConfig.colors.title;
-            ctx.font = this.styleConfig.fonts.label;
-            ctx.textAlign = 'left';
-            ctx.fillText(`${item.label}: ${displayValue}`, optionX, optionY + 8);
-            optionY += 30;
-
+            const sliderDisabled = this.settingsOrigin === 'menu' && item.id === 'uiScale';
             const trackX = optionX;
-            const trackY = optionY;
+            const trackY = optionY + 30;
             const progress = (value - item.min) / (item.max - item.min);
             const handleRadius = 10;
             const handleX = trackX + progress * sliderWidth;
             const isHovered = pointer && this._isHovered(pointer, trackX, trackY - handleRadius, sliderWidth, sliderHeight + handleRadius * 2);
 
+            ctx.fillStyle = sliderDisabled ? '#888' : this.styleConfig.colors.title;
+            ctx.font = this.styleConfig.fonts.label;
+            ctx.textAlign = 'left';
+            ctx.fillText(`${item.label}: ${displayValue}`, optionX, optionY + 8);
+
             ctx.save();
-            ctx.fillStyle = '#111';
+            ctx.fillStyle = sliderDisabled ? '#222' : '#111';
             ctx.fillRect(trackX, trackY, sliderWidth, sliderHeight);
-            ctx.strokeStyle = '#444';
+            ctx.strokeStyle = sliderDisabled ? '#555' : '#444';
             ctx.lineWidth = 2;
             ctx.strokeRect(trackX, trackY, sliderWidth, sliderHeight);
-            ctx.fillStyle = '#00ffcc';
+            ctx.fillStyle = sliderDisabled ? '#666' : '#00ffcc';
             ctx.fillRect(trackX, trackY, sliderWidth * progress, sliderHeight);
             ctx.restore();
 
             ctx.save();
-            ctx.fillStyle = '#00ffcc';
-            ctx.strokeStyle = isHovered ? '#ffffff' : '#88c8d0';
+            ctx.fillStyle = sliderDisabled ? '#999' : '#00ffcc';
+            ctx.strokeStyle = sliderDisabled ? '#aaaaaa' : (isHovered ? '#ffffff' : '#88c8d0');
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(handleX, trackY + sliderHeight / 2, handleRadius, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
             ctx.restore();
+
+            if (sliderDisabled) {
+                ctx.save();
+                ctx.font = '18px "VT323", monospace';
+                ctx.fillStyle = '#bbbbbb';
+                ctx.textAlign = 'left';
+                ctx.fillText('Works only from in-game settings.', optionX, trackY + sliderHeight + 24);
+                ctx.restore();
+            }
 
             const updateValue = (pointer) => {
                 let ratio = (pointer.x - trackX) / sliderWidth;
@@ -663,17 +678,17 @@ export default class MenuManager {
                 y: trackY - handleRadius,
                 w: sliderWidth,
                 h: sliderHeight + handleRadius * 2,
-                action: () => {
+                action: sliderDisabled ? () => {} : () => {
                     const pointer = this._getPointer() || this.mousePos;
                     if (!pointer) return;
                     updateValue(pointer);
                 },
-                drag: (pointer) => {
+                drag: sliderDisabled ? null : (pointer) => {
                     updateValue(pointer);
                 }
             });
 
-            optionY += 65;
+            optionY += 80;
         };
 
         const drawSelection = (item) => {

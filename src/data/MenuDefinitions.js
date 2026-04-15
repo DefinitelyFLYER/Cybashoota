@@ -7,6 +7,7 @@ export const MENU_DEFINITIONS = {
         tabs: [
             { id: 'performance', text: 'Performance', action: 'setSettingsTab', args: ['performance'], style: 'tab' },
             { id: 'gameplay', text: 'Gameplay', action: 'setSettingsTab', args: ['gameplay'], style: 'tab' },
+            { id: 'ui', text: 'UI', action: 'setSettingsTab', args: ['ui'], style: 'tab' },
             { id: 'audio', text: 'Audio (WIP)', action: 'setSettingsTab', args: ['audio'], style: 'tab' }
         ],
         body: {
@@ -84,6 +85,17 @@ export const MENU_DEFINITIONS = {
                     label: 'Crosshair Style',
                     path: ['gameplay', 'cursorSkin'],
                     options: ['classic', 'dot', 'circle']
+                }
+            ],
+            ui: [
+                {
+                    id: 'uiScale',
+                    type: 'slider',
+                    label: 'UI Scale',
+                    path: ['ui', 'scale'],
+                    min: 0.75,
+                    max: 1.5,
+                    step: 0.05
                 }
             ],
             audio: [

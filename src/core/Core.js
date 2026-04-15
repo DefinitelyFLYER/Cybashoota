@@ -25,6 +25,9 @@ export default class Game {
                 cursorSize: 1,
                 cursorSkin: 'classic'
             },
+            ui: {
+                scale: 1
+            },
             audio: {
                 // work in progress
             }
@@ -109,6 +112,9 @@ export default class Game {
             }
             if (stored.gameplay) {
                 this.settings.gameplay = { ...this.settings.gameplay, ...stored.gameplay };
+            }
+            if (stored.ui) {
+                this.settings.ui = { ...this.settings.ui, ...stored.ui };
             }
             if (stored.audio) {
                 this.settings.audio = { ...this.settings.audio, ...stored.audio };
