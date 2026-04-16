@@ -140,6 +140,53 @@
     update(deltaTime) {
     }
 
+    _drawHackHud(ctx, virtualW, virtualH) {
+        const hack = this.game.getModule('hack');
+        if (!hack) return;
+
+        const x = 20;
+        const y = virtualH - 110;
+        const width = 250;
+        const height = 70;
+        const barWidth = 200;
+        const barHeight = 10;
+
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(x, y, width, height);
+
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = 'bold 16px "VT323", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`HACK: ${hack.activeHack}`, x + 12, y + 24);
+        ctx.fillText(`CHARGES: ${hack.currentCharges}/${hack.maxCharges}`, x + 12, y + 46);
+
+        const cooldownY = y + 57;
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(x + 12, cooldownY, barWidth, barHeight);
+
+        if (hack.cooldownTimer > 0 && hack.cooldownDuration > 0) {
+            const progress = 1 - Math.min(1, Math.max(0, hack.cooldownTimer / hack.cooldownDuration));
+            ctx.fillStyle = '#00ffcc';
+            ctx.fillRect(x + 12, cooldownY, barWidth * progress, barHeight);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '13px "VT323", monospace';
+            ctx.fillText(`RECHARGING ${Math.ceil(hack.cooldownTimer / 1000)}s`, x + 12, cooldownY + 26);
+        } else {
+            ctx.fillStyle = '#00ffcc';
+            ctx.font = '13px "VT323", monospace';
+            ctx.fillText('READY', x + 12, cooldownY + 26);
+        }
+
+        ctx.restore();
+    }
+
     _getUiScale() {
         return Math.max(0.5, Math.min(2, Number(this.game?.settings?.ui?.scale ?? 1)));
     }
@@ -220,6 +267,7 @@
         const h = this.game.canvas.height;
         const player = this.game.getModule('player');
         const director = this.game.getModule('director');
+        const hack = this.game.getModule('hack');
         const uiScale = this._getUiScale();
         const virtualW = w / uiScale;
         const virtualH = h / uiScale;
@@ -313,6 +361,7 @@
             ctx.restore();
         }
 
+        this._drawHackHud(ctx, virtualW, virtualH);
         this._drawXpBar(ctx, virtualW);
         this._drawActiveBuffs(ctx, virtualW, virtualH);
         this._drawNotifications(ctx, virtualW, virtualH);

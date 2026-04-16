@@ -1,8 +1,11 @@
+import HackManager from '../systems/HackManager.js';
+
 export default class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.modules = new Map();
+        this.addModule('hack', new HackManager());
         this.lastTime = 0;
         this.isPaused = false;
         this.isGameOver = false;
