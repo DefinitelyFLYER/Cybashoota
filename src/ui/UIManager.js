@@ -152,7 +152,7 @@
         
         const color = gp.crosshairColor || '#00ffcc';
         const skin = gp.cursorSkin || 'classic'; 
-        const borderEnabled = gp.cursorBorderEnabled || false;
+        const borderEnabled = true;
         const borderColor = gp.cursorBorderColor || '#ffffff';
         const cursorWidth = Math.max(1, Number(gp.cursorWidth ?? 2));
         const cursorSize = Math.max(0.5, Number(gp.cursorSize ?? 1));
@@ -164,7 +164,6 @@
         ctx.save();
         ctx.lineCap = 'round';
 
-        console.log("Border enabled:", borderEnabled, "Color:", borderColor);
         const drawShape = (pathBuilder, isFill = false, borderOffset = 0) => {
             if (borderEnabled) {
                 ctx.beginPath();
