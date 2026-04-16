@@ -164,6 +164,7 @@
         ctx.save();
         ctx.lineCap = 'round';
 
+        console.log("Border enabled:", borderEnabled, "Color:", borderColor);
         const drawShape = (pathBuilder, isFill = false, borderOffset = 0) => {
             if (borderEnabled) {
                 ctx.beginPath();
