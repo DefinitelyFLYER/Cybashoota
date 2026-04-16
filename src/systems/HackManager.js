@@ -1,9 +1,11 @@
+import { HACK_DATA, HACK_UNLOCKED, GLITCH_PHASES } from '../data/HackData.js';
+
 export default class HackManager {
     constructor() {
         this.HACK_TYPES = {
-            OVERLOAD: {
-                id: 'OVERLOAD',
-                name: 'System Overload',
+            [HACK_DATA.OVERLOAD.id]: {
+                id: HACK_DATA.OVERLOAD.id,
+                name: HACK_DATA.OVERLOAD.name,
                 execute: (game) => {
                     const enemyManager = game.getModule('enemies');
                     if (!enemyManager || !enemyManager.enemies) return false;
@@ -16,11 +18,45 @@ export default class HackManager {
 
                     return true;
                 }
+            },
+            [HACK_DATA.GLITCH_EM.id]: {
+                id: HACK_DATA.GLITCH_EM.id,
+                name: HACK_DATA.GLITCH_EM.name,
+                execute: (game) => {
+                    const enemyManager = game.getModule('enemies');
+                    const input = game.getModule('input');
+                    const player = game.getModule('player');
+                    if (!enemyManager || !enemyManager.enemies || enemyManager.enemies.length === 0 || !input || !player) return false;
+
+                    const mouseX = input.mouseX || 0;
+                    const mouseY = input.mouseY || 0;
+                    let closestEnemy = null;
+                    let closestDistance = Infinity;
+
+                    for (const enemy of enemyManager.enemies) {
+                        if (enemy.currentHp <= 0) continue;
+
+                        const screenX = enemy.x - player.pos.x + game.center.x;
+                        const screenY = enemy.y - player.pos.y + game.center.y;
+                        const dx = screenX - mouseX;
+                        const dy = screenY - mouseY;
+                        const distance = dx * dx + dy * dy;
+
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestEnemy = enemy;
+                        }
+                    }
+
+                    if (!closestEnemy) return false;
+                    closestEnemy.glitchPhase = GLITCH_PHASES.PRIMARY;
+                    return true;
+                }
             }
         };
 
-        this.activeHack = this.HACK_TYPES.OVERLOAD.id;
-        this.unlockedHacks = [this.HACK_TYPES.OVERLOAD.id];
+        this.activeHack = HACK_DATA.OVERLOAD.id;
+        this.unlockedHacks = HACK_UNLOCKED;
 
         this.currentCharges = 1;
         this.maxCharges = 1;

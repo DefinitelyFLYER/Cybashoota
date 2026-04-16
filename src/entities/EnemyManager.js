@@ -1,4 +1,5 @@
 import { ENEMY_TYPES } from '../data/EnemyTypes.js';
+import { GLITCH_EFFECT_CONFIG, GLITCH_PHASES } from '../data/HackData.js';
 
 export default class EnemyManager {
     constructor() {
@@ -49,6 +50,14 @@ export default class EnemyManager {
             this._checkDroneCollisions(e, player);
             
             this._checkProjectileCollisions(e);
+
+            if (e.glitchPhase === GLITCH_PHASES.PRIMARY || e.glitchPhase === GLITCH_PHASES.SECONDARY) {
+                const particles = this.game.getModule('particles');
+                const phaseMultiplier = e.glitchPhase === GLITCH_PHASES.SECONDARY ? 0.5 : 1;
+                const dotDamage = GLITCH_EFFECT_CONFIG.carrierDotDamagePerMs * deltaTime * phaseMultiplier;
+                e.currentHp = Math.max(0, e.currentHp - dotDamage);
+                if (particles) particles.spawnGlitchTick(e.x, e.y, e.size * GLITCH_EFFECT_CONFIG.carrierTickRadiusScale);
+            }
 
             if (e.currentHp <= 0) {
                 this._handleEnemyDeath(e, i);
@@ -369,6 +378,22 @@ export default class EnemyManager {
         const director = this.game.getModule('director');
         const powerUpMgr = this.game.getModule('powerups');
 
+        if (e.glitchPhase === GLITCH_PHASES.PRIMARY) {
+            const radiusPx = GLITCH_EFFECT_CONFIG.spreadRadiusPx;
+            for (const other of this.enemies) {
+                if (other === e || other.currentHp <= 0) continue;
+
+                const dx = other.x - e.x;
+                const dy = other.y - e.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= radiusPx) {
+                    other.currentHp = Math.max(0, other.currentHp - GLITCH_EFFECT_CONFIG.spreadDamage);
+                    other.glitchPhase = GLITCH_PHASES.SECONDARY;
+                    if (particles) particles.createGlitchEffect(other.x, other.y);
+                }
+            }
+        }
+
         if (ui) ui.addScore(e.scoreValue);
         if (particles) particles.emit(e.x, e.y, e.color || '#ffffff', 15);
         if (xpMgr && director && director.currentPhase) {
@@ -403,7 +428,8 @@ export default class EnemyManager {
             y: worldY,
             maxHp: Math.ceil(baseConfig.hp * this.activePhase.hpMultiplier),
             currentHp: Math.ceil(baseConfig.hp * this.activePhase.hpMultiplier),
-            speed: baseConfig.speed * this.activePhase.speedMultiplier
+            speed: baseConfig.speed * this.activePhase.speedMultiplier,
+            glitchPhase: GLITCH_PHASES.NORMAL
         });
     }
 
@@ -451,7 +477,13 @@ export default class EnemyManager {
             const drawY = e.y - player.pos.y + this.game.center.y;
 
             ctx.save();
-            if (e.renderType === 'sprite' && this.sprites.has(e.type)) {
+            const isGlitch1 = e.glitchPhase === GLITCH_PHASES.PRIMARY;
+            const isGlitch2 = e.glitchPhase === GLITCH_PHASES.SECONDARY;
+
+            if (isGlitch1 || isGlitch2) {
+                const alphaScale = isGlitch2 ? 0.75 : 1;
+                this._drawGlitchPhaseOne(ctx, drawX, drawY, e, alphaScale);
+            } else if (e.renderType === 'sprite' && this.sprites.has(e.type)) {
                 const img = this.sprites.get(e.type);
                 ctx.drawImage(img, drawX - e.size/2, drawY - e.size/2, e.size, e.size);
             } else {
@@ -496,6 +528,37 @@ export default class EnemyManager {
             if (distSq < radius * radius) return true;
         }
         return false;
+    }
+
+    _drawGlitchPhaseOne(ctx, x, y, e, alphaScale = 1) {
+        const visual = GLITCH_EFFECT_CONFIG.visual.primary;
+        const colors = GLITCH_EFFECT_CONFIG.visual.colors;
+        const jitter1 = (Math.random() - 0.5) * visual.jitter;
+        const jitter2 = (Math.random() - 0.5) * visual.jitter;
+
+        ctx.save();
+        ctx.globalAlpha = visual.alpha * alphaScale;
+        ctx.fillStyle = colors.cyan;
+        ctx.strokeStyle = colors.cyan;
+        ctx.lineWidth = this.outlineWidth;
+        this._drawShape(ctx, x + jitter1, y + jitter1, e);
+        ctx.restore();
+
+        ctx.save();
+        ctx.globalAlpha = visual.alpha * alphaScale;
+        ctx.fillStyle = colors.magenta;
+        ctx.strokeStyle = colors.magenta;
+        ctx.lineWidth = this.outlineWidth;
+        this._drawShape(ctx, x + jitter2, y + jitter2, e);
+        ctx.restore();
+
+        ctx.save();
+        ctx.globalAlpha = (Math.random() > visual.whiteFlashChance ? 1 : 0.4) * alphaScale;
+        ctx.fillStyle = colors.white;
+        ctx.strokeStyle = colors.white;
+        ctx.lineWidth = this.outlineWidth;
+        this._drawShape(ctx, x, y, e);
+        ctx.restore();
     }
 
     _drawShape(ctx, x, y, e) {
