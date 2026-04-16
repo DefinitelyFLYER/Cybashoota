@@ -191,10 +191,17 @@
         return Math.max(0.5, Math.min(2, Number(this.game?.settings?.ui?.scale ?? 1)));
     }
 
-    drawCursor(ctx, inputModule, settings) {
+    drawCursor(ctx, inputModule, settings, projectiles) {
         if (!inputModule || !settings) return;
 
-        const { mouseX: x = 0, mouseY: y = 0 } = inputModule;
+        const gamepad = this.game.getModule('gamepad');
+        const useGamepadCursor = gamepad && gamepad.gamepadIndex !== null && projectiles;
+        const x = useGamepadCursor && typeof projectiles.crosshairX === 'number'
+            ? projectiles.crosshairX
+            : inputModule.mouseX || 0;
+        const y = useGamepadCursor && typeof projectiles.crosshairY === 'number'
+            ? projectiles.crosshairY
+            : inputModule.mouseY || 0;
         const gp = settings.gameplay || {};
         
         const color = gp.crosshairColor || '#00ffcc';

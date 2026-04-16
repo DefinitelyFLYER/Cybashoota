@@ -224,8 +224,9 @@ export default class Game {
 
         const ui = this.getModule('ui');
         const input = this.getModule('input');
+        const projectiles = this.getModule('projectiles');
         if (ui && ui.drawCursor && input) {
-            ui.drawCursor(this.ctx, input, this.settings);
+            ui.drawCursor(this.ctx, input, this.settings, projectiles);
         }
     }
 

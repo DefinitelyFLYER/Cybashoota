@@ -5,11 +5,15 @@ export default class InputHandler {
         this.mouseY = 0;
         this.isMouseDown = false;
         this.isHackPressed = false;
+        this.isHackCyclePressed = false;
         this.lastMouseMoveTime = 0;
 
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 this.isHackPressed = true;
+            }
+            if (e.code === 'KeyQ') {
+                this.isHackCyclePressed = true;
             }
             this.keys[e.code] = true;
         });
