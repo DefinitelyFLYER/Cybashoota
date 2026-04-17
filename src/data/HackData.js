@@ -2,32 +2,38 @@ export const HACK_DATA = {
     OVERLOAD: {
         id: 'OVERLOAD',
         name: 'System Overload',
-        unlocked: true
+        unlocked: false
     },
     GLITCH_EM: {
         id: 'GLITCH_EM',
         name: 'Glitch EM',
-        unlocked: true
+        unlocked: false
     },
     SIGNAL_JAMMER: {
         id: 'SIGNAL_JAMMER',
         name: 'Signal Jammer',
-        unlocked: true,
+        unlocked: false,
         durationMs: 6000
     },
     GHOST_PROTOCOL: {
         id: 'GHOST_PROTOCOL',
         name: 'Ghost Protocol',
-        unlocked: true,
+        unlocked: false,
         durationMs: 5000,
         speedBoostMultiplier: 1.5,
         alpha: 0.4
     }
 };
 
-export const HACK_UNLOCKED = Object.values(HACK_DATA)
+export const getUnlockedHackIds = () => Object.values(HACK_DATA)
     .filter((hack) => hack.unlocked)
     .map((hack) => hack.id);
+
+export const unlockHack = (hackId) => {
+    if (HACK_DATA[hackId]) {
+        HACK_DATA[hackId].unlocked = true;
+    }
+};
 
 export const GLITCH_PHASES = {
     NORMAL: 0,

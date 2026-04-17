@@ -2,6 +2,7 @@
 import { getFormattedStats } from '../ui/Infobox.js';
 import { DRONE_TYPES } from '../data/DroneTypes.js';
 import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
+import { getUnlockedHackIds } from '../data/HackData.js';
 
 export default class UpgradeManager {
     constructor() {
@@ -127,12 +128,18 @@ export default class UpgradeManager {
     getAvailableUpgrades(count = 3) {
         const player = this.game.getModule('player');
         const luck = player ? player.getStat('luck') : 1.0;
+        const unlockedHacks = getUnlockedHackIds();
+        const hackCapacityFull = player ? unlockedHacks.length >= Math.max(1, Math.floor(player.getStat('maxHackSlots'))) : true;
 
         let pool = UPGRADES.filter(upgrade => {
             const currentCount = this.inventory[upgrade.id] || 0;
             if (upgrade.unique && currentCount > 0) return false;
             if (upgrade.maxStack && currentCount >= upgrade.maxStack) return false;
             if (upgrade.requirements && !upgrade.requirements(player, this)) return false;
+            if (upgrade.unlockHackId) {
+                if (unlockedHacks.includes(upgrade.unlockHackId)) return false;
+                if (hackCapacityFull) return false;
+            }
             return true;
         });
 
@@ -212,7 +219,7 @@ export default class UpgradeManager {
         const upgrade = UPGRADES.find(u => u.id === upgradeId);
         if (upgrade) {
             this.inventory[upgradeId] = (this.inventory[upgradeId] || 0) + 1;
-            upgrade.onApply(player);
+            upgrade.onApply(player, this.game);
         }
     }
 

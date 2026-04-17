@@ -142,7 +142,7 @@
 
     _drawHackHud(ctx, virtualW, virtualH) {
         const hack = this.game.getModule('hack');
-        if (!hack) return;
+        if (!hack || !hack.unlockedHacks || hack.unlockedHacks.length === 0 || !hack.activeHack) return;
 
         const x = 20;
         const y = virtualH - 110;
@@ -163,10 +163,10 @@
         ctx.fillStyle = '#00ffcc';
         ctx.font = 'bold 16px "VT323", monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`HACK: ${hack.activeHack}`, x + 12, y + 24);
-        ctx.fillText(`CHARGES: ${hack.currentCharges}/${hack.maxCharges}`, x + 12, y + 46);
+        ctx.textBaseline = 'top';
+        ctx.fillText(`HACK: ${hack.activeHack}`, x + 12, y + 12);
 
-        const cooldownY = y + 57;
+        const cooldownY = y + 34;
         ctx.fillStyle = 'rgba(255,255,255,0.15)';
         ctx.fillRect(x + 12, cooldownY, barWidth, barHeight);
 
@@ -177,11 +177,11 @@
 
             ctx.fillStyle = '#ffffff';
             ctx.font = '13px "VT323", monospace';
-            ctx.fillText(`RECHARGING ${Math.ceil(hack.cooldownTimer / 1000)}s`, x + 12, cooldownY + 26);
+            ctx.fillText(`RECHARGING ${Math.ceil(hack.cooldownTimer / 1000)}s`, x + 12, cooldownY + 16);
         } else {
             ctx.fillStyle = '#00ffcc';
             ctx.font = '13px "VT323", monospace';
-            ctx.fillText('READY', x + 12, cooldownY + 26);
+            ctx.fillText('READY', x + 12, cooldownY + 16);
         }
 
         ctx.restore();

@@ -1,4 +1,4 @@
-import { HACK_DATA, HACK_UNLOCKED, GLITCH_PHASES } from '../data/HackData.js';
+import { HACK_DATA, getUnlockedHackIds, GLITCH_PHASES } from '../data/HackData.js';
 
 export default class HackManager {
     constructor() {
@@ -84,11 +84,9 @@ export default class HackManager {
             }
         };
 
-        this.activeHack = HACK_DATA.OVERLOAD.id;
-        this.unlockedHacks = HACK_UNLOCKED;
+        this.unlockedHacks = getUnlockedHackIds();
+        this.activeHack = this.unlockedHacks.length > 0 ? this.unlockedHacks[0] : null;
 
-        this.currentCharges = 1;
-        this.maxCharges = 1;
         this.cooldownTimer = 0;
         this.cooldownDuration = 10000;
     }
@@ -97,7 +95,34 @@ export default class HackManager {
         this.game = game;
     }
 
+    unlockHack(hackId) {
+        if (!HACK_DATA[hackId]) return;
+        HACK_DATA[hackId].unlocked = true;
+
+        const player = this.game?.getModule('player');
+        const maxSlots = player ? Math.max(1, Math.floor(player.getStat('maxHackSlots'))) : 1;
+        const availableHacks = getUnlockedHackIds().slice(0, maxSlots);
+
+        this.unlockedHacks = availableHacks;
+        this.activeHack = hackId;
+    }
+
     update(deltaTime) {
+        const player = this.game.getModule('player');
+        if (player) {
+            const maxSlots = Math.max(1, Math.floor(player.getStat('maxHackSlots')));
+            const availableHacks = getUnlockedHackIds().slice(0, maxSlots);
+            if (availableHacks.length > 0) {
+                this.unlockedHacks = availableHacks;
+                if (!this.unlockedHacks.includes(this.activeHack)) {
+                    this.activeHack = this.unlockedHacks[0];
+                }
+            } else {
+                this.unlockedHacks = [];
+                this.activeHack = null;
+            }
+        }
+
         const input = this.game.getModule('input');
         const gamepad = this.game.getModule('gamepad');
         const hackPressed = (input && input.isHackPressed) || (gamepad && gamepad.justPressed && gamepad.justPressed.X);
@@ -119,13 +144,12 @@ export default class HackManager {
             this.cooldownTimer -= deltaTime;
             if (this.cooldownTimer <= 0) {
                 this.cooldownTimer = 0;
-                this.currentCharges = Math.min(this.maxCharges, this.currentCharges + 1);
             }
         }
     }
 
     executeHack() {
-        if (this.currentCharges <= 0 || !this.activeHack) {
+        if (this.cooldownTimer > 0 || !this.activeHack) {
             return false;
         }
 
@@ -139,7 +163,6 @@ export default class HackManager {
             return false;
         }
 
-        this.currentCharges -= 1;
         this.cooldownTimer = this.cooldownDuration;
         return true;
     }

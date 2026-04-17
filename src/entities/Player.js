@@ -21,7 +21,8 @@ export default class Player {
             critMultiplier: 2.0,
             magnetRange: 0.75,
             xpMultiplier: 1.0,
-            luck: 1.0
+            luck: 1.0,
+            maxHackSlots: 0
         };
 
         this.multipliers = {
@@ -32,7 +33,8 @@ export default class Player {
             critMultiplier: 1.0,
             magnetRange: 1.0,
             xpMultiplier: 1.0,
-            luck: 1.0
+            luck: 1.0,
+            maxHackSlots: 1.0
         };
 
         this.stats = {
@@ -49,7 +51,8 @@ export default class Player {
             ricochetCount: 0,
             upgradeOptions: 3,
             rerolls: 3,
-            maxDrones: 1
+            maxDrones: 1,
+            maxHackSlots: 0
         };
         
         this.sprite = new Image();
@@ -111,7 +114,8 @@ export default class Player {
             critMultiplier: 1.0,
             magnetRange: 1.0,
             xpMultiplier: 1.0,
-            luck: 1.0
+            luck: 1.0,
+            maxHackSlots: 1.0
         };
         this.stats = {
             hp: 2,
@@ -127,7 +131,8 @@ export default class Player {
             ricochetCount: 0,
             upgradeOptions: 3,
             rerolls: 3,
-            maxDrones: 1
+            maxDrones: 1,
+            maxHackSlots: 0
         };
         this.weaponAnchorDist = 5;
         this.weaponAngle = 0;

@@ -370,6 +370,74 @@ export const UPGRADES = [
         }
     },
     {
+        id: 'extra_hack_capacity',
+        name: 'Expanded Hack Matrix',
+        description: 'Increases your maximum active hack capacity by 1.',
+        rarity: 'Legendary',
+        tags: ['utility', 'hack'],
+        weight: 2,
+        unique: true,
+        onApply: (player) => {
+            player.baseStats.maxHackSlots += 1;
+        }
+    },
+    {
+        id: 'unlock_overload',
+        name: 'Unlock hack: Overload',
+        description: 'Overload hack damages all visible enemies.',
+        rarity: 'Epic',
+        tags: ['utility', 'hack', 'unlock'],
+        weight: 25,
+        unique: true,
+        unlockHackId: 'OVERLOAD',
+        onApply: (player, game) => {
+            const hackMgr = game?.getModule('hack');
+            if (hackMgr?.unlockHack) hackMgr.unlockHack('OVERLOAD');
+        }
+    },
+    {
+        id: 'unlock_glitch_em',
+        name: 'Unlock hack: Glitch\'em',
+        description: 'Glitch\'em applies glitch effect onto a targeted enemy.',
+        rarity: 'Epic',
+        tags: ['utility', 'hack', 'unlock'],
+        weight: 25,
+        unique: true,
+        unlockHackId: 'GLITCH_EM',
+        onApply: (player, game) => {
+            const hackMgr = game?.getModule('hack');
+            if (hackMgr?.unlockHack) hackMgr.unlockHack('GLITCH_EM');
+        }
+    },
+    {
+        id: 'unlock_signal_jammer',
+        name: 'Unlock hack: Signal Jammer',
+        description: 'Signal Jammer makes ranged enemies stop shooting for a short duration.',
+        rarity: 'Epic',
+        tags: ['utility', 'hack', 'unlock'],
+        weight: 25,
+        unique: true,
+        unlockHackId: 'SIGNAL_JAMMER',
+        onApply: (player, game) => {
+            const hackMgr = game?.getModule('hack');
+            if (hackMgr?.unlockHack) hackMgr.unlockHack('SIGNAL_JAMMER');
+        }
+    },
+    {
+        id: 'unlock_ghost_protocol',
+        name: 'Unlock hack: Ghost Protocol',
+        description: 'Ghost Protocol makes you invincible and faster for a short duration.',
+        rarity: 'Epic',
+        tags: ['utility', 'hack', 'unlock'],
+        weight: 25,
+        unique: true,
+        unlockHackId: 'GHOST_PROTOCOL',
+        onApply: (player, game) => {
+            const hackMgr = game?.getModule('hack');
+            if (hackMgr?.unlockHack) hackMgr.unlockHack('GHOST_PROTOCOL');
+        }
+    },
+    {
         id: 'EXTRA_DRONE_CAPACITY',
         name: 'Mothership Protocol',
         description: 'Increases your maximum drone capacity by 1.',
