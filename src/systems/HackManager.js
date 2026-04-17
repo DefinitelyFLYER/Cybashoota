@@ -52,6 +52,18 @@ export default class HackManager {
                     closestEnemy.glitchPhase = GLITCH_PHASES.PRIMARY;
                     return true;
                 }
+            },
+            [HACK_DATA.GHOST_PROTOCOL.id]: {
+                id: HACK_DATA.GHOST_PROTOCOL.id,
+                name: HACK_DATA.GHOST_PROTOCOL.name,
+                execute: (game) => {
+                    const player = game.getModule('player');
+                    if (!player) return false;
+
+                    player.ghostActive = true;
+                    player.ghostTimer = HACK_DATA.GHOST_PROTOCOL.durationMs;
+                    return true;
+                }
             }
         };
 

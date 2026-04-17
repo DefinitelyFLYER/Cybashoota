@@ -187,6 +187,8 @@ export default class EnemyManager {
     }
 
     _checkPlayerCollision(e, player) {
+        if (player.ghostActive) return;
+
         const dxP = player.pos.x - e.x;
         const dyP = player.pos.y - e.y;
         const distP = Math.sqrt(dxP * dxP + dyP * dyP);

@@ -8,6 +8,14 @@ export const HACK_DATA = {
         id: 'GLITCH_EM',
         name: 'Glitch EM',
         unlocked: true
+    },
+    GHOST_PROTOCOL: {
+        id: 'GHOST_PROTOCOL',
+        name: 'Ghost Protocol',
+        unlocked: true,
+        durationMs: 5000,
+        speedBoostMultiplier: 1.5,
+        alpha: 0.4
     }
 };
 
