@@ -377,9 +377,9 @@ export default class UpgradeManager {
         const infoX = 40;
         const infoY = height / 2 - 150;
         if (player) {
-            this._drawStatsInfobox(ctx, infoX, infoY, player);
+            const infoboxBottomY = this._drawStatsInfobox(ctx, infoX, infoY, player);
             if (player.stats.rerolls > 0) {
-                this._drawRerollButton(ctx, player, infoX, infoY + 380);
+                this._drawRerollButton(ctx, player, infoX, infoboxBottomY + 20);
             }
         }
         const bottomY = this._drawCards(ctx, width, height);
@@ -532,13 +532,14 @@ export default class UpgradeManager {
     }
 
     _drawStatsInfobox(ctx, x, y, player) {
-        const rowH = 22; const panelW = 220; const panelH = 400;
+        const rowH = 22; const panelW = 220;
+        const displayStats = getFormattedStats(player);
+        const panelH = displayStats.length * rowH + 50;
         const fonts = this._getMenuFonts();
         ctx.save(); ctx.fillStyle = 'rgba(0, 40, 40, 0.4)'; ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
         ctx.strokeRect(x - 10, y - 40, panelW, panelH); ctx.fillRect(x - 10, y - 40, panelW, panelH);
         ctx.fillStyle = '#00ffcc'; ctx.font = fonts.infoTitle; ctx.textAlign = 'left';
         ctx.fillText("STATUS", x, y - 15); ctx.font = fonts.infoText;
-        const displayStats = getFormattedStats(player);
         displayStats.forEach((s, i) => {
             const curY = y + (i * rowH);
             ctx.fillStyle = '#00ffcc'; ctx.fillText(s.label, x, curY);
@@ -546,6 +547,7 @@ export default class UpgradeManager {
             ctx.fillText(s.val, x + panelW - 30, curY); ctx.textAlign = 'left';
         });
         ctx.restore();
+        return y - 40 + panelH;
     }
 
     _getRarityColor(rarity) {
