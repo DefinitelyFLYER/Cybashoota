@@ -437,6 +437,7 @@ export default class EnemyManager {
 
     _handleRangedAttack(e, player, deltaTime) {
         if (!e.ranged) return;
+        if (this.game.isSignalJammed) return;
         
         if (e.shootTimer === undefined) e.shootTimer = 0;
         e.shootTimer += deltaTime;

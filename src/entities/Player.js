@@ -350,6 +350,17 @@ export default class Player {
 
         if (!this.ghostActive && this.invulnerable > 0 && Math.floor(Date.now() / 100) % 2 === 0) return;
 
+        if (this.game.isSignalJammed) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.18)';
+            ctx.lineWidth = 10;
+            ctx.setLineDash([18, 14]);
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, this.size * 0.9, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
         ctx.save();
         ctx.translate(screenX, screenY);
         ctx.scale(this.facing, 1);

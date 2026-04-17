@@ -53,6 +53,23 @@ export default class HackManager {
                     return true;
                 }
             },
+            [HACK_DATA.SIGNAL_JAMMER.id]: {
+                id: HACK_DATA.SIGNAL_JAMMER.id,
+                name: HACK_DATA.SIGNAL_JAMMER.name,
+                execute: (game) => {
+                    if (!game) return false;
+                    const projectileManager = game.getModule('projectiles');
+                    if (projectileManager) {
+                        projectileManager.projectiles = [];
+                        projectileManager.enemyProjectiles = [];
+                    }
+                    game.isSignalJammed = true;
+                    setTimeout(() => {
+                        if (game) game.isSignalJammed = false;
+                    }, HACK_DATA.SIGNAL_JAMMER.durationMs);
+                    return true;
+                }
+            },
             [HACK_DATA.GHOST_PROTOCOL.id]: {
                 id: HACK_DATA.GHOST_PROTOCOL.id,
                 name: HACK_DATA.GHOST_PROTOCOL.name,

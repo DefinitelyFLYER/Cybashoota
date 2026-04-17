@@ -9,6 +9,12 @@ export const HACK_DATA = {
         name: 'Glitch EM',
         unlocked: true
     },
+    SIGNAL_JAMMER: {
+        id: 'SIGNAL_JAMMER',
+        name: 'Signal Jammer',
+        unlocked: true,
+        durationMs: 6000
+    },
     GHOST_PROTOCOL: {
         id: 'GHOST_PROTOCOL',
         name: 'Ghost Protocol',

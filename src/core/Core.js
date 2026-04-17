@@ -38,6 +38,7 @@ export default class Game {
 
         this.pauseResumeCooldownTimer = 0;
         this.pauseResumeCooldownDuration = 3000;
+        this.isSignalJammed = false;
 
         this._loadPersistentSettings();
         this._resizeCanvas();
@@ -103,6 +104,7 @@ export default class Game {
         this.isPaused = false;
         this.isGameOver = false;
         this.pauseResumeCooldownTimer = 0;
+        this.isSignalJammed = false;
     }
 
     _loadPersistentSettings() {
