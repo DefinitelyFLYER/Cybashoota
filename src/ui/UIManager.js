@@ -140,19 +140,73 @@
     update(deltaTime) {
     }
 
+    _drawHackHud(ctx, virtualW, virtualH) {
+        const hack = this.game.getModule('hack');
+        if (!hack || !hack.unlockedHacks || hack.unlockedHacks.length === 0 || !hack.activeHack) return;
+
+        const x = 20;
+        const y = virtualH - 110;
+        const width = 250;
+        const height = 70;
+        const barWidth = 200;
+        const barHeight = 10;
+
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(x, y, width, height);
+
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = 'bold 16px "VT323", monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`HACK: ${hack.activeHack}`, x + 12, y + 12);
+
+        const cooldownY = y + 34;
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(x + 12, cooldownY, barWidth, barHeight);
+
+        if (hack.cooldownTimer > 0 && hack.cooldownDuration > 0) {
+            const progress = 1 - Math.min(1, Math.max(0, hack.cooldownTimer / hack.cooldownDuration));
+            ctx.fillStyle = '#00ffcc';
+            ctx.fillRect(x + 12, cooldownY, barWidth * progress, barHeight);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '13px "VT323", monospace';
+            ctx.fillText(`RECHARGING ${Math.ceil(hack.cooldownTimer / 1000)}s`, x + 12, cooldownY + 16);
+        } else {
+            ctx.fillStyle = '#00ffcc';
+            ctx.font = '13px "VT323", monospace';
+            ctx.fillText('READY', x + 12, cooldownY + 16);
+        }
+
+        ctx.restore();
+    }
+
     _getUiScale() {
         return Math.max(0.5, Math.min(2, Number(this.game?.settings?.ui?.scale ?? 1)));
     }
 
-    drawCursor(ctx, inputModule, settings) {
+    drawCursor(ctx, inputModule, settings, projectiles) {
         if (!inputModule || !settings) return;
 
-        const { mouseX: x = 0, mouseY: y = 0 } = inputModule;
+        const gamepad = this.game.getModule('gamepad');
+        const useGamepadCursor = gamepad && gamepad.gamepadIndex !== null && projectiles;
+        const x = useGamepadCursor && typeof projectiles.crosshairX === 'number'
+            ? projectiles.crosshairX
+            : inputModule.mouseX || 0;
+        const y = useGamepadCursor && typeof projectiles.crosshairY === 'number'
+            ? projectiles.crosshairY
+            : inputModule.mouseY || 0;
         const gp = settings.gameplay || {};
         
         const color = gp.crosshairColor || '#00ffcc';
         const skin = gp.cursorSkin || 'classic'; 
-        const borderEnabled = gp.cursorBorderEnabled || false;
+        const borderEnabled = true;
         const borderColor = gp.cursorBorderColor || '#ffffff';
         const cursorWidth = Math.max(1, Number(gp.cursorWidth ?? 2));
         const cursorSize = Math.max(0.5, Number(gp.cursorSize ?? 1));
@@ -164,7 +218,6 @@
         ctx.save();
         ctx.lineCap = 'round';
 
-        console.log("Border enabled:", borderEnabled, "Color:", borderColor);
         const drawShape = (pathBuilder, isFill = false, borderOffset = 0) => {
             if (borderEnabled) {
                 ctx.beginPath();
@@ -221,6 +274,7 @@
         const h = this.game.canvas.height;
         const player = this.game.getModule('player');
         const director = this.game.getModule('director');
+        const hack = this.game.getModule('hack');
         const uiScale = this._getUiScale();
         const virtualW = w / uiScale;
         const virtualH = h / uiScale;
@@ -314,6 +368,7 @@
             ctx.restore();
         }
 
+        this._drawHackHud(ctx, virtualW, virtualH);
         this._drawXpBar(ctx, virtualW);
         this._drawActiveBuffs(ctx, virtualW, virtualH);
         this._drawNotifications(ctx, virtualW, virtualH);

@@ -1,8 +1,11 @@
+import HackManager from '../systems/HackManager.js';
+
 export default class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.modules = new Map();
+        this.addModule('hack', new HackManager());
         this.lastTime = 0;
         this.isPaused = false;
         this.isGameOver = false;
@@ -18,8 +21,8 @@ export default class Game {
                 autoFire: false,
                 resumeCooldown: true,
                 crosshairColor: '#00ffcc',
-                cursorBorderEnabled: false,
-                cursorBorderColor: '#ffffff',
+                cursorBorderEnabled: true,
+                cursorBorderColor: '#000',
                 cursorBorderWidth: 4,
                 cursorWidth: 2,
                 cursorSize: 1,
@@ -35,6 +38,7 @@ export default class Game {
 
         this.pauseResumeCooldownTimer = 0;
         this.pauseResumeCooldownDuration = 3000;
+        this.isSignalJammed = false;
 
         this._loadPersistentSettings();
         this._resizeCanvas();
@@ -100,6 +104,7 @@ export default class Game {
         this.isPaused = false;
         this.isGameOver = false;
         this.pauseResumeCooldownTimer = 0;
+        this.isSignalJammed = false;
     }
 
     _loadPersistentSettings() {
@@ -221,8 +226,9 @@ export default class Game {
 
         const ui = this.getModule('ui');
         const input = this.getModule('input');
+        const projectiles = this.getModule('projectiles');
         if (ui && ui.drawCursor && input) {
-            ui.drawCursor(this.ctx, input, this.settings);
+            ui.drawCursor(this.ctx, input, this.settings, projectiles);
         }
     }
 

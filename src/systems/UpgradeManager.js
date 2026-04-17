@@ -2,6 +2,7 @@
 import { getFormattedStats } from '../ui/Infobox.js';
 import { DRONE_TYPES } from '../data/DroneTypes.js';
 import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
+import { getUnlockedHackIds } from '../data/HackData.js';
 
 export default class UpgradeManager {
     constructor() {
@@ -127,12 +128,18 @@ export default class UpgradeManager {
     getAvailableUpgrades(count = 3) {
         const player = this.game.getModule('player');
         const luck = player ? player.getStat('luck') : 1.0;
+        const unlockedHacks = getUnlockedHackIds();
+        const hackCapacityFull = player ? unlockedHacks.length >= Math.max(1, Math.floor(player.getStat('maxHackSlots'))) : true;
 
         let pool = UPGRADES.filter(upgrade => {
             const currentCount = this.inventory[upgrade.id] || 0;
             if (upgrade.unique && currentCount > 0) return false;
             if (upgrade.maxStack && currentCount >= upgrade.maxStack) return false;
             if (upgrade.requirements && !upgrade.requirements(player, this)) return false;
+            if (upgrade.unlockHackId) {
+                if (unlockedHacks.includes(upgrade.unlockHackId)) return false;
+                if (hackCapacityFull) return false;
+            }
             return true;
         });
 
@@ -212,7 +219,7 @@ export default class UpgradeManager {
         const upgrade = UPGRADES.find(u => u.id === upgradeId);
         if (upgrade) {
             this.inventory[upgradeId] = (this.inventory[upgradeId] || 0) + 1;
-            upgrade.onApply(player);
+            upgrade.onApply(player, this.game);
         }
     }
 
@@ -370,9 +377,9 @@ export default class UpgradeManager {
         const infoX = 40;
         const infoY = height / 2 - 150;
         if (player) {
-            this._drawStatsInfobox(ctx, infoX, infoY, player);
+            const infoboxBottomY = this._drawStatsInfobox(ctx, infoX, infoY, player);
             if (player.stats.rerolls > 0) {
-                this._drawRerollButton(ctx, player, infoX, infoY + 380);
+                this._drawRerollButton(ctx, player, infoX, infoboxBottomY + 20);
             }
         }
         const bottomY = this._drawCards(ctx, width, height);
@@ -525,13 +532,14 @@ export default class UpgradeManager {
     }
 
     _drawStatsInfobox(ctx, x, y, player) {
-        const rowH = 22; const panelW = 220; const panelH = 400;
+        const rowH = 22; const panelW = 220;
+        const displayStats = getFormattedStats(player);
+        const panelH = displayStats.length * rowH + 50;
         const fonts = this._getMenuFonts();
         ctx.save(); ctx.fillStyle = 'rgba(0, 40, 40, 0.4)'; ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
         ctx.strokeRect(x - 10, y - 40, panelW, panelH); ctx.fillRect(x - 10, y - 40, panelW, panelH);
         ctx.fillStyle = '#00ffcc'; ctx.font = fonts.infoTitle; ctx.textAlign = 'left';
         ctx.fillText("STATUS", x, y - 15); ctx.font = fonts.infoText;
-        const displayStats = getFormattedStats(player);
         displayStats.forEach((s, i) => {
             const curY = y + (i * rowH);
             ctx.fillStyle = '#00ffcc'; ctx.fillText(s.label, x, curY);
@@ -539,6 +547,7 @@ export default class UpgradeManager {
             ctx.fillText(s.val, x + panelW - 30, curY); ctx.textAlign = 'left';
         });
         ctx.restore();
+        return y - 40 + panelH;
     }
 
     _getRarityColor(rarity) {

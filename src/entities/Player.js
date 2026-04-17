@@ -1,9 +1,13 @@
-﻿export default class Player {
+﻿import { HACK_DATA } from '../data/HackData.js';
+
+export default class Player {
     constructor(x, y) {
         this.pos = { x: x, y: y };
         this.size = 64;
         this.facing = 1;
         this.invulnerable = 0;
+        this.ghostActive = false;
+        this.ghostTimer = 0;
         this.level = 1;
         this.xp = 0;
         this.xpNextLevel = 100;
@@ -17,7 +21,8 @@
             critMultiplier: 2.0,
             magnetRange: 0.75,
             xpMultiplier: 1.0,
-            luck: 1.0
+            luck: 1.0,
+            maxHackSlots: 0
         };
 
         this.multipliers = {
@@ -28,7 +33,8 @@
             critMultiplier: 1.0,
             magnetRange: 1.0,
             xpMultiplier: 1.0,
-            luck: 1.0
+            luck: 1.0,
+            maxHackSlots: 1.0
         };
 
         this.stats = {
@@ -45,7 +51,8 @@
             ricochetCount: 0,
             upgradeOptions: 3,
             rerolls: 3,
-            maxDrones: 1
+            maxDrones: 1,
+            maxHackSlots: 0
         };
         
         this.sprite = new Image();
@@ -94,6 +101,8 @@
         this.size = 64;
         this.facing = 1;
         this.invulnerable = 0;
+        this.ghostActive = false;
+        this.ghostTimer = 0;
         this.level = 1;
         this.xp = 0;
         this.xpNextLevel = 100;
@@ -105,7 +114,8 @@
             critMultiplier: 1.0,
             magnetRange: 1.0,
             xpMultiplier: 1.0,
-            luck: 1.0
+            luck: 1.0,
+            maxHackSlots: 1.0
         };
         this.stats = {
             hp: 2,
@@ -121,7 +131,8 @@
             ricochetCount: 0,
             upgradeOptions: 3,
             rerolls: 3,
-            maxDrones: 1
+            maxDrones: 1,
+            maxHackSlots: 0
         };
         this.weaponAnchorDist = 5;
         this.weaponAngle = 0;
@@ -132,6 +143,7 @@
     }
 
     takeDamage(amount = 1) {
+        if (this.ghostActive) return;
         if (this.invulnerable > 0) return;
 
         if (Math.random() < this.stats.dodgeChance) {
@@ -226,8 +238,9 @@
             moveY /= mag;
         }
 
-        this.pos.x += moveX * this.getStat('moveSpeed') * deltaTime;
-        this.pos.y += moveY * this.getStat('moveSpeed') * deltaTime;
+        const speedMultiplier = this.ghostActive ? HACK_DATA.GHOST_PROTOCOL.speedBoostMultiplier : 1;
+        this.pos.x += moveX * this.getStat('moveSpeed') * speedMultiplier * deltaTime;
+        this.pos.y += moveY * this.getStat('moveSpeed') * speedMultiplier * deltaTime;
     }
 
     _handleWeaponAim(projMgr) {
@@ -254,7 +267,18 @@
         }
     }
 
+    _updateGhostState(deltaTime) {
+        if (!this.ghostActive) return;
+
+        this.ghostTimer -= deltaTime;
+        if (this.ghostTimer <= 0) {
+            this.ghostActive = false;
+            this.ghostTimer = 0;
+        }
+    }
+
     _checkEnemyCollisions(enemyMgr) {
+        if (this.ghostActive) return;
         if (enemyMgr && enemyMgr.enemies && this.stats.hp > 0) {
             for (const enemy of enemyMgr.enemies) {
                 const dx = this.pos.x - enemy.x;
@@ -317,6 +341,7 @@
         this._handleMovement(deltaTime, input);
         this._handleWeaponAim(projMgr);
         this._updateInvulnerability(deltaTime);
+        this._updateGhostState(deltaTime);
         this._checkEnemyCollisions(enemyMgr);
 
         if (this.shockwaveActive) {
@@ -328,11 +353,25 @@
         const screenX = this.game.center.x;
         const screenY = this.game.center.y;
 
-        if (this.invulnerable > 0 && Math.floor(Date.now() / 100) % 2 === 0) return;
+        if (!this.ghostActive && this.invulnerable > 0 && Math.floor(Date.now() / 100) % 2 === 0) return;
+
+        if (this.game.isSignalJammed) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.18)';
+            ctx.lineWidth = 10;
+            ctx.setLineDash([18, 14]);
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, this.size * 0.9, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
 
         ctx.save();
         ctx.translate(screenX, screenY);
-        ctx.scale(this.facing, 1); 
+        ctx.scale(this.facing, 1);
+        if (this.ghostActive) {
+            ctx.globalAlpha = HACK_DATA.GHOST_PROTOCOL.alpha;
+        }
 
         if (this.isLoaded) {
             ctx.drawImage(this.sprite, -this.size / 2, -this.size / 2, this.size, this.size);

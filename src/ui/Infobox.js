@@ -23,6 +23,7 @@ export function getFormattedStats(player) {
         { label: "MAGNET", val: getBonus(player.getStat('magnetRange'), player.baseStats.magnetRange) },
         { label: "LUCK", val: getBonus(player.getStat('luck'), player.baseStats.luck) },
         { label: "XP GAIN", val: getBonus(player.getStat('xpMultiplier'), player.baseStats.xpMultiplier) },
-        { label: "MAX DRONES", val: player.stats.maxDrones }
+        { label: "MAX DRONES", val: player.stats.maxDrones },
+        { label: "MAX HACKS", val: player.stats.maxHackSlots }
     ];
 }
