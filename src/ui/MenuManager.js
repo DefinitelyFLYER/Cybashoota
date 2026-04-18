@@ -1,4 +1,5 @@
 ﻿import { getFormattedStats } from '../ui/Infobox.js';
+import CHANGELOG, { CURRENT_VERSION } from '../ui/Changelog.js';
 import { MENU_DEFINITIONS } from '../data/MenuDefinitions.js';
 
 export default class MenuManager {
@@ -465,11 +466,7 @@ export default class MenuManager {
         const h = this.game.canvas.height;
 
         this.drawPanel(ctx, 0, 0, w, h, '', 'overlay');
-
-        ctx.save();
-        ctx.textAlign = 'center';
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = '#00ffcc';
+        this._drawChangelogPanel(ctx);
 
         if (this.logoLoaded) {
             const maxLogoWidth = Math.min(w * 0.65, 700);
@@ -482,13 +479,39 @@ export default class MenuManager {
                 logoWidth = logoHeight * aspect;
             }
 
-            ctx.drawImage(this.logo, (w - logoWidth) / 2, h / 3 - logoHeight / 2, logoWidth, logoHeight);
+            const logoX = (w - logoWidth) / 2;
+            const logoY = h / 3 - logoHeight / 2;
+
+            ctx.save();
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#00ffcc';
+            ctx.drawImage(this.logo, logoX, logoY, logoWidth, logoHeight);
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = this.styleConfig.fonts.label;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(CURRENT_VERSION, logoX + logoWidth + 20, logoY + 10);
+            ctx.restore();
         } else {
+            ctx.save();
             ctx.fillStyle = '#00ffcc';
             ctx.font = this.styleConfig.fonts.bigTitle;
+            ctx.textAlign = 'center';
             ctx.fillText('CYBASHOOTA', w / 2, h / 3);
+            const titleMetrics = ctx.measureText('CYBASHOOTA');
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = this.styleConfig.fonts.label;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(CURRENT_VERSION, w / 2 + titleMetrics.width / 2 + 20, h / 3);
+            ctx.restore();
         }
-        ctx.restore();
 
         const buttonWidth = 300;
         const buttonHeight = 60;
@@ -503,6 +526,96 @@ export default class MenuManager {
             spacing: 30,
             pointer: this.mousePos
         });
+    }
+
+    _drawChangelogPanel(ctx) {
+        const panelX = 40;
+        const panelWidth = 470;
+        const contentX = panelX + 20;
+        const lineHeight = 24;
+        const textWidth = panelWidth - 40;
+        const maxPanelHeight = this.game.canvas.height - 80;
+
+        const wrapText = (text, maxWidth) => {
+            const words = text.split(' ');
+            const lines = [];
+            let line = '';
+
+            words.forEach((word) => {
+                const testLine = line ? `${line} ${word}` : word;
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && line) {
+                    lines.push(line);
+                    line = word;
+                } else {
+                    line = testLine;
+                }
+            });
+
+            if (line) lines.push(line);
+            return lines;
+        };
+
+        let requiredHeight = 80;
+        CHANGELOG.forEach((entry, entryIndex) => {
+            requiredHeight += lineHeight;
+            if (entry.title) {
+                requiredHeight += lineHeight * 1.1;
+            }
+            entry.notes.forEach((note) => {
+                requiredHeight += wrapText(`- ${note}`, textWidth).length * lineHeight;
+            });
+            if (entryIndex < CHANGELOG.length - 1) {
+                requiredHeight += lineHeight * 0.5;
+            }
+        });
+
+        const panelHeight = Math.min(Math.max(requiredHeight + 40, 260), maxPanelHeight);
+        const panelY = Math.max(40, (this.game.canvas.height - panelHeight) / 2);
+        let currentY = panelY + 70;
+
+        this.drawPanel(ctx, panelX - 10, panelY - 10, panelWidth, panelHeight);
+
+        ctx.save();
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = this.styleConfig.fonts.infoTitle;
+        ctx.textAlign = 'left';
+        ctx.fillText('CHANGELOG', contentX, panelY + 25);
+        ctx.restore();
+
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = this.styleConfig.fonts.infoText;
+        ctx.textAlign = 'left';
+
+        CHANGELOG.forEach((entry, entryIndex) => {
+            ctx.fillStyle = '#00ffcc';
+            ctx.fillText(`${entry.version} • ${entry.date}`, contentX, currentY);
+            currentY += lineHeight;
+
+            if (entry.title) {
+                ctx.fillStyle = '#88c8d0';
+                ctx.font = 'italic 18px "VT323", monospace';
+                ctx.fillText(entry.title, contentX, currentY);
+                currentY += lineHeight * 1.1;
+                ctx.font = this.styleConfig.fonts.infoText;
+            }
+
+            ctx.fillStyle = '#ffffff';
+            entry.notes.forEach((note) => {
+                const wrappedLines = wrapText(`- ${note}`, textWidth);
+                wrappedLines.forEach((line) => {
+                    ctx.fillText(line, contentX, currentY);
+                    currentY += lineHeight;
+                });
+            });
+
+            if (entryIndex < CHANGELOG.length - 1) {
+                currentY += lineHeight * 0.5;
+            }
+        });
+
+        ctx.restore();
     }
 
     _drawSettingsMenu(ctx) {
