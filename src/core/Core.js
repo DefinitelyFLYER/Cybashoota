@@ -33,6 +33,16 @@ export default class Game {
             },
             audio: {
                 // work in progress
+            },
+            controls: {
+                moveUp: 'KeyW',
+                moveDown: 'KeyS',
+                moveLeft: 'KeyA',
+                moveRight: 'KeyD',
+                shoot: 'Mouse0',
+                pause: 'Escape',
+                hack: 'Space',
+                hackCycle: 'KeyQ'
             }
         };
 
@@ -123,6 +133,9 @@ export default class Game {
             }
             if (stored.audio) {
                 this.settings.audio = { ...this.settings.audio, ...stored.audio };
+            }
+            if (stored.controls) {
+                this.settings.controls = { ...this.settings.controls, ...stored.controls };
             }
         } catch (error) {
             console.warn('Could not load settings from storage.', error);
@@ -233,7 +246,8 @@ export default class Game {
     }
 
     _handleGlobalKeydown(e) {
-        if (e.code !== 'Escape') return;
+        const pauseKey = this.settings.controls?.pause ?? 'Escape';
+        if (e.code !== pauseKey) return;
         if (this.gameState !== 'PLAYING' || this.isGameOver) return;
         if (this.pauseResumeCooldownTimer > 0) return;
 

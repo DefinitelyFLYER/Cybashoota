@@ -8,6 +8,7 @@ export const MENU_DEFINITIONS = {
             { id: 'performance', text: 'Performance', action: 'setSettingsTab', args: ['performance'], style: 'tab' },
             { id: 'gameplay', text: 'Gameplay', action: 'setSettingsTab', args: ['gameplay'], style: 'tab' },
             { id: 'ui', text: 'UI', action: 'setSettingsTab', args: ['ui'], style: 'tab' },
+            { id: 'controls', text: 'Controls', action: 'setSettingsTab', args: ['controls'], style: 'tab' },
             { id: 'audio', text: 'Audio (WIP)', action: 'setSettingsTab', args: ['audio'], style: 'tab' }
         ],
         body: {
@@ -96,6 +97,56 @@ export const MENU_DEFINITIONS = {
                     min: 0.75,
                     max: 1.5,
                     step: 0.05
+                }
+            ],
+            controls: [
+                {
+                    id: 'move_up',
+                    type: 'keybind',
+                    label: 'Move Up',
+                    path: ['controls', 'moveUp']
+                },
+                {
+                    id: 'move_down',
+                    type: 'keybind',
+                    label: 'Move Down',
+                    path: ['controls', 'moveDown']
+                },
+                {
+                    id: 'move_left',
+                    type: 'keybind',
+                    label: 'Move Left',
+                    path: ['controls', 'moveLeft']
+                },
+                {
+                    id: 'move_right',
+                    type: 'keybind',
+                    label: 'Move Right',
+                    path: ['controls', 'moveRight']
+                },
+                {
+                    id: 'shoot',
+                    type: 'keybind',
+                    label: 'Shoot',
+                    path: ['controls', 'shoot']
+                },
+                {
+                    id: 'pause',
+                    type: 'keybind',
+                    label: 'Pause',
+                    path: ['controls', 'pause']
+                },
+                {
+                    id: 'hack',
+                    type: 'keybind',
+                    label: 'Hack',
+                    path: ['controls', 'hack']
+                },
+                {
+                    id: 'hack_cycle',
+                    type: 'keybind',
+                    label: 'Cycle Hack',
+                    path: ['controls', 'hackCycle']
                 }
             ],
             audio: [

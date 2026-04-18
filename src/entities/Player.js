@@ -205,13 +205,13 @@ export default class Player {
         let moveY = 0;
 
         if (input) {
-            if (input.isKeyDown('KeyW')) moveY -= 1;
-            if (input.isKeyDown('KeyS')) moveY += 1;
-            if (input.isKeyDown('KeyA')) {
+            if (input.isActionDown('moveUp')) moveY -= 1;
+            if (input.isActionDown('moveDown')) moveY += 1;
+            if (input.isActionDown('moveLeft')) {
                 moveX -= 1;
                 this.facing = -1;
             }
-            if (input.isKeyDown('KeyD')) {
+            if (input.isActionDown('moveRight')) {
                 moveX += 1;
                 this.facing = 1;
             }

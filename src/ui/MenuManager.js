@@ -13,6 +13,10 @@ export default class MenuManager {
         this.mousePos = { x: 0, y: 0 };
         this.isMouseDown = false;
         this.activeSlider = null;
+        this.isWaitingForKey = false;
+        this.waitingForKeyPath = null;
+        this.waitingForKeyId = null;
+        this.suppressNextSettingsMouseCapture = false;
         this.logo = new Image();
         this.logoLoaded = false;
         this.logo.onload = () => {
@@ -144,12 +148,16 @@ export default class MenuManager {
         window.addEventListener('mousedown', () => {
             if (!this._isOverlayActive()) return;
             this.isMouseDown = true;
-            this._handleClick();
+            if (!this.isWaitingForKey) {
+                this._handleClick();
+            }
         });
         window.addEventListener('mouseup', () => {
             this.isMouseDown = false;
             this.activeSlider = null;
         });
+        window.addEventListener('keydown', this._handleSettingsKeyCapture.bind(this));
+        window.addEventListener('mousedown', this._handleSettingsMouseCapture.bind(this));
     }
 
     update(deltaTime) {
@@ -378,6 +386,54 @@ export default class MenuManager {
         const rect = this.game.canvas.getBoundingClientRect();
         this.mousePos.x = e.clientX - rect.left;
         this.mousePos.y = e.clientY - rect.top;
+    }
+
+    _handleSettingsKeyCapture(e) {
+        if (!this.game.settingsOpen || !this.isWaitingForKey || !this.waitingForKeyPath) return;
+        e.preventDefault();
+        this._setSettingsValue(this.waitingForKeyPath, e.code);
+        this.isWaitingForKey = false;
+        this.waitingForKeyPath = null;
+        this.waitingForKeyId = null;
+    }
+
+    _handleSettingsMouseCapture(e) {
+        if (this.suppressNextSettingsMouseCapture) {
+            this.suppressNextSettingsMouseCapture = false;
+            return;
+        }
+        if (!this.game.settingsOpen || !this.isWaitingForKey || !this.waitingForKeyPath) return;
+        const buttonKey = `Mouse${e.button}`;
+        e.preventDefault();
+        this._setSettingsValue(this.waitingForKeyPath, buttonKey);
+        this.isWaitingForKey = false;
+        this.waitingForKeyPath = null;
+        this.waitingForKeyId = null;
+    }
+
+    _formatBindingLabel(binding) {
+        if (!binding) return 'UNBOUND';
+        if (binding.startsWith('Mouse')) {
+            switch (binding) {
+                case 'Mouse0': return 'Left Click';
+                case 'Mouse1': return 'Middle Click';
+                case 'Mouse2': return 'Right Click';
+                case 'Mouse3': return 'Mouse4';
+                case 'Mouse4': return 'Mouse5';
+                default: return binding;
+            }
+        }
+
+        if (binding.startsWith('Key')) {
+            return binding.slice(3);
+        }
+        if (binding.startsWith('Digit')) {
+            return binding.slice(5);
+        }
+        if (binding.startsWith('Arrow')) {
+            return binding.slice(5);
+        }
+        return binding;
     }
 
     openSettingsMenu(origin = 'menu') {
@@ -804,6 +860,41 @@ export default class MenuManager {
             optionY += 80;
         };
 
+        const drawKeybind = (item) => {
+            const value = this._getSettingsValue(item.path);
+            const displayValue = this._formatBindingLabel(value);
+            const btnWidth = 260;
+            const btnHeight = 42;
+            const btnX = panelX + panelW - btnWidth - 30;
+            const btnY = optionY - 16;
+            const isSelected = this.isWaitingForKey && this.waitingForKeyId === item.id;
+            const isHovered = pointer && this._isHovered(pointer, btnX, btnY, btnWidth, btnHeight);
+            const buttonText = isSelected ? 'Press key...' : displayValue;
+            const styleType = isSelected ? 'selectedTab' : 'toggle';
+
+            this.drawButton(ctx, btnX, btnY, btnWidth, btnHeight, buttonText, isHovered || isSelected, styleType);
+            ctx.save();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '18px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(item.label, optionX, optionY + 8);
+            ctx.restore();
+
+            this.settingsButtons.push({
+                x: btnX,
+                y: btnY,
+                w: btnWidth,
+                h: btnHeight,
+                action: () => {
+                    this.suppressNextSettingsMouseCapture = true;
+                    this.isWaitingForKey = true;
+                    this.waitingForKeyPath = item.path;
+                    this.waitingForKeyId = item.id;
+                }
+            });
+            optionY += 70;
+        };
+
         const drawCrosshairPreview = (ctx, x, y, w, h, skin) => {
             const cx = x + w / 2;
             const cy = y + h / 2;
@@ -914,6 +1005,9 @@ export default class MenuManager {
                     break;
                 case 'selection':
                     drawSelection(item);
+                    break;
+                case 'keybind':
+                    drawKeybind(item);
                     break;
                 case 'label':
                 default:
