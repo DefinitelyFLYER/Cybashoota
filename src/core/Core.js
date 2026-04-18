@@ -33,6 +33,16 @@ export default class Game {
             },
             audio: {
                 // work in progress
+            },
+            controls: {
+                moveUp: 'KeyW',
+                moveDown: 'KeyS',
+                moveLeft: 'KeyA',
+                moveRight: 'KeyD',
+                shoot: 'Mouse0',
+                pause: 'Escape',
+                hack: 'Space',
+                hackCycle: 'KeyQ'
             }
         };
 
@@ -50,6 +60,14 @@ export default class Game {
                 this._handleWindowInactivity();
             }
         });
+
+        this.canvas.addEventListener('wheel', (e) => {
+            const input = this.getModule('input');
+            if (input && typeof input.handleWheelEvent === 'function') {
+                input.handleWheelEvent(e);
+            }
+        }, { passive: false });
+
         this.UNIT_SIZE = 100;
 
         this.center = {
@@ -124,6 +142,9 @@ export default class Game {
             if (stored.audio) {
                 this.settings.audio = { ...this.settings.audio, ...stored.audio };
             }
+            if (stored.controls) {
+                this.settings.controls = { ...this.settings.controls, ...stored.controls };
+            }
         } catch (error) {
             console.warn('Could not load settings from storage.', error);
         }
@@ -172,12 +193,20 @@ export default class Game {
             gamepad.update();
         }
 
+        const input = this.getModule('input');
+        const wheelDelta = input && typeof input.consumeWheelDelta === 'function'
+            ? input.consumeWheelDelta()
+            : 0;
+        const menu = this.getModule('menu');
+        if (wheelDelta && menu && typeof menu.handleScroll === 'function') {
+            menu.handleScroll(wheelDelta);
+        }
+
         const proj = this.getModule('projectiles');
         if (proj && typeof proj.updateMenu === 'function') {
             proj.updateMenu(deltaTime);
         }
 
-        const menu = this.getModule('menu');
         if (menu && typeof menu.update === 'function') {
             menu.update(deltaTime);
         }
@@ -233,7 +262,8 @@ export default class Game {
     }
 
     _handleGlobalKeydown(e) {
-        if (e.code !== 'Escape') return;
+        const pauseKey = this.settings.controls?.pause ?? 'Escape';
+        if (e.code !== pauseKey) return;
         if (this.gameState !== 'PLAYING' || this.isGameOver) return;
         if (this.pauseResumeCooldownTimer > 0) return;
 

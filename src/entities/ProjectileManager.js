@@ -244,7 +244,8 @@ export default class ProjectileManager {
 
     _handlePlayerFiring(player) {
         const autoFire = this.game?.settings?.gameplay?.autoFire;
-        const fireRequested = autoFire || this.isMouseDown || this.gamepadFire;
+        const input = this.game.getModule('input');
+        const fireRequested = autoFire || (input && input.isActionDown && input.isActionDown('shoot')) || this.gamepadFire;
         if (!fireRequested) return;
 
         const now = Date.now();
