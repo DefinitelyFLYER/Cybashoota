@@ -60,6 +60,14 @@ export default class Game {
                 this._handleWindowInactivity();
             }
         });
+
+        this.canvas.addEventListener('wheel', (e) => {
+            const input = this.getModule('input');
+            if (input && typeof input.handleWheelEvent === 'function') {
+                input.handleWheelEvent(e);
+            }
+        }, { passive: false });
+
         this.UNIT_SIZE = 100;
 
         this.center = {
@@ -185,12 +193,20 @@ export default class Game {
             gamepad.update();
         }
 
+        const input = this.getModule('input');
+        const wheelDelta = input && typeof input.consumeWheelDelta === 'function'
+            ? input.consumeWheelDelta()
+            : 0;
+        const menu = this.getModule('menu');
+        if (wheelDelta && menu && typeof menu.handleScroll === 'function') {
+            menu.handleScroll(wheelDelta);
+        }
+
         const proj = this.getModule('projectiles');
         if (proj && typeof proj.updateMenu === 'function') {
             proj.updateMenu(deltaTime);
         }
 
-        const menu = this.getModule('menu');
         if (menu && typeof menu.update === 'function') {
             menu.update(deltaTime);
         }

@@ -8,6 +8,7 @@ export default class InputHandler {
         this.isHackPressed = false;
         this.isHackCyclePressed = false;
         this.lastMouseMoveTime = 0;
+        this.wheelDeltaY = 0;
 
         window.addEventListener('keydown', (e) => {
             const hackBinding = this._getActionBinding('hack');
@@ -69,6 +70,20 @@ export default class InputHandler {
 
     init(game) {
         this.game = game;
+    }
+
+    handleWheelEvent(e) {
+        if (!e || typeof e.deltaY !== 'number') return;
+        if (this.game && this.game.settingsOpen) {
+            e.preventDefault();
+        }
+        this.wheelDeltaY += e.deltaY;
+    }
+
+    consumeWheelDelta() {
+        const delta = this.wheelDeltaY;
+        this.wheelDeltaY = 0;
+        return delta;
     }
 
     _getActionBinding(action) {

@@ -17,6 +17,8 @@ export default class MenuManager {
         this.waitingForKeyPath = null;
         this.waitingForKeyId = null;
         this.suppressNextSettingsMouseCapture = false;
+        this.scrollOffset = 0;
+        this.maxScrollOffset = 0;
         this.logo = new Image();
         this.logoLoaded = false;
         this.logo.onload = () => {
@@ -411,6 +413,12 @@ export default class MenuManager {
         this.waitingForKeyId = null;
     }
 
+    handleScroll(deltaY) {
+        if (!this.game.settingsOpen) return;
+        this.scrollOffset += deltaY;
+        this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScrollOffset));
+    }
+
     _formatBindingLabel(binding) {
         if (!binding) return 'UNBOUND';
         if (binding.startsWith('Mouse')) {
@@ -440,12 +448,18 @@ export default class MenuManager {
         this.game.settingsOpen = true;
         this.settingsTab = 'performance';
         this.settingsOrigin = origin;
+        this.scrollOffset = 0;
     }
 
     closeSettingsMenu() {
         this.game.settingsOpen = false;
         this.settingsButtons = [];
         this.settingsOrigin = null;
+    }
+
+    setSettingsTab(tab) {
+        this.settingsTab = tab;
+        this.scrollOffset = 0;
     }
 
     _resolveAction(item) {
@@ -501,10 +515,6 @@ export default class MenuManager {
 
     reloadGame() {
         window.location.reload();
-    }
-
-    setSettingsTab(tab) {
-        this.settingsTab = tab;
     }
 
     selectUpgrade() {
@@ -689,11 +699,21 @@ export default class MenuManager {
         const panelY = 250;
         const panelW = w - 160;
         const panelH = h - panelY - 140;
-        const optionX = panelX + 30;
+        const panelPadding = 40;
+        const scrollButtonSize = 38;
+        const optionX = panelX + panelPadding;
+        const contentX = panelX + panelPadding;
+        const contentY = panelY + panelPadding;
+        const contentW = panelW - panelPadding * 2 - scrollButtonSize - 24;
+        const contentH = panelH - panelPadding * 2;
         const swatchSize = 38;
         const swatchSpacing = 16;
-        const sliderWidth = 360;
+        const sliderWidth = Math.min(360, contentW - 40);
         const sliderHeight = 10;
+        const scrollX = panelX + panelW - panelPadding - scrollButtonSize;
+        const scrollTopY = panelY + panelPadding;
+        const scrollBottomY = panelY + panelH - panelPadding - scrollButtonSize;
+        const rightControlX = contentX + contentW - 32;
 
         this.drawPanel(ctx, 0, 0, w, h, '', 'overlay', 0.5);
 
@@ -721,7 +741,14 @@ export default class MenuManager {
 
         this.drawPanel(ctx, panelX, panelY, panelW, panelH, '', 'default', 0.75);
 
-        let optionY = panelY + 40;
+        const visibleY = (y) => y - this.scrollOffset;
+        let optionY = contentY + 20;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(contentX, contentY, contentW, contentH);
+        ctx.clip();
+        ctx.translate(0, -this.scrollOffset);
 
         const drawToggle = (item) => {
             const value = this._getSettingsValue(item.path);
@@ -732,16 +759,17 @@ export default class MenuManager {
 
             const btnWidth = 180;
             const btnHeight = 38;
-            const btnX = panelX + panelW - btnWidth - 30;
+            const btnX = rightControlX - btnWidth;
             const btnY = optionY - 16;
-            const isHovered = pointer && this._isHovered(pointer, btnX, btnY, btnWidth, btnHeight);
+            const visibleBtnY = visibleY(btnY);
+            const isHovered = pointer && this._isHovered(pointer, btnX, visibleBtnY, btnWidth, btnHeight);
             const text = value ? 'ON' : 'OFF';
             const style = value ? 'selectedTab' : 'toggle';
 
             this.drawButton(ctx, btnX, btnY, btnWidth, btnHeight, text, isHovered || value, style);
             this.settingsButtons.push({
                 x: btnX,
-                y: btnY,
+                y: visibleBtnY,
                 w: btnWidth,
                 h: btnHeight,
                 action: () => this._setSettingsValue(item.path, !value)
@@ -768,7 +796,8 @@ export default class MenuManager {
                 ctx.strokeRect(swatchX, optionY, swatchSize, swatchSize);
                 ctx.restore();
 
-                const isHovered = pointer && this._isHovered(pointer, swatchX, optionY, swatchSize, swatchSize);
+                const visibleSwatchY = visibleY(optionY);
+                const isHovered = pointer && this._isHovered(pointer, swatchX, visibleSwatchY, swatchSize, swatchSize);
                 if (isHovered) {
                     ctx.save();
                     ctx.strokeStyle = '#00ffcc';
@@ -779,7 +808,7 @@ export default class MenuManager {
 
                 this.settingsButtons.push({
                     x: swatchX,
-                    y: optionY,
+                    y: visibleSwatchY,
                     w: swatchSize,
                     h: swatchSize,
                     action: () => this._setSettingsValue(item.path, optionValue)
@@ -798,7 +827,8 @@ export default class MenuManager {
             const progress = (value - item.min) / (item.max - item.min);
             const handleRadius = 10;
             const handleX = trackX + progress * sliderWidth;
-            const isHovered = pointer && this._isHovered(pointer, trackX, trackY - handleRadius, sliderWidth, sliderHeight + handleRadius * 2);
+            const visibleTrackY = visibleY(trackY - handleRadius);
+            const isHovered = pointer && this._isHovered(pointer, trackX, visibleTrackY, sliderWidth, sliderHeight + handleRadius * 2);
 
             ctx.fillStyle = sliderDisabled ? '#888' : this.styleConfig.colors.title;
             ctx.font = this.styleConfig.fonts.label;
@@ -844,7 +874,7 @@ export default class MenuManager {
 
             this.settingsButtons.push({
                 x: trackX,
-                y: trackY - handleRadius,
+                y: visibleTrackY,
                 w: sliderWidth,
                 h: sliderHeight + handleRadius * 2,
                 action: sliderDisabled ? () => {} : () => {
@@ -865,10 +895,11 @@ export default class MenuManager {
             const displayValue = this._formatBindingLabel(value);
             const btnWidth = 260;
             const btnHeight = 42;
-            const btnX = panelX + panelW - btnWidth - 30;
+            const btnX = rightControlX - btnWidth;
             const btnY = optionY - 16;
+            const visibleBtnY = visibleY(btnY);
             const isSelected = this.isWaitingForKey && this.waitingForKeyId === item.id;
-            const isHovered = pointer && this._isHovered(pointer, btnX, btnY, btnWidth, btnHeight);
+            const isHovered = pointer && this._isHovered(pointer, btnX, visibleBtnY, btnWidth, btnHeight);
             const buttonText = isSelected ? 'Press key...' : displayValue;
             const styleType = isSelected ? 'selectedTab' : 'toggle';
 
@@ -882,7 +913,7 @@ export default class MenuManager {
 
             this.settingsButtons.push({
                 x: btnX,
-                y: btnY,
+                y: visibleBtnY,
                 w: btnWidth,
                 h: btnHeight,
                 action: () => {
@@ -961,7 +992,8 @@ export default class MenuManager {
 
             item.options.forEach((optionValue) => {
                 const isSelected = value === optionValue;
-                const isHovered = pointer && this._isHovered(pointer, btnX, optionY, btnWidth, btnHeight);
+                const visibleBtnY = visibleY(optionY);
+                const isHovered = pointer && this._isHovered(pointer, btnX, visibleBtnY, btnWidth, btnHeight);
                 const style = isSelected ? 'selectedTab' : 'default';
                 const text = item.id === 'cursorSkin' ? '' : optionValue.toUpperCase();
 
@@ -972,7 +1004,7 @@ export default class MenuManager {
 
                 this.settingsButtons.push({
                     x: btnX,
-                    y: optionY,
+                    y: visibleBtnY,
                     w: btnWidth,
                     h: btnHeight,
                     action: () => this._setSettingsValue(item.path, optionValue)
@@ -1037,6 +1069,75 @@ export default class MenuManager {
                     break;
             }
         });
+
+        const totalItemsHeight = optionY - contentY;
+        const visibleHeight = contentH;
+        this.maxScrollOffset = Math.max(0, totalItemsHeight - visibleHeight);
+        this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScrollOffset));
+
+        ctx.restore();
+
+        if (this.maxScrollOffset > 0) {
+            const trackX = scrollX + scrollButtonSize / 2 - 4;
+            const trackTop = scrollTopY + scrollButtonSize + 12;
+            const trackH = scrollBottomY - trackTop - 12;
+            const handleHeight = Math.max(32, trackH * visibleHeight / Math.max(totalItemsHeight, visibleHeight));
+            const handleY = trackTop + (this.maxScrollOffset === 0 ? 0 : (this.scrollOffset / this.maxScrollOffset) * (trackH - handleHeight));
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            ctx.fillRect(trackX, trackTop, 8, trackH);
+            ctx.restore();
+
+            const handleHovered = pointer && this._isHovered(pointer, trackX - 4, handleY - 4, 16, handleHeight + 8);
+            if (handleHovered) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(0, 255, 204, 0.18)';
+                ctx.fillRect(trackX - 6, handleY - 6, 20, handleHeight + 12);
+                ctx.restore();
+            }
+
+            ctx.save();
+            ctx.fillStyle = handleHovered ? '#66ffdd' : '#00ffcc';
+            ctx.fillRect(trackX, handleY, 8, handleHeight);
+            ctx.restore();
+
+            const scrollUpHovered = pointer && this._isHovered(pointer, scrollX, scrollTopY, scrollButtonSize, scrollButtonSize);
+            const scrollDownHovered = pointer && this._isHovered(pointer, scrollX, scrollBottomY, scrollButtonSize, scrollButtonSize);
+            this.drawButton(ctx, scrollX, scrollTopY, scrollButtonSize, scrollButtonSize, '▲', scrollUpHovered, 'tab');
+            this.drawButton(ctx, scrollX, scrollBottomY, scrollButtonSize, scrollButtonSize, '▼', scrollDownHovered, 'tab');
+
+            const updateScrollFromPointer = (pointer) => {
+                if (!pointer) return;
+                let targetY = pointer.y - trackTop - handleHeight / 2;
+                targetY = Math.max(0, Math.min(trackH - handleHeight, targetY));
+                const ratio = trackH - handleHeight > 0 ? targetY / (trackH - handleHeight) : 0;
+                this.scrollOffset = ratio * this.maxScrollOffset;
+            };
+
+            this.settingsButtons.push({
+                x: scrollX,
+                y: scrollTopY,
+                w: scrollButtonSize,
+                h: scrollButtonSize,
+                action: () => this.handleScroll(-60)
+            });
+            this.settingsButtons.push({
+                x: scrollX,
+                y: scrollBottomY,
+                w: scrollButtonSize,
+                h: scrollButtonSize,
+                action: () => this.handleScroll(60)
+            });
+            this.settingsButtons.push({
+                x: trackX,
+                y: handleY,
+                w: 8,
+                h: handleHeight,
+                action: () => {},
+                drag: updateScrollFromPointer
+            });
+        }
 
         const backDefinition = MENU_DEFINITIONS.SETTINGS_MENU.footer[0];
         const backWidth = 200;
