@@ -602,6 +602,8 @@ export default class MenuManager {
         const textWidth = panelWidth - 40;
         const maxPanelHeight = this.game.canvas.height - 80;
 
+        ctx.font = this.styleConfig.fonts.infoText;
+
         const wrapText = (text, maxWidth) => {
             const words = text.split(' ');
             const lines = [];

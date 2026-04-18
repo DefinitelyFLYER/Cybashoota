@@ -3,10 +3,11 @@ export const CURRENT_VERSION = 'v0.2.1';
 const CHANGELOG = [
     {
         version: 'v0.2.1',
-        title: 'Keybindings',
+        title: 'Keybindings & more',
         date: '18-04-2026',
         notes: [
             'Added keybinding settings for all actions.',
+            'Added section labels, dividers and scrollbars to settings.',
         ]
     },{
         version: 'v0.2.0',
