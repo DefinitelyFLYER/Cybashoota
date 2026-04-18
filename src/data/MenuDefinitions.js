@@ -28,6 +28,10 @@ export const MENU_DEFINITIONS = {
             ],
             gameplay: [
                 {
+                    type: 'section',
+                    label: 'GENERAL'
+                },
+                {
                     id: 'autoFire',
                     type: 'toggle',
                     label: 'Auto-Fire',
@@ -38,6 +42,10 @@ export const MENU_DEFINITIONS = {
                     type: 'toggle',
                     label: 'Cooldown after pause',
                     path: ['gameplay', 'resumeCooldown']
+                },
+                {
+                    type: 'section',
+                    label: 'CURSOR'
                 },
                 {
                     id: 'crosshairColor',
@@ -101,6 +109,10 @@ export const MENU_DEFINITIONS = {
             ],
             controls: [
                 {
+                    type: 'section',
+                    label: 'MOVEMENT'
+                },
+                {
                     id: 'move_up',
                     type: 'keybind',
                     label: 'Move Up',
@@ -123,6 +135,10 @@ export const MENU_DEFINITIONS = {
                     type: 'keybind',
                     label: 'Move Right',
                     path: ['controls', 'moveRight']
+                },
+                {
+                    type: 'section',
+                    label: 'COMBAT'
                 },
                 {
                     id: 'shoot',

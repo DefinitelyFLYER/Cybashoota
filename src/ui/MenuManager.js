@@ -983,6 +983,25 @@ export default class MenuManager {
             optionY += btnHeight + 40;
         };
 
+        const drawSection = (item) => {
+            const sectionHeight = 52;
+            ctx.fillStyle = '#00ffcc';
+            ctx.font = 'bold 22px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(item.label, optionX, optionY + 8);
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 255, 204, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(optionX, optionY + 18);
+            ctx.lineTo(panelX + panelW - 30, optionY + 18);
+            ctx.stroke();
+            ctx.restore();
+
+            optionY += sectionHeight;
+        };
+
         const drawLabel = (item) => {
             ctx.fillStyle = this.styleConfig.colors.title;
             ctx.font = this.styleConfig.fonts.label;
@@ -994,6 +1013,9 @@ export default class MenuManager {
         const settingsItems = MENU_DEFINITIONS.SETTINGS_MENU.body[this.settingsTab] || [];
         settingsItems.forEach((item) => {
             switch (item.type) {
+                case 'section':
+                    drawSection(item);
+                    break;
                 case 'toggle':
                     drawToggle(item);
                     break;
