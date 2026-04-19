@@ -1,6 +1,16 @@
-export const CURRENT_VERSION = 'v0.2.1';
+export const CURRENT_VERSION = 'v0.2.2';
 
 const CHANGELOG = [
+    {
+        version: 'v0.2.2',
+        title: 'Rebalance.',
+        date: '18-04-2026',
+        notes: [
+            'Rebalanced enemies, player stats, hacks, drones, upgrades and spawn stages.',
+            'Added common heal upgrade card.',
+            'Added new lategame stage'
+        ]
+    },
     {
         version: 'v0.2.1',
         title: 'Keybindings & more',
@@ -9,7 +19,8 @@ const CHANGELOG = [
             'Added keybinding settings for all actions.',
             'Added section labels, dividers and scrollbars to settings.',
         ]
-    },{
+    },
+    {
         version: 'v0.2.0',
         title: 'HACKS!',
         date: '17-04-2026',

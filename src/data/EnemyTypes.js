@@ -5,23 +5,23 @@ export const ENEMY_TYPES = {
         speed: 0.12,
         size: 30,
         color: '#ff0000',
-        scoreValue: 10,
+        scoreValue: 15,
         renderType: 'shape',
         isSuicidal: false
     },
     SQUARE: {
         type: 'SQUARE',
-        hp: 1,
-        speed: 0.22,
+        hp: 2,
+        speed: 0.2,
         size: 25,
         color: '#ffcc00',
-        scoreValue: 15,
+        scoreValue: 20,
         renderType: 'shape',
         isSuicidal: true
     },
     HEXAGON: {
         type: 'HEXAGON',
-        hp: 15,
+        hp: 12,
         speed: 0.05,
         size: 50,
         color: '#3799f4',
@@ -31,9 +31,9 @@ export const ENEMY_TYPES = {
     },
     CIRCLE: {
         type: 'CIRCLE',
-        hp: 1,
+        hp: 2,
         speed: 0.18,
-        size: 15,
+        size: 25,
         color: '#00ff22',
         scoreValue: 20,
         renderType: 'shape',
@@ -41,8 +41,8 @@ export const ENEMY_TYPES = {
     },
     RHOMBUS: {
         type: 'RHOMBUS',
-        hp: 8,
-        speed: 0.15,
+        hp: 6,
+        speed: 0.14,
         size: 40,
         color: '#ffffff',
         scoreValue: 100,
@@ -52,19 +52,19 @@ export const ENEMY_TYPES = {
     SENTRY: {
         type: 'HEXAGON',
         hp: 5,
-        speed: 0.01,
+        speed: 0.0075,
         size: 35,
         color: '#ff44ff',
         scoreValue: 75,
         renderType: 'shape',
         isSuicidal: false,
         ranged: {
-            fireRate: 3000,
-            projectileSpeed: 0.6,
-            projectileSize: 10,
-            range: 6,
+            fireRate: 2500,
+            projectileSpeed: 0.5,
+            projectileSize: 15,
+            range: 5,
             stopToShoot: true,
-            color: '#ff44ff'
+            color: '#ff7bff'
         }
     }
 };

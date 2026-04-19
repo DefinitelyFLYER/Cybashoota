@@ -8,7 +8,7 @@ export const SPAWN_TIMELINE = [
         types: ["TRIANGLE",],
         rate: 500,
         hpMultiplier: 1, speedMultiplier: 1,
-        xpDrop: { value: 10, color: '#6e6cff' } 
+        xpDrop: { value: 10, color: '#ffff00' } 
     },
     {
         name: "Shooting so soon?",
@@ -16,7 +16,7 @@ export const SPAWN_TIMELINE = [
         types: ["TRIANGLE", "SENTRY"],
         rate: 1000,
         hpMultiplier: 1, speedMultiplier: 1,
-        xpDrop: { value: 12, color: '#6e6cff' } 
+        xpDrop: { value: 12, color: '#ffff1a' } 
     },
     {
         name: "Are they suicidal?",
@@ -24,7 +24,7 @@ export const SPAWN_TIMELINE = [
         types: ["SQUARE"],
         rate: 800,
         hpMultiplier: 1, speedMultiplier: 1,
-        xpDrop: { value: 5, color: '#c7fff4' }
+        xpDrop: { value: 5, color: '#969600' }
     },
     {
         name: "The Tanks are coming.",
@@ -32,7 +32,7 @@ export const SPAWN_TIMELINE = [
         types: ["TRIANGLE", "HEXAGON"],
         rate: 600,
         hpMultiplier: 1.1, speedMultiplier: 0.9,
-        xpDrop: { value: 30, color: '#bc00ff' }
+        xpDrop: { value: 30, color: '#ffff41' }
     },
     {
         name: "The Tanks are coming..",
@@ -40,7 +40,7 @@ export const SPAWN_TIMELINE = [
         types: ["HEXAGON"],
         rate: 800,
         hpMultiplier: 1, speedMultiplier: 0.9,
-        xpDrop: { value: 30, color: '#bc00ff' }
+        xpDrop: { value: 30, color: '#ffff41' }
     },
     {
         name: "The Tanks are coming...",
@@ -48,7 +48,7 @@ export const SPAWN_TIMELINE = [
         types: ["HEXAGON"],
         rate: 3000,
         hpMultiplier: 1.5, speedMultiplier: 1,
-        xpDrop: { value: 30, color: '#bc00ff' }
+        xpDrop: { value: 30, color: '#ffff41' }
     },    
     {
         name: "Triangles... everywhere?",
@@ -56,7 +56,7 @@ export const SPAWN_TIMELINE = [
         types: ["HEXAGON"],
         rate: 300,
         hpMultiplier: 1, speedMultiplier: 0.8,
-        xpDrop: { value: 30, color: '#bc00ff' }
+        xpDrop: { value: 30, color: '#ffff41' }
     },
     {
         name: "Triangles... everywhere.",
@@ -64,7 +64,7 @@ export const SPAWN_TIMELINE = [
         types: ["TRIANGLE"],
         rate: 150,
         hpMultiplier: 1, speedMultiplier: 0.8,
-        xpDrop: { value: 10, color: '#6e6cff' } 
+        xpDrop: { value: 10, color: '#ffff00' } 
     },
     {
         name: "Data Breach: Chaos outbreak",
@@ -72,7 +72,7 @@ export const SPAWN_TIMELINE = [
         types: ["SQUARE", "CIRCLE"],
         rate: 500,
         hpMultiplier: 1.2, speedMultiplier: 1.2,
-        xpDrop: { value: 20, color: '#ff3300' }
+        xpDrop: { value: 20, color: '#ffff1d' }
     },
     {
         name: "The Elite arrives",
@@ -80,7 +80,7 @@ export const SPAWN_TIMELINE = [
         types: ["RHOMBUS", "HEXAGON"],
         rate: 5000,
         hpMultiplier: 2, speedMultiplier: 1.1,
-        xpDrop: { value: 50, color: '#ffffff' }
+        xpDrop: { value: 50, color: '#ffff8c' }
     },
     {
         name: "The real Elite arrives..",
@@ -88,22 +88,30 @@ export const SPAWN_TIMELINE = [
         types: ["SQUARE", "RHOMBUS", "HEXAGON"],
         rate: 1500,
         hpMultiplier: 2.2, speedMultiplier: 1.5,
-        xpDrop: { value: 50, color: '#ffffff' }
+        xpDrop: { value: 50, color: '#ffff8c' }
     },
     {
         name: "Easy enough?",
         start: 300, end: 360,
         types: ["TRIANGLE", "SQUARE"],
         rate: 350,
-        hpMultiplier: 3, speedMultiplier: 2,
-        xpDrop: { value: 30, color: '#6e6cff' }
+        hpMultiplier: 2.8, speedMultiplier: 1.8,
+        xpDrop: { value: 30, color: '#ffff41' }
     },
     {
         name: "What is this..",
         start: 360, end: 600,
         types: ["TRIANGLE", "SQUARE", "CIRCLE", "HEXAGON", "RHOMBUS"],
-        rate: 400,
-        hpMultiplier: 7, speedMultiplier: 3,
-        xpDrop: { value: 100, color: '#ffff00' }
+        rate: 600,
+        hpMultiplier: 3.8, speedMultiplier: 2,
+        xpDrop: { value: 100, color: '#ffffab' }
+    },
+    {
+        name: "Critical Overload",
+        start: 360, end: 600,
+        types: ["RHOMBUS", "HEXAGON", "SENTRY"],
+        rate: 800,
+        hpMultiplier: 5.5, speedMultiplier: 2.3,
+        xpDrop: { value: 150, color: '#ffffff' }
     }
 ];

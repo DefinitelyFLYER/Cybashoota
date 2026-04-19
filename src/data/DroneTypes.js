@@ -14,10 +14,10 @@ export const DRONE_TYPES = {
         behavior: 'RANGED',    
         targeting: 'CLOSEST_ENEMY', 
         
-        fireRate: (player) => player.getStat('fireRate'), 
-        damage: (player) => player.getStat('damage') * 0.5, 
+        fireRate: (player) => player.getStat('fireRate') * 0.9, 
+        damage: (player) => player.getStat('damage') * 0.75, 
         projectileSpeed: (player) => player.getStat('bulletSpeed') * 1.2, 
-        range: 4
+        range: 5
     },
     
     'SHIELD_DEFENDER': {
@@ -40,10 +40,10 @@ export const DRONE_TYPES = {
         targeting: 'CLOSEST_PROJECTILE',
         
         droneAccuracy: 0.4,
-        maxBoost: 10,
-        blockRadius: 0.2,
+        maxBoost: 12,
+        blockRadius: 0.25,
         patrolRadius: 3,
-        cooldown: 150         
+        cooldown: 100         
     },
 
     'SABOTEUR_DRONE': {
@@ -60,9 +60,9 @@ export const DRONE_TYPES = {
         
         behavior: 'DEBUFF',    
         
-        actionRate: 5000,
-        range: 8,
-        debuffMultiplier: 2.0,
+        actionRate: 4000,
+        range: 10,
+        debuffMultiplier: 2.5,
         debuffTargets: 1
     },
     
@@ -81,9 +81,9 @@ export const DRONE_TYPES = {
         behavior: 'RANGED',    
         targeting: 'CURSOR',
         
-        fireRate: 2000,         
-        damage: 4,              
-        projectileSpeed: 1.5,   
-        range: 10
+        fireRate: 1500,         
+        damage: (player) => player.getStat('damage') * 1.2,      
+        projectileSpeed: 1.6,   
+        range: 12
     }
 };

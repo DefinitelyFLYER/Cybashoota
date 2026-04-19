@@ -8,22 +8,20 @@ export const UPGRADES = [
     {
         id: 'rapid_fire',
         name: 'Overclock',
-        description: 'Increases fire rate by 15%.',
+        description: 'Increases fire rate by 20%.',
         rarity: 'Common',
         tags: ['weapon', 'speed'],
         weight: 100,
-        maxStack: 4,
-        onApply: (player) => { player.multipliers.fireRate += 0.15; }
+        onApply: (player) => { player.multipliers.fireRate += 0.20; }
     },
     {
         id: 'damage_boost',
         name: 'High Voltage',
-        description: '+1 Damage to all projectiles.',
+        description: '+1.5 Damage to all projectiles.',
         rarity: 'Common',
         tags: ['weapon', 'damage'],
         weight: 90,
-        maxStack: 20,
-        onApply: (player) => { player.stats.damage += 1; }
+        onApply: (player) => { player.stats.damage += 1.5; }
     },
     {
         id: 'multishot',
@@ -32,7 +30,7 @@ export const UPGRADES = [
         rarity: 'Rare',
         tags: ['weapon', 'projectile'],
         weight: 40,
-        maxStack: 2,
+        maxStack: 3,
         onApply: (player) => { 
             player.stats.projectileCount += 2;
             player.stats.projectileSpread += 3;
@@ -41,12 +39,12 @@ export const UPGRADES = [
     {
         id: 'crit_chance',
         name: 'Optical Sensor',
-        description: '+10% Critical Hit Chance.',
+        description: '+15% Critical Hit Chance.',
         rarity: 'Common',
         tags: ['weapon', 'crit'],
         weight: 60,
-        maxStack: 10,
-        onApply: (player) => { player.stats.critChance += 0.1; }
+        maxStack: 5,
+        onApply: (player) => { player.stats.critChance += 0.15; }
     },
     {
         id: 'crit_multi',
@@ -137,7 +135,7 @@ export const UPGRADES = [
     {
         id: 'needle_rounds',
         name: 'Needle Precision',
-        description: 'Projectiles are 30% smaller, but your bullets are 50% faster. (And they bounce(+1) now!)',
+        description: 'Projectiles are 30% smaller, your bullets are 50% faster, and they bounce(+1) now!',
         rarity: 'Epic',
         tags: ['weapon', 'projectile', 'ricochet', 'risky'],
         weight: 15,
@@ -150,6 +148,16 @@ export const UPGRADES = [
     },
 
     // defensive upgrades
+    {
+    id: 'emergency_shield',
+    name: 'Emergency Shield',
+    description: '+2 Max HP.',
+    rarity: 'Common',
+    tags: ['utility', 'healing'],
+    weight: 70,
+    maxStack: 5,
+    onApply: (player) => { player.stats.maxHp += 2; }
+    },
     {
         id: 'extra_hp',
         name: 'Backup Battery',
@@ -305,13 +313,13 @@ export const UPGRADES = [
     {
         id: 'iron_plates',
         name: 'Iron Plates',
-        description: 'Massive +6 max HP, but -30% Movement Speed.',
+        description: 'Massive +5 max HP, but -20% Movement Speed.',
         rarity: 'Epic',
         tags: ['utility', 'healing'],
         weight: 20,
         onApply: (player) => {
-            player.multipliers.moveSpeed -= 0.30;
-            player.stats.maxHp += 6;
+            player.multipliers.moveSpeed -= 0.2;
+            player.stats.maxHp += 5;
         }
     },
     {
