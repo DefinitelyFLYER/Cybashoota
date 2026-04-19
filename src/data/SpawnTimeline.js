@@ -100,7 +100,7 @@ export const SPAWN_TIMELINE = [
     },
     {
         name: "What is this..",
-        start: 360, end: 600,
+        start: 360, end: 480,
         types: ["TRIANGLE", "SQUARE", "CIRCLE", "HEXAGON", "RHOMBUS"],
         rate: 600,
         hpMultiplier: 3.8, speedMultiplier: 2,
@@ -108,10 +108,18 @@ export const SPAWN_TIMELINE = [
     },
     {
         name: "Critical Overload",
-        start: 360, end: 600,
+        start: 480, end: 600,
         types: ["RHOMBUS", "HEXAGON", "SENTRY"],
         rate: 800,
         hpMultiplier: 5.5, speedMultiplier: 2.3,
         xpDrop: { value: 150, color: '#ffffff' }
+    },
+    {
+        name: "You can't win",
+        start: 600, end: 900,
+        types: ["TRIANGLE", "SQUARE", "CIRCLE", "RHOMBUS", "HEXAGON", "SENTRY"],
+        rate: 400,
+        hpMultiplier: 7, speedMultiplier: 2.3,
+        xpDrop: { value: 1000, color: '#ff8400' }
     }
 ];

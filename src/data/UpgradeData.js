@@ -159,16 +159,16 @@ export const UPGRADES = [
     onApply: (player) => { player.stats.maxHp += 2; }
     },
     {
-        id: 'extra_hp',
-        name: 'Backup Battery',
-        description: '+2 Max HP and heals 2 HP.',
-        rarity: 'Common',
-        tags: ['defense', 'healing'],
-        weight: 60,
-        onApply: (player) => { 
-            player.stats.maxHp += 2;
-            player.stats.hp += 2;
-        }
+    id: 'extra_hp',
+    name: 'Backup Battery',
+    description: '+2 Max HP and heals 2 HP.',
+    rarity: 'Common',
+    tags: ['defense', 'healing'],
+    weight: 80,
+    onApply: (player) => { 
+        player.stats.maxHp += 2;
+        player.stats.hp += 2;
+    }
     },
     {
         id: 'armor',
