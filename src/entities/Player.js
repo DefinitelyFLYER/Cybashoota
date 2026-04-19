@@ -13,13 +13,13 @@ export default class Player {
         this.xpNextLevel = 100;
 
         this.baseStats = {
-            moveSpeed: 0.2,
-            maxHp: 2,
-            fireRate: 600,
-            bulletSpeed: 0.8,
-            projectileSize: 1.0,
-            critMultiplier: 2.0,
-            magnetRange: 0.75,
+            moveSpeed: 0.22,
+            maxHp: 3,
+            fireRate: 500,
+            bulletSpeed: 0.9,
+            projectileSize: 1.1,
+            critMultiplier: 2.2,
+            magnetRange: 0.85,
             xpMultiplier: 1.0,
             luck: 1.0,
             maxHackSlots: 0
@@ -38,15 +38,15 @@ export default class Player {
         };
 
         this.stats = {
-            hp: 2,
-            maxHp: 2, 
+            hp: 3,
+            maxHp: 3, 
             defense: 0, // irrelevant now
             damage: 1,
-            dodgeChance: 0,
+            dodgeChance: 0.08,
             projectileCount: 1,
             projectileSpread: 5,
             aimAssist: 0,
-            critChance: 0.05,
+            critChance: 0.08,
             penetration: 0,
             ricochetCount: 0,
             upgradeOptions: 3,
@@ -108,7 +108,7 @@ export default class Player {
         this.xpNextLevel = 100;
         this.multipliers = {
             moveSpeed: 1.0,
-            fireRate: 1.0,
+            fireRate: 1.0, 
             bulletSpeed: 1.0,
             projectileSize: 1.0,
             critMultiplier: 1.0,
@@ -118,15 +118,15 @@ export default class Player {
             maxHackSlots: 1.0
         };
         this.stats = {
-            hp: 2,
-            maxHp: 2,
-            defense: 0,
+            hp: 3,
+            maxHp: 3, 
+            defense: 0, // irrelevant now
             damage: 1,
-            dodgeChance: 0,
+            dodgeChance: 0.08,
             projectileCount: 1,
             projectileSpread: 5,
             aimAssist: 0,
-            critChance: 0.05,
+            critChance: 0.08,
             penetration: 0,
             ricochetCount: 0,
             upgradeOptions: 3,

@@ -12,8 +12,8 @@ export default class HackManager {
 
                     for (const enemy of enemyManager.enemies) {
                         enemy.currentHp = Math.max(0, (enemy.currentHp || 0) - 5);
-                        enemy.speedModifier = 0.2;
-                        enemy.hackDebuffTimer = 5000;
+                        enemy.speedModifier = 0.3;
+                        enemy.hackDebuffTimer = 4000;
                     }
 
                     return true;
@@ -88,7 +88,7 @@ export default class HackManager {
         this.activeHack = this.unlockedHacks.length > 0 ? this.unlockedHacks[0] : null;
 
         this.cooldownTimer = 0;
-        this.cooldownDuration = 10000;
+        this.cooldownDuration = 20000;
     }
 
     init(game) {

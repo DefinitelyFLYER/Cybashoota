@@ -13,13 +13,13 @@ export const HACK_DATA = {
         id: 'SIGNAL_JAMMER',
         name: 'Signal Jammer',
         unlocked: false,
-        durationMs: 6000
+        durationMs: 10000
     },
     GHOST_PROTOCOL: {
         id: 'GHOST_PROTOCOL',
         name: 'Ghost Protocol',
         unlocked: false,
-        durationMs: 5000,
+        durationMs: 10000,
         speedBoostMultiplier: 1.5,
         alpha: 0.4
     }
