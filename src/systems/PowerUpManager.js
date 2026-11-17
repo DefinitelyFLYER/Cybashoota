@@ -183,9 +183,9 @@ export default class PowerUpManager {
             const drawY = d.y - player.pos.y + this.game.center.y + Math.sin(d.bobbing) * 8;
 
             ctx.save();
-            
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = d.color;
+            const glowEnabled = this.game?.settings?.performance?.glowEffects !== false;
+            ctx.shadowBlur = glowEnabled ? 20 : 0;
+            if (glowEnabled) ctx.shadowColor = d.color;
 
             const img = this.sprites.get(d.id);
 

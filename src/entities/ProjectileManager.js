@@ -190,7 +190,8 @@ export default class ProjectileManager {
             p.y += p.vy * projDt;
             p.life -= projDt;
 
-            if (particles && Math.random() > 0.3) {
+            const trailsEnabled = this.game?.settings?.performance?.projectileTrails !== false;
+            if (particles && trailsEnabled && Math.random() > 0.3) {
                 particles.emitTrail(p.x, p.y, p.color || '#ff0055'); 
             }
 
@@ -220,6 +221,39 @@ export default class ProjectileManager {
                             
                             if (drone.behavior === 'INTERCEPTOR') {
                                 drone.actionTimer = 0;
+
+                                const synergyMgr = this.game.getModule('synergies');
+                                if (synergyMgr && synergyMgr.hasSynergy('guardian_relay')) {
+                                    for (const other of droneMgr.drones) {
+                                        if (other.id === 'HARVESTER_DRONE') {
+                                            other.actionTimer += 2500;
+                                        }
+                                    }
+                                }
+                                if (synergyMgr && synergyMgr.hasSynergy('solar_aegis')) {
+                                    synergyMgr.onAegisIntercept();
+                                    const speed = Math.max(0.75, player.getStat('bulletSpeed'));
+                                    const target = this.findNextTarget({ x: drone.x, y: drone.y }, null);
+                                    const angle = target
+                                        ? Math.atan2(target.y - drone.y, target.x - drone.x)
+                                        : Math.atan2(-p.vy, -p.vx);
+                                    this.projectiles.push({
+                                        x: drone.x,
+                                        y: drone.y,
+                                        vx: Math.cos(angle) * speed,
+                                        vy: Math.sin(angle) * speed,
+                                        size: 14,
+                                        life: 2200,
+                                        isCrit: true,
+                                        bounces: 0,
+                                        penetration: 0,
+                                        isHoming: true,
+                                        color: '#ff9900',
+                                        damage: player.getStat('damage') * 3,
+                                        hitEnemies: new Set(),
+                                        lastHitEnemy: null
+                                    });
+                                }
                             }
                             break; 
                         }
@@ -252,8 +286,21 @@ export default class ProjectileManager {
         const fireRequested = autoFire || (input && input.isActionDown && input.isActionDown('shoot')) || this.gamepadFire;
         if (!fireRequested) return;
 
+        let fireRate = player.getStat('fireRate');
+        const synergyMgr = this.game?.getModule('synergies');
+        if (synergyMgr) {
+            let bonus = 1.0;
+            if (this.game.isSignalJammed && synergyMgr.hasSynergy('blackout_matrix')) {
+                bonus += 0.5;
+            }
+            if (synergyMgr.juggernautBuffTimer > 0) {
+                bonus += 0.35;
+            }
+            fireRate /= bonus;
+        }
+
         const now = Date.now();
-        if (now - this.lastFireTime >= player.getStat('fireRate')) {
+        if (now - this.lastFireTime >= fireRate) {
             this._spawnBurst(player);
             this.lastFireTime = now;
         }
@@ -300,6 +347,32 @@ export default class ProjectileManager {
         }
         this.crosshairPulse = 1.0;
 
+        // Synergy: Chrono-Mirage (2 phantom turret clones mirror shots while Ghost Protocol is active)
+        const synergyMgr = this.game?.getModule('synergies');
+        if (player.ghostActive && synergyMgr && synergyMgr.hasSynergy('chrono_mirage')) {
+            const cloneOffsets = [
+                { x: -46, y: -22 },
+                { x: 46, y: -22 }
+            ];
+            for (const off of cloneOffsets) {
+                this.projectiles.push({
+                    x: center.x + off.x,
+                    y: center.y + off.y,
+                    vx: Math.cos(baseAngle) * bulletSpeed,
+                    vy: Math.sin(baseAngle) * bulletSpeed,
+                    size: 8 * projectileSize,
+                    life: 1800,
+                    isCrit: Math.random() < player.getStat('critChance'),
+                    bounces: 0,
+                    penetration: player.getStat('penetration') || 0,
+                    color: '#00ffcc',
+                    damage: player.getStat('damage') * 0.5,
+                    hitEnemies: new Set(),
+                    lastHitEnemy: null
+                });
+            }
+        }
+
         const particles = this.game.getModule('particles');
         if (particles && player.weaponAngle !== undefined) {
             const color = this.game?.settings?.gameplay?.crosshairColor || '#00ffcc';
@@ -323,7 +396,10 @@ export default class ProjectileManager {
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
 
-            if (effectiveAimAssist > 0 && p.damage === undefined) {
+            if (p.isHoming) {
+                const currentSpeed = Math.sqrt(p.vx * p.vx + p.vy * p.vy) || player.getStat('bulletSpeed');
+                this._applyHoming(p, 1.2, currentSpeed, enemyMgr, deltaTime);
+            } else if (effectiveAimAssist > 0 && p.damage === undefined) {
                 const currentSpeed = Math.sqrt(p.vx * p.vx + p.vy * p.vy) || player.getStat('bulletSpeed');
                 this._applyHoming(p, effectiveAimAssist, currentSpeed, enemyMgr, deltaTime);
             }
@@ -332,7 +408,8 @@ export default class ProjectileManager {
             p.y += p.vy * deltaTime;
             p.life -= deltaTime;
 
-            if (particles && Math.random() > 0.3) {
+            const trailsEnabled = this.game?.settings?.performance?.projectileTrails !== false;
+            if (particles && trailsEnabled && Math.random() > 0.3) {
                 particles.emitTrail(p.x, p.y, p.color || '#00ffcc');
             }
 
@@ -465,12 +542,13 @@ export default class ProjectileManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
+        const glowEnabled = this.game?.settings?.performance?.glowEffects !== false;
         ctx.save();
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = glowEnabled ? 15 : 0;
         for (const p of this.projectiles) {
             const color = p.color || '#00ffcc';
             ctx.fillStyle = color;
-            ctx.shadowColor = color;
+            if (glowEnabled) ctx.shadowColor = color;
             const screenX = p.x - player.pos.x + this.game.center.x;
             const screenY = p.y - player.pos.y + this.game.center.y;
             ctx.beginPath();
@@ -478,12 +556,12 @@ export default class ProjectileManager {
             ctx.fill();
         }
 
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = glowEnabled ? 10 : 0;
         for (const p of this.enemyProjectiles) {
             const screenX = p.x - player.pos.x + this.game.center.x;
             const screenY = p.y - player.pos.y + this.game.center.y;
             ctx.fillStyle = p.color;
-            ctx.shadowColor = p.color;
+            if (glowEnabled) ctx.shadowColor = p.color;
             ctx.beginPath();
             ctx.arc(screenX, screenY, p.size / 2, 0, Math.PI * 2);
             ctx.fill();

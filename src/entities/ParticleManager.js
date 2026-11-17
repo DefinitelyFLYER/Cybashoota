@@ -18,6 +18,14 @@ export default class ParticleManager {
         return !this.game || !this.game.settings || this.game.settings.performance.particles;
     }
 
+    _pushParticle(particle) {
+        const cap = Number(this.game?.settings?.performance?.maxParticles ?? 250);
+        if (this.particles.length >= cap) {
+            this.particles.shift();
+        }
+        this.particles.push(particle);
+    }
+
     /**
      * 
      * @param {number} x
@@ -28,7 +36,7 @@ export default class ParticleManager {
     emit(x, y, color = '#ff0055', count = 10) {
         if (!this.isEnabled()) return;
         for (let i = 0; i < count; i++) {
-            this.particles.push({
+            this._pushParticle({
                 x: x,
                 y: y,
                 vx: (Math.random() - 0.5) * 0.4,
@@ -57,7 +65,7 @@ export default class ParticleManager {
             
             const speed = 0.14 + Math.random() * 0.2;
 
-            this.particles.push({
+            this._pushParticle({
                 x: x,
                 y: y,
                 vx: Math.cos(finalAngle) * speed,
@@ -79,7 +87,7 @@ export default class ParticleManager {
      */
     emitTrail(x, y, color = '#00ffcc') {
         if (!this.isEnabled()) return;
-        this.particles.push({
+        this._pushParticle({
             x: x + (Math.random() - 0.5) * 4,
             y: y + (Math.random() - 0.5) * 4,
             vx: (Math.random() - 0.5) * 0.02,
@@ -102,7 +110,7 @@ export default class ParticleManager {
         const count = conf.countMin + Math.floor(Math.random() * (conf.countMax - conf.countMin + 1));
 
         for (let i = 0; i < count; i++) {
-            this.particles.push({
+            this._pushParticle({
                 x: x,
                 y: y,
                 vx: (Math.random() - 0.5) * 0.1,
@@ -134,7 +142,7 @@ export default class ParticleManager {
             const px = x + Math.cos(angle) * distance;
             const py = y + Math.sin(angle) * distance;
 
-            this.particles.push({
+            this._pushParticle({
                 x: px,
                 y: py,
                 vx: 0,

@@ -1,4 +1,5 @@
 import { DRONE_TYPES } from '../data/DroneTypes.js';
+import { GLITCH_PHASES } from '../data/HackData.js';
 
 export default class DroneManager {
     constructor() {
@@ -10,7 +11,10 @@ export default class DroneManager {
             'ALL': { damageBonus: 0, speedMulti: 1.0 },
             'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
             'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
-            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 }
+            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 },
+            'TESLA': { actionRateMulti: 1.0, rangeMulti: 1.0, chainBonus: 0, damageBonus: 0 },
+            'SUPPORT': { actionRateMulti: 1.0, rangeMulti: 1.0, speedMulti: 1.0 },
+            'MELEE': { actionRateMulti: 1.0, speedMulti: 1.0, damageBonus: 0 }
         };
     }
 
@@ -26,7 +30,10 @@ export default class DroneManager {
             'ALL': { damageBonus: 0, speedMulti: 1.0 },
             'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
             'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
-            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 }
+            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 },
+            'TESLA': { actionRateMulti: 1.0, rangeMulti: 1.0, chainBonus: 0, damageBonus: 0 },
+            'SUPPORT': { actionRateMulti: 1.0, rangeMulti: 1.0, speedMulti: 1.0 },
+            'MELEE': { actionRateMulti: 1.0, speedMulti: 1.0, damageBonus: 0 }
         };
     }
 
@@ -65,6 +72,8 @@ export default class DroneManager {
             vx: 0,
             vy: 0
         });
+        const codex = this.game?.getModule('codex');
+        if (codex) codex.discover('drones', typeId);
         console.log(`Spawned Drone: ${config.name}`);
     }
 
@@ -92,6 +101,15 @@ export default class DroneManager {
                     break;
                 case 'DEBUFF':
                     this._handleDebuffBehavior(drone, deltaTime);
+                    break;
+                case 'TESLA':
+                    this._handleTeslaBehavior(drone, deltaTime);
+                    break;
+                case 'SUPPORT':
+                    isIntercepting = this._handleSupportBehavior(drone, deltaTime);
+                    break;
+                case 'MELEE':
+                    isIntercepting = this._handleMeleeBehavior(drone, deltaTime);
                     break;
             }
 
@@ -308,6 +326,8 @@ export default class DroneManager {
 
         let taggedAny = false;
         const particles = this.game.getModule('particles');
+        const synergyMgr = this.game.getModule('synergies');
+        const applyViralGlitch = synergyMgr && synergyMgr.hasSynergy('viral_swarm');
 
         for (let i = 0; i < targetCount; i++) {
             if (validTargets.length === 0) break;
@@ -318,6 +338,10 @@ export default class DroneManager {
             target.isTagged = true;
             target.tagMultiplier = this._getStat(drone, 'debuffMultiplier', player);
             target.tagAnimationTimer = 0;
+
+            if (applyViralGlitch) {
+                target.glitchPhase = GLITCH_PHASES.PRIMARY;
+            }
 
             if (particles) {
                 particles.emit(target.x, target.y, drone.color, 15);
@@ -330,9 +354,222 @@ export default class DroneManager {
         }
     }
 
+    _handleTeslaBehavior(drone, deltaTime) {
+        const player = this.game.getModule('player');
+        const enemyMgr = this.game.getModule('enemies');
+        const synergyMgr = this.game.getModule('synergies');
+        const particles = this.game.getModule('particles');
+        if (!player || !enemyMgr || enemyMgr.enemies.length === 0) return;
+
+        const actionRate = this._getStat(drone, 'actionRate', player);
+        if (drone.actionTimer < actionRate) return;
+
+        const rangePx = this._getStat(drone, 'range', player) * this.game.UNIT_SIZE;
+        let firstTarget = null;
+        let minDist = rangePx;
+
+        for (const e of enemyMgr.enemies) {
+            if (e.currentHp <= 0) continue;
+            const dx = e.x - drone.x;
+            const dy = e.y - drone.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < minDist) {
+                minDist = dist;
+                firstTarget = e;
+            }
+        }
+
+        if (!firstTarget) return;
+
+        drone.actionTimer = 0;
+        const dmg = this._getStat(drone, 'damage', player);
+        const upgrades = this.game.getModule('upgrades');
+        const chainBonus = upgrades?.droneMods?.TESLA?.chainBonus || 0;
+        const hasStormConduit = synergyMgr && synergyMgr.hasSynergy('storm_conduit');
+        const totalChains = (drone.chainCount || 3) + chainBonus + (hasStormConduit ? 3 : 0);
+
+        let originX = drone.x;
+        let originY = drone.y;
+        let current = firstTarget;
+        const hit = new Set();
+
+        for (let c = 0; c < totalChains && current; c++) {
+            hit.add(current);
+            const dealt = (current.isTagged && current.tagMultiplier) ? dmg * current.tagMultiplier : dmg;
+            current.currentHp -= dealt;
+            current.speedModifier = Math.min(current.speedModifier ?? 1, 0.55);
+
+            if (hasStormConduit && current.glitchPhase === GLITCH_PHASES.NORMAL) {
+                current.glitchPhase = GLITCH_PHASES.SECONDARY;
+            }
+
+            if (synergyMgr) {
+                synergyMgr.addLightningArc(originX, originY, current.x, current.y, '#00bcff');
+            }
+            if (particles) {
+                particles.emit(current.x, current.y, '#00bcff', 5);
+            }
+
+            originX = current.x;
+            originY = current.y;
+
+            // Find next nearest unhit enemy
+            let nextEnemy = null;
+            let nextMin = 240;
+            for (const other of enemyMgr.enemies) {
+                if (hit.has(other) || other.currentHp <= 0) continue;
+                const d = Math.hypot(other.x - originX, other.y - originY);
+                if (d < nextMin) {
+                    nextMin = d;
+                    nextEnemy = other;
+                }
+            }
+            current = nextEnemy;
+        }
+    }
+
+    _handleSupportBehavior(drone, deltaTime) {
+        const player = this.game.getModule('player');
+        if (!player) return false;
+
+        const expMgr = this.game.getModule('experience');
+        const powerMgr = this.game.getModule('powerups');
+        const augmentMgr = this.game.getModule('augments');
+        const synergyMgr = this.game.getModule('synergies');
+        const particles = this.game.getModule('particles');
+
+        // Periodic Nano-Pulse repair
+        const actionRate = this._getStat(drone, 'actionRate', player);
+        if (drone.actionTimer >= actionRate) {
+            drone.actionTimer = 0;
+            let healed = false;
+            if (player.stats.hp < player.stats.maxHp) {
+                player.stats.hp = Math.min(player.stats.maxHp, player.stats.hp + 1);
+                healed = true;
+            } else if (typeof player.getMaxArmor === 'function' && player.armorCharges < player.getMaxArmor()) {
+                player.armorCharges += 1;
+                healed = true;
+            } else if (synergyMgr && synergyMgr.hasSynergy('nano_harvest')) {
+                player.stats.hp += 1; // +1 Shield HP
+                healed = true;
+            }
+            if (healed && particles) {
+                particles.emit(player.pos.x, player.pos.y, '#00ff66', 16);
+            }
+        }
+
+        // Fly toward nearest collectible within range
+        const rangePx = this._getStat(drone, 'range', player) * this.game.UNIT_SIZE;
+        let targetDrop = null;
+        let minDist = rangePx;
+
+        const checkList = (arr) => {
+            if (!arr) return;
+            for (const item of arr) {
+                const d = Math.hypot(item.x - drone.x, item.y - drone.y);
+                if (d < minDist) {
+                    minDist = d;
+                    targetDrop = item;
+                }
+            }
+        };
+
+        checkList(expMgr?.orbs);
+        checkList(powerMgr?.drops);
+        checkList(augmentMgr?.scrapDrops);
+        if (augmentMgr && augmentMgr.getStoredCount() < augmentMgr.maxStorage) {
+            checkList(augmentMgr.drops);
+        }
+
+        if (targetDrop && minDist > 2) {
+            const speedMulti = this._getStat(drone, 'speedMulti', player);
+            const step = (drone.collectSpeed || 0.45) * speedMulti * deltaTime;
+            drone.x += ((targetDrop.x - drone.x) / minDist) * step;
+            drone.y += ((targetDrop.y - drone.y) / minDist) * step;
+
+            // Pull collected orbs/scrap toward player once touched
+            if (minDist < 28) {
+                targetDrop.x = player.pos.x;
+                targetDrop.y = player.pos.y;
+                if (synergyMgr && synergyMgr.hasSynergy('nano_harvest') && Math.random() < 0.03) {
+                    augmentMgr.scrap += 1;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    _handleMeleeBehavior(drone, deltaTime) {
+        const player = this.game.getModule('player');
+        const enemyMgr = this.game.getModule('enemies');
+        const synergyMgr = this.game.getModule('synergies');
+        const particles = this.game.getModule('particles');
+        if (!player || !enemyMgr || enemyMgr.enemies.length === 0) return false;
+
+        const hasBloodGrinder = synergyMgr && synergyMgr.hasSynergy('blood_grinder');
+        const rangePx = this._getStat(drone, 'range', player) * this.game.UNIT_SIZE * (hasBloodGrinder ? 1.35 : 1);
+
+        let target = null;
+        let minDist = rangePx;
+        for (const e of enemyMgr.enemies) {
+            if (e.currentHp <= 0) continue;
+            const d = Math.hypot(e.x - drone.x, e.y - drone.y);
+            if (d < minDist) {
+                minDist = d;
+                target = e;
+            }
+        }
+
+        if (!target) return false;
+
+        const speedMulti = this._getStat(drone, 'speedMulti', player) * (hasBloodGrinder ? 1.4 : 1);
+        const step = (drone.dashSpeed || 0.48) * speedMulti * deltaTime;
+        if (minDist > 1) {
+            drone.x += ((target.x - drone.x) / minDist) * step;
+            drone.y += ((target.y - drone.y) / minDist) * step;
+        }
+
+        const hitInterval = this._getStat(drone, 'actionRate', player);
+        const sawRadius = (drone.size * (hasBloodGrinder ? 1.8 : 1.0)) * 0.55;
+        const hasShredder = synergyMgr && synergyMgr.hasSynergy('shredder_protocol');
+        if (drone.actionTimer >= hitInterval) {
+            let hitAny = false;
+            const dmg = this._getStat(drone, 'damage', player) * (hasBloodGrinder ? 2 : 1);
+            for (const e of enemyMgr.enemies) {
+                if (e.currentHp <= 0) continue;
+                const d = Math.hypot(e.x - drone.x, e.y - drone.y);
+                if (d <= sawRadius + e.size * 0.5) {
+                    if (hasShredder && !e.isTagged) {
+                        e.isTagged = true;
+                        e.tagMultiplier = 2.5;
+                        e.tagAnimationTimer = 0;
+                    }
+                    let dealt = (e.isTagged && e.tagMultiplier) ? dmg * e.tagMultiplier : dmg;
+                    if (hasShredder && e.isTagged) {
+                        dealt *= 2.0;
+                    }
+                    e.currentHp -= dealt;
+                    hitAny = true;
+                    if (particles) particles.emit(e.x, e.y, '#ff2244', 4);
+                    if (hasBloodGrinder) {
+                        drone.sawHitCount = (drone.sawHitCount || 0) + 1;
+                        if (drone.sawHitCount >= 25) {
+                            drone.sawHitCount = 0;
+                            player.stats.hp = Math.min(player.stats.maxHp, player.stats.hp + 1);
+                        }
+                    }
+                }
+            }
+            if (hitAny) drone.actionTimer = 0;
+        }
+        return true;
+    }
+
     _shootAtTarget(drone, target, player) {
         const projMgr = this.game.getModule('projectiles');
         const particles = this.game.getModule('particles');
+        const synergyMgr = this.game.getModule('synergies');
         if (!projMgr) return;
 
         const dx = target.x - drone.x;
@@ -342,21 +579,72 @@ export default class DroneManager {
         const speed = this._getStat(drone, 'projectileSpeed', player);
         const dmg = this._getStat(drone, 'damage', player);
 
-        projMgr.projectiles.push({
-            x: drone.x,
-            y: drone.y,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed,
-            size: 6,
-            life: 1500,
-            isCrit: false,
-            bounces: 0,
-            penetration: 0,
-            color: drone.color,
-            damage: dmg,
-            hitEnemies: new Set(),
-            lastHitEnemy: null
-        });
+        // Synergy: Orbital Railcannon (Sniper Drone fires piercing rail-beam across screen)
+        if (drone.id === 'SNIPER_DRONE' && synergyMgr && synergyMgr.hasSynergy('orbital_railcannon')) {
+            const beamLen = 1400;
+            const endX = drone.x + Math.cos(angle) * beamLen;
+            const endY = drone.y + Math.sin(angle) * beamLen;
+            synergyMgr.addRailBeam(drone.x, drone.y, endX, endY, '#ff0055');
+
+            const enemyMgr = this.game.getModule('enemies');
+            const beamDmg = dmg * 3;
+            const dirX = Math.cos(angle);
+            const dirY = Math.sin(angle);
+
+            if (enemyMgr && enemyMgr.enemies) {
+                for (const e of enemyMgr.enemies) {
+                    if (e.currentHp <= 0) continue;
+                    const ex = e.x - drone.x;
+                    const ey = e.y - drone.y;
+                    const dot = ex * dirX + ey * dirY;
+                    if (dot < 0 || dot > beamLen) continue;
+                    const perpDist = Math.abs(ex * dirY - ey * dirX);
+                    if (perpDist <= e.size * 0.65 + 10) {
+                        const dealt = (e.isTagged && e.tagMultiplier) ? beamDmg * e.tagMultiplier : beamDmg;
+                        e.currentHp -= dealt;
+                        if (particles) particles.emit(e.x, e.y, '#ff0055', 8);
+                    }
+                }
+            }
+            if (particles) particles.emitMuzzle(drone.x, drone.y, angle, '#ff0055', 6);
+            return;
+        }
+
+        // Synergy: Bullet Choir & Tesla Coil for Assault Drone
+        const isAssault = drone.id === 'BASIC_SHOOTER';
+        const isSniper = drone.id === 'SNIPER_DRONE';
+        const hackMgr = this.game.getModule('hack');
+        const hasBulletChoir = isAssault && synergyMgr && synergyMgr.hasSynergy('bullet_choir');
+        const hasTeslaCoil = isAssault && synergyMgr && synergyMgr.hasSynergy('tesla_coil');
+        const hasIonBarrage = isAssault && synergyMgr && synergyMgr.hasSynergy('ion_barrage');
+        const hasSpotterCrit = isSniper && synergyMgr && synergyMgr.hasSynergy('spotter_beam') && Boolean(hackMgr?.activeDecoy);
+
+        const shotCount = hasBulletChoir ? 3 : 1;
+        const spreadRad = 12 * (Math.PI / 180);
+        const bounces = hasBulletChoir ? (player.getStat('ricochetCount') || 0) : 0;
+        const critChance = hasBulletChoir ? (player.getStat('critChance') || 0) : 0;
+
+        for (let i = 0; i < shotCount; i++) {
+            const offset = shotCount > 1 ? (i - (shotCount - 1) / 2) * spreadRad : 0;
+            const finalAngle = angle + offset;
+            const chainRoll = hasTeslaCoil ? 2 : (hasIonBarrage && Math.random() < 0.30 ? 2 : 0);
+            projMgr.projectiles.push({
+                x: drone.x,
+                y: drone.y,
+                vx: Math.cos(finalAngle) * speed,
+                vy: Math.sin(finalAngle) * speed,
+                size: hasBulletChoir ? 8 : 6,
+                life: 1500,
+                isCrit: hasSpotterCrit || (critChance > 0 && Math.random() < critChance),
+                bounces,
+                penetration: 0,
+                chainLightning: chainRoll,
+                color: chainRoll > 0 ? '#00bcff' : drone.color,
+                damage: dmg,
+                hitEnemies: new Set(),
+                lastHitEnemy: null
+            });
+        }
 
         if (particles) {
             particles.emitMuzzle(drone.x, drone.y, angle, drone.color, 3);
@@ -369,12 +657,16 @@ export default class DroneManager {
 
         const upgrades = this.game.getModule('upgrades');
         const augmentMgr = this.game.getModule('augments');
+        const synergyMgr = this.game.getModule('synergies');
         if (!upgrades) return baseVal;
 
         const globalMods = upgrades.droneMods['ALL'] || {};
         const specificMods = upgrades.droneMods[drone.behavior] || {};
         const setDmgBonus = augmentMgr ? augmentMgr.getDroneDamageBonus() : 0;
-        const setRateMulti = augmentMgr ? augmentMgr.getDroneRateMultiplier() : 1.0;
+        let setRateMulti = augmentMgr ? augmentMgr.getDroneRateMultiplier() : 1.0;
+        if (synergyMgr && synergyMgr.cyberOverloadTimer > 0) {
+            setRateMulti *= 0.45;
+        }
 
         switch(statName) {
             case 'damage':
@@ -402,6 +694,13 @@ export default class DroneManager {
             case 'cooldown':
             case 'actionRate': {
                 let timeMulti = (specificMods[`${statName}Multi`] || 1) * setRateMulti;
+                if (drone.id === 'ARC_DRONE' && synergyMgr && synergyMgr.hasSynergy('ion_barrage')) {
+                    timeMulti *= 0.7;
+                }
+                if (drone.id === 'SNIPER_DRONE' && synergyMgr && synergyMgr.hasSynergy('spotter_beam')) {
+                    const hackMgr = this.game.getModule('hack');
+                    if (hackMgr?.activeDecoy) timeMulti *= 0.5;
+                }
                 return baseVal * timeMulti;
             }
                 
@@ -420,11 +719,15 @@ export default class DroneManager {
             const screenY = drone.y - player.pos.y + this.game.center.y;
 
             const sprite = this.sprites.get(drone.id);
+            const synergyMgr = this.game.getModule('synergies');
+            const scale = (drone.id === 'SAW_DRONE' && synergyMgr && synergyMgr.hasSynergy('blood_grinder')) ? 1.8 : 1;
+            const drawSize = drone.size * scale;
 
             if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-                ctx.drawImage(sprite, screenX - drone.size / 2, screenY - drone.size / 2, drone.size, drone.size);
+                ctx.drawImage(sprite, screenX - drawSize / 2, screenY - drawSize / 2, drawSize, drawSize);
             } else {
-                ctx.shadowBlur = 10;
+                const glowEnabled = this.game?.settings?.performance?.glowEffects !== false;
+                ctx.shadowBlur = glowEnabled ? 10 : 0;
                 ctx.shadowColor = drone.color;
                 ctx.fillStyle = drone.color;
                 ctx.strokeStyle = '#fff';

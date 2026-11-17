@@ -60,6 +60,7 @@ export default class ExperienceManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
+        const glowEnabled = this.game?.settings?.performance?.glowEffects !== false;
         ctx.save();
         for (const orb of this.orbs) {
             const drawX = orb.x - player.pos.x + this.game.center.x;
@@ -67,8 +68,8 @@ export default class ExperienceManager {
 
             const pulseScale = Math.sin(orb.pulse + orb.seed) * 2;
             
-            ctx.shadowBlur = 10 + pulseScale;
-            ctx.shadowColor = orb.color;
+            ctx.shadowBlur = glowEnabled ? (10 + pulseScale) : 0;
+            if (glowEnabled) ctx.shadowColor = orb.color;
             ctx.fillStyle = orb.color;
 
             ctx.beginPath();

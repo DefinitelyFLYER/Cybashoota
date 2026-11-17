@@ -1,7 +1,8 @@
 export const MENU_DEFINITIONS = {
     MAIN_MENU: [
         { id: 'play', text: 'PLAY', action: 'startGame', style: 'default' },
-        { id: 'settings', text: 'SETTINGS', action: 'openSettingsMenu', args: ['menu'], style: 'default' }
+        { id: 'settings', text: 'SETTINGS', action: 'openSettingsMenu', args: ['menu'], style: 'default' },
+        { id: 'codex', text: 'CODEX', action: 'openSynergyCodex', style: 'default' }
     ],
     SETTINGS_MENU: {
         tabs: [
@@ -20,10 +21,43 @@ export const MENU_DEFINITIONS = {
                     path: ['performance', 'particles']
                 },
                 {
+                    id: 'projectileTrails',
+                    type: 'toggle',
+                    label: 'Projectile Trails',
+                    path: ['performance', 'projectileTrails']
+                },
+                {
+                    id: 'maxParticles',
+                    type: 'slider',
+                    label: 'Max Particles',
+                    path: ['performance', 'maxParticles'],
+                    min: 50,
+                    max: 500,
+                    step: 25
+                },
+                {
+                    id: 'glowEffects',
+                    type: 'toggle',
+                    label: 'Neon Glow Effects',
+                    path: ['performance', 'glowEffects']
+                },
+                {
                     id: 'enemyHealthBars',
                     type: 'toggle',
                     label: 'Enemy Health Bars',
                     path: ['performance', 'enemyHealthBars']
+                },
+                {
+                    id: 'backgroundGrid',
+                    type: 'toggle',
+                    label: 'Background Grid',
+                    path: ['performance', 'backgroundGrid']
+                },
+                {
+                    id: 'showFps',
+                    type: 'toggle',
+                    label: 'Show FPS Counter',
+                    path: ['performance', 'showFps']
                 }
             ],
             gameplay: [
@@ -42,6 +76,12 @@ export const MENU_DEFINITIONS = {
                     type: 'toggle',
                     label: 'Cooldown after pause',
                     path: ['gameplay', 'resumeCooldown']
+                },
+                {
+                    id: 'pauseOnBlur',
+                    type: 'toggle',
+                    label: 'Pause on Focus Loss',
+                    path: ['gameplay', 'pauseOnBlur']
                 },
                 {
                     id: 'aimAssistStrength',

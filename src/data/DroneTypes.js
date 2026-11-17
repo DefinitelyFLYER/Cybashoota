@@ -85,5 +85,61 @@ export const DRONE_TYPES = {
         damage: (player) => player.getStat('damage') * 1.2,      
         projectileSpeed: 1.6,   
         range: 12
+    },
+
+    'ARC_DRONE': {
+        id: 'ARC_DRONE',
+        name: 'Arc Drone',
+        description: 'Tesla unit that zaps nearby enemies with chain lightning, slowing them.',
+        color: '#00bcff',
+        size: 50,
+        sprite: 'assets/drones/arc_drone.png',
+
+        movement: 'FOLLOW',
+        followOffset: { x: -0.5, y: 0.45 },
+        followSpeed: 0.09,
+
+        behavior: 'TESLA',
+        actionRate: 1350,
+        damage: (player) => player.getStat('damage') * 0.9,
+        range: 4.5,
+        chainCount: 3
+    },
+
+    'HARVESTER_DRONE': {
+        id: 'HARVESTER_DRONE',
+        name: 'Harvester Drone',
+        description: 'Utility unit that vacuums nearby drops and pulses to repair 1 HP or Armor every 25s.',
+        color: '#00ff66',
+        size: 52,
+        sprite: 'assets/drones/harvester_drone.png',
+
+        movement: 'FOLLOW',
+        followOffset: { x: 0.5, y: 0.45 },
+        followSpeed: 0.1,
+
+        behavior: 'SUPPORT',
+        actionRate: 25000,
+        range: 4.5,
+        collectSpeed: 0.48
+    },
+
+    'SAW_DRONE': {
+        id: 'SAW_DRONE',
+        name: 'Cyber-Saw Drone',
+        description: 'Aggressive melee drone that dashes through enemy clusters, slicing them.',
+        color: '#ff2244',
+        size: 52,
+        sprite: 'assets/drones/saw_drone.png',
+
+        movement: 'FOLLOW',
+        followOffset: { x: 0, y: 0.6 },
+        followSpeed: 0.1,
+
+        behavior: 'MELEE',
+        actionRate: 350,
+        damage: (player) => player.getStat('damage') * 1.15,
+        range: 4.5,
+        dashSpeed: 0.48
     }
 };

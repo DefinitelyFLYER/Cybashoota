@@ -237,6 +237,10 @@ export default class Player {
 
         if (Math.random() < this.stats.dodgeChance) {
             this.invulnerable = 500;
+            const synergyMgr = this.game?.getModule('synergies');
+            if (this.ghostActive && synergyMgr && synergyMgr.hasSynergy('chrono_mirage')) {
+                this.ghostTimer += 1500;
+            }
             if (augmentMgr) augmentMgr.onPlayerDamagedOrDodged(true);
             return;
         }
@@ -250,6 +254,8 @@ export default class Player {
             if (particles) {
                 particles.emit(this.pos.x, this.pos.y, '#ff9900', 14);
             }
+            const synergyMgr = this.game?.getModule('synergies');
+            if (synergyMgr) synergyMgr.onArmorBroken(this);
             if (augmentMgr) augmentMgr.onPlayerDamagedOrDodged(false);
             return;
         }
@@ -343,7 +349,10 @@ export default class Player {
             moveY /= mag;
         }
 
-        const speedMultiplier = this.ghostActive ? HACK_DATA.GHOST_PROTOCOL.speedBoostMultiplier : 1;
+        const synergyMgr = this.game?.getModule('synergies');
+        const juggernautSpeed = synergyMgr && synergyMgr.juggernautBuffTimer > 0 ? 1.25 : 1;
+        const ghostwireSpeed = synergyMgr && synergyMgr.ghostwireTimer > 0 ? 1.2 : 1;
+        const speedMultiplier = (this.ghostActive ? HACK_DATA.GHOST_PROTOCOL.speedBoostMultiplier : 1) * juggernautSpeed * ghostwireSpeed;
         this.pos.x += moveX * this.getStat('moveSpeed') * speedMultiplier * deltaTime;
         this.pos.y += moveY * this.getStat('moveSpeed') * speedMultiplier * deltaTime;
     }

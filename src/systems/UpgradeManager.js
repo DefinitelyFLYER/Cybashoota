@@ -26,7 +26,10 @@ export default class UpgradeManager {
             'ALL': { damageBonus: 0, speedMulti: 1.0 },
             'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
             'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
-            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 }
+            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 },
+            'TESLA': { actionRateMulti: 1.0, rangeMulti: 1.0, chainBonus: 0, damageBonus: 0 },
+            'SUPPORT': { actionRateMulti: 1.0, rangeMulti: 1.0, speedMulti: 1.0 },
+            'MELEE': { actionRateMulti: 1.0, speedMulti: 1.0, damageBonus: 0 }
         };
     }
 
@@ -74,7 +77,10 @@ export default class UpgradeManager {
             'ALL': { damageBonus: 0, speedMulti: 1.0 },
             'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
             'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
-            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 }
+            'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 },
+            'TESLA': { actionRateMulti: 1.0, rangeMulti: 1.0, chainBonus: 0, damageBonus: 0 },
+            'SUPPORT': { actionRateMulti: 1.0, rangeMulti: 1.0, speedMulti: 1.0 },
+            'MELEE': { actionRateMulti: 1.0, speedMulti: 1.0, damageBonus: 0 }
         };
         window.removeEventListener('mousedown', this._clickHandler);
     }
@@ -242,6 +248,10 @@ export default class UpgradeManager {
         if (upgrade) {
             this.inventory[upgradeId] = (this.inventory[upgradeId] || 0) + 1;
             upgrade.onApply(player, this.game);
+            if (!upgrade.unlockHackId) {
+                const codex = this.game?.getModule('codex');
+                if (codex) codex.discover('playerCards', upgradeId);
+            }
         }
     }
 
@@ -250,6 +260,8 @@ export default class UpgradeManager {
         if (upgrade) {
             this.droneUpgradeInventory[upgradeId] = (this.droneUpgradeInventory[upgradeId] || 0) + 1;
             upgrade.onApply(this.droneMods);
+            const codex = this.game?.getModule('codex');
+            if (codex) codex.discover('droneCards', upgradeId);
         }
     }
 

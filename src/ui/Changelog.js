@@ -1,6 +1,19 @@
-export const CURRENT_VERSION = 'v0.3.1';
+export const CURRENT_VERSION = 'v0.4.0';
 
 const CHANGELOG = [
+    {
+        version: 'v0.4.0',
+        title: 'SYNERGIES & OVERLOAD!',
+        date: '17-11-2026',
+        notes: [
+            'Added Synergy system with 22 OP combos across Drones, Hacks, Augments and Upgrade Cards.',
+            'Added full Main Menu Codex (Synergies, Augments, Cards, Drones & Hacks) with discovery tracking.',
+            'Added 3 new Drones (Arc, Harvester, Cyber-Saw), 2 new Hacks (Data Siphon, Holo-Decoy) and 6 Drone Cards.',
+            'Added Mk.II / Mk.III Set Bonus tiers, full Mk.III Scrap-to-XP exchange and Auto-Recycler Protocol card.',
+            'Removed Forge Charges (craft anytime near active Forge), toned down augment drops and added double-click equip.',
+            'Added 4-side enemy spawning, Pause on Focus Loss toggle, instant unpause input and 5 Performance settings.'
+        ]
+    },
     {
         version: 'v0.3.1',
         title: 'Defense, Aim Assist & Loadout',

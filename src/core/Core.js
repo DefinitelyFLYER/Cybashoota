@@ -16,11 +16,17 @@ export default class Game {
         this.settings = {
             performance: {
                 particles: true,
-                enemyHealthBars: true
+                enemyHealthBars: true,
+                glowEffects: true,
+                projectileTrails: true,
+                maxParticles: 250,
+                backgroundGrid: true,
+                showFps: false
             },
             gameplay: {
                 autoFire: false,
                 resumeCooldown: true,
+                pauseOnBlur: true,
                 aimAssistStrength: 1,
                 crosshairColor: '#00ffcc',
                 cursorBorderEnabled: true,
@@ -52,6 +58,7 @@ export default class Game {
 
         this.pauseResumeCooldownTimer = 0;
         this.pauseResumeCooldownDuration = 3000;
+        this._resumeGraceTimer = 0;
         this.isSignalJammed = false;
 
         this._loadPersistentSettings();
@@ -73,6 +80,9 @@ export default class Game {
         }, { passive: false });
 
         this.UNIT_SIZE = 100;
+        this.fps = 60;
+        this._fpsAccTime = 0;
+        this._fpsFrames = 0;
 
         this.center = {
             x: this.canvas.width / 2,
@@ -113,7 +123,7 @@ export default class Game {
     resetGame() {
         const resets = [
             'player', 'ui', 'projectiles', 'enemies', 'drones', 'powerups',
-            'experience', 'director', 'upgrades', 'particles', 'hack', 'augments'
+            'experience', 'director', 'upgrades', 'particles', 'hack', 'augments', 'synergies'
         ];
 
         for (const name of resets) {
@@ -164,15 +174,33 @@ export default class Game {
     }
 
     _gameLoop(timestamp) {
-        let deltaTime = timestamp - this.lastTime;
+        const rawDelta = timestamp - this.lastTime;
+        let deltaTime = rawDelta;
         if (deltaTime > 100) deltaTime = 16; 
         this.lastTime = timestamp;
 
+        if (rawDelta > 0 && rawDelta < 1000) {
+            this._fpsAccTime += rawDelta;
+            this._fpsFrames += 1;
+            if (this._fpsAccTime >= 500) {
+                this.fps = Math.round((this._fpsFrames * 1000) / this._fpsAccTime);
+                this._fpsAccTime = 0;
+                this._fpsFrames = 0;
+            }
+        }
+
         if (this.pauseResumeCooldownTimer > 0) {
-            this.pauseResumeCooldownTimer -= deltaTime;
-            if (this.pauseResumeCooldownTimer <= 0) {
+            if (this._resumeGraceTimer > 0) {
+                this._resumeGraceTimer -= deltaTime;
+            } else if (this._hasAnyGameplayInput()) {
                 this.pauseResumeCooldownTimer = 0;
                 this.isPaused = false;
+            } else {
+                this.pauseResumeCooldownTimer -= deltaTime;
+                if (this.pauseResumeCooldownTimer <= 0) {
+                    this.pauseResumeCooldownTimer = 0;
+                    this.isPaused = false;
+                }
             }
         }
 
@@ -363,7 +391,31 @@ export default class Game {
         }
     }
 
+    _hasAnyGameplayInput() {
+        const input = this.getModule('input');
+        if (input) {
+            if (input.isMouseDown || input.isHackPressed || input.isHackCyclePressed || input.isUltimatePressed) {
+                return true;
+            }
+            if (input.keys && Object.values(input.keys).some(Boolean)) {
+                return true;
+            }
+            if (input.mouseButtons && Object.values(input.mouseButtons).some(Boolean)) {
+                return true;
+            }
+        }
+        const gamepad = this.getModule('gamepad');
+        if (gamepad && gamepad.gamepadIndex !== null) {
+            const b = gamepad.buttons;
+            if (b.A || b.B || b.X || b.Y || b.RT || b.up || b.down || b.left || b.right) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     _handleWindowInactivity() {
+        if (!this.settings?.gameplay?.pauseOnBlur) return;
         if (this.gameState !== 'PLAYING' || this.isGameOver) return;
         const upgrades = this.getModule('upgrades');
         if (upgrades && upgrades.isSelectionActive) return;
@@ -377,6 +429,7 @@ export default class Game {
     resumeGame() {
         if (this.settings.gameplay.resumeCooldown) {
             this.pauseResumeCooldownTimer = this.pauseResumeCooldownDuration;
+            this._resumeGraceTimer = 220;
             this.isPaused = true;
         } else {
             this.isPaused = false;

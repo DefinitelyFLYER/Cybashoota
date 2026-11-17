@@ -12,9 +12,11 @@ import ProjectileManager from './entities/ProjectileManager.js';
 
 // systems
 import AugmentManager from './systems/AugmentManager.js';
+import CodexManager from './systems/CodexManager.js';
 import ExperienceManager from './systems/ExperienceManager.js';
 import PowerUpManager from './systems/PowerUpManager.js';
 import SpawnDirector from './systems/SpawnDirector.js';
+import SynergyManager from './systems/SynergyManager.js';
 import UpgradeManager from './systems/UpgradeManager.js';
 
 // ui
@@ -43,5 +45,7 @@ game.addModule('director', new SpawnDirector());
 const player = new Player(window.innerWidth / 2, window.innerHeight / 2);
 game.addModule('player', player);
 game.addModule('augments', new AugmentManager());
+game.addModule('synergies', new SynergyManager());
+game.addModule('codex', new CodexManager());
 
 game.start();

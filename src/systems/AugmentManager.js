@@ -44,16 +44,21 @@ export default class AugmentManager {
 
         // Scrap & Cyber-Forge terminal state
         this.scrap = 0;
-        this.forgeCharges = 0;
         this.activeForgeTerminal = null;
         this.forgeSpawnTimer = 15000; // First terminal spawns at 60s (75000 - 15000)
         this.forgeSpawnInterval = 75000;
         this.forgeLifetime = 30000;
 
+        // Auto-Recycler Protocol state
+        this.autoRecyclerUnlocked = false;
+        this.preferredSet = null;
+
         // Set bonus state
         this.appliedTwoPieceModifiers = {};
+        this.appliedTwoPieceTiers = {};
         this.activeFourPieceType = null;
         this.fourPieceChoice = null; // 'active' | 'passive' | null
+        this.appliedFourPieceTier = 1;
         this.pendingFourPieceChoiceType = null;
         this.appliedFourPiecePassive = null;
 
@@ -96,13 +101,17 @@ export default class AugmentManager {
         this._fullNotifyCooldown = 0;
 
         this.scrap = 0;
-        this.forgeCharges = 0;
         this.activeForgeTerminal = null;
         this.forgeSpawnTimer = 15000;
 
+        this.autoRecyclerUnlocked = false;
+        this.preferredSet = null;
+
         this.appliedTwoPieceModifiers = {};
+        this.appliedTwoPieceTiers = {};
         this.activeFourPieceType = null;
         this.fourPieceChoice = null;
+        this.appliedFourPieceTier = 1;
         this.pendingFourPieceChoiceType = null;
         this.appliedFourPiecePassive = null;
 
@@ -164,11 +173,11 @@ export default class AugmentManager {
 
         let baseChance = 0;
         if (enemy.type === 'RHOMBUS') {
-            baseChance = 0.12;
+            baseChance = 0.05;
         } else if (enemy.ranged) {
-            baseChance = 0.08;
+            baseChance = 0.035;
         } else if (enemy.type === 'HEXAGON') {
-            baseChance = 0.06;
+            baseChance = 0.025;
         } else {
             // 0.5% base chance for basic enemies to drop +1 Cyber-Scrap
             if (Math.random() < 0.005 * luck) {
@@ -250,6 +259,16 @@ export default class AugmentManager {
         this._updateForgeTerminal(player, deltaTime);
     }
 
+    isPlayerNearForge() {
+        if (!this.activeForgeTerminal) return false;
+        const player = this.game?.getModule('player');
+        if (!player) return false;
+        const term = this.activeForgeTerminal;
+        const dx = player.pos.x - term.x;
+        const dy = player.pos.y - term.y;
+        return Math.sqrt(dx * dx + dy * dy) <= term.radius + 25;
+    }
+
     _updateForgeTerminal(player, deltaTime) {
         if (this.activeForgeTerminal) {
             const term = this.activeForgeTerminal;
@@ -260,26 +279,21 @@ export default class AugmentManager {
             const dx = player.pos.x - term.x;
             const dy = player.pos.y - term.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
+            const isInside = dist <= term.radius;
 
-            if (dist <= term.radius) {
-                this.forgeCharges += 1;
-                this.activeForgeTerminal = null;
-
+            if (isInside && !term.playerInside) {
+                term.playerInside = true;
                 const particles = this.game?.getModule('particles');
                 if (particles) {
-                    particles.emit(term.x, term.y, '#ff9900', 25);
+                    particles.emit(term.x, term.y, '#ff9900', 20);
                 }
-
-                const ui = this.game?.getModule('ui');
-                if (ui && ui.showNotification) {
-                    ui.showNotification('CYBER-FORGE ACCESSED (+1 FORGE CHARGE)', '#ff9900');
-                }
-
                 const menu = this.game?.getModule('menu');
                 if (menu && typeof menu.openAugmentsMenu === 'function') {
                     menu.openAugmentsMenu('gameplay');
                 }
                 return;
+            } else if (!isInside) {
+                term.playerInside = false;
             }
 
             if (term.remaining <= 0) {
@@ -308,11 +322,12 @@ export default class AugmentManager {
         this.activeForgeTerminal = {
             x,
             y,
-            radius: 58,
+            radius: 65,
             remaining: this.forgeLifetime,
             duration: this.forgeLifetime,
             rotation: 0,
-            pulse: 0
+            pulse: 0,
+            playerInside: false
         };
 
         const ui = this.game?.getModule('ui');
@@ -322,7 +337,7 @@ export default class AugmentManager {
     }
 
     /**
-     * Spend Cyber-Scrap and 1 Forge Charge to craft a random augment for a chosen slot.
+     * Spend Cyber-Scrap while standing near an active Cyber-Forge Terminal to craft an augment for a chosen slot.
      * @param {'head'|'arms'|'legs'|'core'} slot
      * @returns {{ success: boolean, index?: number, augment?: Object, reason?: string }}
      */
@@ -330,8 +345,8 @@ export default class AugmentManager {
         if (!AUGMENT_SLOT_LIST.includes(slot)) {
             return { success: false, reason: 'INVALID SLOT' };
         }
-        if (this.forgeCharges <= 0) {
-            return { success: false, reason: 'NO FORGE CHARGE' };
+        if (!this.isPlayerNearForge()) {
+            return { success: false, reason: 'MUST BE NEAR ACTIVE FORGE' };
         }
         if (this.scrap < this.forgeSlotCost) {
             return { success: false, reason: `NEED ${this.forgeSlotCost} SCRAP` };
@@ -349,7 +364,6 @@ export default class AugmentManager {
         }
 
         this.scrap -= this.forgeSlotCost;
-        this.forgeCharges -= 1;
 
         const storageIndex = this.addToStorage({ ...crafted, tier: 1 });
         const ui = this.game?.getModule('ui');
@@ -489,9 +503,35 @@ export default class AugmentManager {
             }
 
             if (distPx < pickupRangePx) {
-                const slotIndex = this.addToStorage(pod.augment);
                 const ui = this.game.getModule('ui');
                 const particles = this.game.getModule('particles');
+
+                // Auto-Recycler Protocol: auto-scrap non-preferred sets on pickup
+                if (this.autoRecyclerUnlocked && this.preferredSet && pod.augment.type !== this.preferredSet) {
+                    const scrapGain = this.getScrapValue(pod.augment);
+                    const codex = this.game?.getModule('codex');
+                    if (codex) codex.discover('augments', pod.augment.id);
+
+                    if (this.isFullMk3Build()) {
+                        const xpGain = Math.max(10, Math.round(player.xpNextLevel * 0.2 * scrapGain));
+                        player.addXp(xpGain);
+                        if (ui && ui.showNotification) {
+                            ui.showNotification(`AUTO-RECYCLED FOR +${xpGain} XP`, '#00ffcc');
+                        }
+                    } else {
+                        this.scrap += scrapGain;
+                        if (ui && ui.showNotification) {
+                            ui.showNotification(`AUTO-SCRAPPED: +${scrapGain} CYBER-SCRAP`, '#ff9900');
+                        }
+                    }
+                    if (particles) {
+                        particles.emit(pod.x, pod.y, '#ff9900', 14);
+                    }
+                    this.drops.splice(i, 1);
+                    continue;
+                }
+
+                const slotIndex = this.addToStorage(pod.augment);
 
                 if (slotIndex !== -1) {
                     if (ui && ui.showNotification) {
@@ -732,6 +772,8 @@ export default class AugmentManager {
         if (emptyIdx === -1) return -1;
 
         this.storage[emptyIdx] = { ...augment, tier: augment.tier || 1 };
+        const codex = this.game?.getModule('codex');
+        if (codex) codex.discover('augments', augment.id);
         return emptyIdx;
     }
 
@@ -789,6 +831,7 @@ export default class AugmentManager {
         this.slots[slot] = upgradedAug;
         this.appliedModifiers[slot] = newApplied;
         this.storage[storageIndex] = null;
+        this._syncSetBonuses(player);
         this._syncPlayerSlots();
 
         const ui = this.game?.getModule('ui');
@@ -798,6 +841,11 @@ export default class AugmentManager {
                 `OVERCLOCKED: ${upgradedAug.name} ${this.getTierLabel(nextTier)}!`,
                 typeColor
             );
+        }
+
+        const synergyMgr = this.game?.getModule('synergies');
+        if (synergyMgr) {
+            synergyMgr.triggerCyberOverload();
         }
 
         return true;
@@ -934,24 +982,105 @@ export default class AugmentManager {
         return current;
     }
 
+    isFullMk3Build() {
+        return AUGMENT_SLOT_LIST.every(s => this.slots[s] && (this.slots[s].tier || 1) >= 3);
+    }
+
+    convertScrapToXp(amount = 1) {
+        if (!this.isFullMk3Build() || this.scrap < amount || amount <= 0) return 0;
+        const player = this.game?.getModule('player');
+        if (!player) return 0;
+
+        this.scrap -= amount;
+        const xpGain = Math.max(10, Math.round(player.xpNextLevel * 0.2 * amount));
+        player.addXp(xpGain);
+
+        const ui = this.game?.getModule('ui');
+        if (ui && ui.showNotification) {
+            ui.showNotification(`EXCHANGED ${amount} SCRAP FOR +${xpGain} XP`, '#00ffcc');
+        }
+        return xpGain;
+    }
+
+    getTwoPieceTier(typeKey) {
+        const tiers = AUGMENT_SLOT_LIST
+            .map(s => this.slots[s])
+            .filter(a => a && a.type === typeKey)
+            .map(a => a.tier || 1)
+            .sort((a, b) => b - a);
+        if (tiers.length < 2) return 0;
+        return tiers[1]; // minimum tier among top 2 pieces
+    }
+
+    getFourPieceTier(typeKey) {
+        const tiers = AUGMENT_SLOT_LIST
+            .map(s => this.slots[s])
+            .filter(a => a && a.type === typeKey)
+            .map(a => a.tier || 1);
+        if (tiers.length < 4) return 0;
+        return Math.min(...tiers);
+    }
+
+    _scaleSetBonusDef(bonusDef, tier = 1) {
+        if (!bonusDef || tier <= 1) return bonusDef;
+        const mult = 1 + (tier - 1) * 0.25;
+        const scaledStats = {};
+        const scaledMultipliers = {};
+
+        if (bonusDef.stats) {
+            for (const [k, v] of Object.entries(bonusDef.stats)) {
+                if (typeof v !== 'number') continue;
+                if (INTEGER_STATS.has(k)) {
+                    scaledStats[k] = v + (tier - 1);
+                } else {
+                    scaledStats[k] = Number((v * mult).toFixed(3));
+                }
+            }
+        }
+        if (bonusDef.multipliers) {
+            for (const [k, v] of Object.entries(bonusDef.multipliers)) {
+                if (typeof v !== 'number') continue;
+                scaledMultipliers[k] = Number((v * mult).toFixed(3));
+            }
+        }
+
+        return {
+            ...bonusDef,
+            stats: scaledStats,
+            multipliers: scaledMultipliers
+        };
+    }
+
     _syncSetBonuses(player) {
         for (const typeKey of Object.keys(AUGMENT_TYPES)) {
             const count = this.typeCounts[typeKey] || 0;
-            const bonusDef = AUGMENT_SET_BONUSES[typeKey]?.twoPiece;
+            const baseBonusDef = AUGMENT_SET_BONUSES[typeKey]?.twoPiece;
             const currentlyApplied = this.appliedTwoPieceModifiers[typeKey];
+            const prevTier = this.appliedTwoPieceTiers[typeKey] || 0;
+            const targetTier = count >= 2 ? this.getTwoPieceTier(typeKey) : 0;
 
-            if (count >= 2 && !currentlyApplied && bonusDef) {
-                this.appliedTwoPieceModifiers[typeKey] = this._applyAugmentModifiers(player, bonusDef);
-                const ui = this.game?.getModule('ui');
-                if (ui && ui.showNotification) {
-                    ui.showNotification(
-                        `2-PC ${AUGMENT_TYPES[typeKey].name.toUpperCase()} SET: ${bonusDef.name}`,
-                        AUGMENT_TYPES[typeKey].color
-                    );
+            if (targetTier > 0 && baseBonusDef) {
+                if (!currentlyApplied || prevTier !== targetTier) {
+                    if (currentlyApplied) {
+                        this._removeAugmentModifiers(player, currentlyApplied);
+                    }
+                    const scaledDef = this._scaleSetBonusDef(baseBonusDef, targetTier);
+                    this.appliedTwoPieceModifiers[typeKey] = this._applyAugmentModifiers(player, scaledDef);
+                    this.appliedTwoPieceTiers[typeKey] = targetTier;
+
+                    const ui = this.game?.getModule('ui');
+                    if (ui && ui.showNotification) {
+                        const tierTxt = targetTier > 1 ? ` [${this.getTierLabel(targetTier)}]` : '';
+                        ui.showNotification(
+                            `2-PC ${AUGMENT_TYPES[typeKey].name.toUpperCase()} SET${tierTxt}: ${baseBonusDef.name}`,
+                            AUGMENT_TYPES[typeKey].color
+                        );
+                    }
                 }
-            } else if (count < 2 && currentlyApplied) {
+            } else if (currentlyApplied) {
                 this._removeAugmentModifiers(player, currentlyApplied);
                 delete this.appliedTwoPieceModifiers[typeKey];
+                delete this.appliedTwoPieceTiers[typeKey];
             }
         }
 
@@ -974,13 +1103,40 @@ export default class AugmentManager {
                 this.ultimateCooldownTimer = 0;
                 this.ultimateCooldownDuration = 0;
                 this.fourPieceChoice = null;
+                this.appliedFourPieceTier = 1;
             }
 
             this.activeFourPieceType = fullSetType;
             if (fullSetType) {
                 this.pendingFourPieceChoiceType = fullSetType;
+                this.appliedFourPieceTier = this.getFourPieceTier(fullSetType);
             } else {
                 this.pendingFourPieceChoiceType = null;
+            }
+        } else if (fullSetType && this.fourPieceChoice) {
+            const newTier = this.getFourPieceTier(fullSetType);
+            if (newTier !== this.appliedFourPieceTier) {
+                this.appliedFourPieceTier = newTier;
+                if (this.fourPieceChoice === 'passive') {
+                    if (this.appliedFourPiecePassive) {
+                        this._removeAugmentModifiers(player, this.appliedFourPiecePassive);
+                    }
+                    const baseDef = AUGMENT_SET_BONUSES[fullSetType]?.fourPiece?.passive;
+                    if (baseDef) {
+                        this.appliedFourPiecePassive = this._applyAugmentModifiers(player, this._scaleSetBonusDef(baseDef, newTier));
+                    }
+                } else if (this.fourPieceChoice === 'active') {
+                    const baseCd = AUGMENT_SET_BONUSES[fullSetType]?.fourPiece?.active?.cooldownMs || 25000;
+                    const cdScale = newTier >= 3 ? 0.75 : (newTier === 2 ? 0.88 : 1.0);
+                    this.ultimateCooldownDuration = Math.round(baseCd * cdScale);
+                }
+                const ui = this.game?.getModule('ui');
+                if (ui && ui.showNotification) {
+                    ui.showNotification(
+                        `4-PC ${AUGMENT_TYPES[fullSetType].name.toUpperCase()} UPGRADED TO ${this.getTierLabel(newTier)}!`,
+                        AUGMENT_TYPES[fullSetType].color
+                    );
+                }
             }
         }
     }
@@ -1005,13 +1161,17 @@ export default class AugmentManager {
 
         this.fourPieceChoice = mode;
         this.pendingFourPieceChoiceType = null;
+        const tier = this.getFourPieceTier(typeKey);
+        this.appliedFourPieceTier = tier;
 
         if (mode === 'passive') {
-            this.appliedFourPiecePassive = this._applyAugmentModifiers(player, setDef);
+            this.appliedFourPiecePassive = this._applyAugmentModifiers(player, this._scaleSetBonusDef(setDef, tier));
             this.ultimateCooldownTimer = 0;
             this.ultimateCooldownDuration = 0;
         } else {
-            this.ultimateCooldownDuration = setDef.cooldownMs || 25000;
+            const baseCd = setDef.cooldownMs || 25000;
+            const cdScale = tier >= 3 ? 0.75 : (tier === 2 ? 0.88 : 1.0);
+            this.ultimateCooldownDuration = Math.round(baseCd * cdScale);
             this.ultimateCooldownTimer = 0;
         }
 
@@ -1022,6 +1182,11 @@ export default class AugmentManager {
                 AUGMENT_TYPES[typeKey].color
             );
         }
+        const synergyMgr = this.game?.getModule('synergies');
+        if (synergyMgr) {
+            synergyMgr.triggerCyberOverload();
+        }
+
         return true;
     }
 
@@ -1053,10 +1218,14 @@ export default class AugmentManager {
         const setDef = AUGMENT_SET_BONUSES[typeKey]?.fourPiece?.active;
         if (!setDef) return false;
 
+        const tier = this.getFourPieceTier(typeKey);
+        const cdScale = tier >= 3 ? 0.75 : (tier === 2 ? 0.88 : 1.0);
+        const durScale = tier >= 3 ? 1.3 : (tier === 2 ? 1.15 : 1.0);
+
         this.ultimateActiveType = typeKey;
-        this.ultimateActiveDuration = setDef.durationMs || 5000;
+        this.ultimateActiveDuration = Math.round((setDef.durationMs || 5000) * durScale);
         this.ultimateActiveTimer = this.ultimateActiveDuration;
-        this.ultimateCooldownDuration = setDef.cooldownMs || 25000;
+        this.ultimateCooldownDuration = Math.round((setDef.cooldownMs || 25000) * cdScale);
         this.ultimateCooldownTimer = this.ultimateCooldownDuration;
 
         const particles = this.game?.getModule('particles');
@@ -1107,6 +1276,11 @@ export default class AugmentManager {
             }
         }
 
+        const synergyMgr = this.game?.getModule('synergies');
+        if (synergyMgr) {
+            synergyMgr.triggerCyberOverload();
+        }
+
         return true;
     }
 
@@ -1133,6 +1307,7 @@ export default class AugmentManager {
     onPlayerDamagedOrDodged(wasDodged) {
         const player = this.game?.getModule('player');
         if (!player) return;
+        const synergyMgr = this.game?.getModule('synergies');
 
         if (wasDodged && this.activeFourPieceType === 'GHOST' && this.fourPieceChoice === 'passive') {
             player.ghostActive = true;
@@ -1142,6 +1317,7 @@ export default class AugmentManager {
                 this.wraithCritApplied = true;
             }
             this.wraithCritTimer = 2500;
+            if (synergyMgr) synergyMgr.triggerCyberOverload();
         }
 
         if (this.activeFourPieceType === 'TITAN' && this.fourPieceChoice === 'passive') {
@@ -1151,6 +1327,7 @@ export default class AugmentManager {
                 damage: 10,
                 color: '#ff7b00'
             });
+            if (synergyMgr) synergyMgr.triggerCyberOverload();
         }
     }
 
@@ -1160,6 +1337,8 @@ export default class AugmentManager {
 
         if (this.activeFourPieceType === 'NETRUNNER' && this.fourPieceChoice === 'passive') {
             this._infectNearestEnemiesWithGlitch(player, 2);
+            const synergyMgr = this.game?.getModule('synergies');
+            if (synergyMgr) synergyMgr.triggerCyberOverload();
         }
     }
 

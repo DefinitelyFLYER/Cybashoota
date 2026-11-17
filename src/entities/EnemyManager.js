@@ -86,8 +86,20 @@ export default class EnemyManager {
         
         const TELEPORT_THRESHOLD = 200; 
 
-        const dxP = player.pos.x - e.x;
-        const dyP = player.pos.y - e.y;
+        const hackMgr = this.game.getModule('hack');
+        const decoy = hackMgr?.activeDecoy;
+        let targetX = player.pos.x;
+        let targetY = player.pos.y;
+        if (decoy) {
+            const dDecoy = Math.hypot(decoy.x - e.x, decoy.y - e.y);
+            if (dDecoy < 520) {
+                targetX = decoy.x;
+                targetY = decoy.y;
+            }
+        }
+
+        const dxP = targetX - e.x;
+        const dyP = targetY - e.y;
         const distP = Math.sqrt(dxP * dxP + dyP * dyP);
         
         const isOutsideView = Math.abs(dxP) > innerW || Math.abs(dyP) > innerH;
@@ -350,6 +362,14 @@ export default class EnemyManager {
             damage *= e.tagMultiplier;
         }
 
+        const synergyMgr = this.game.getModule('synergies');
+        if (this.game.isSignalJammed && synergyMgr && synergyMgr.hasSynergy('blackout_matrix')) {
+            damage *= 1.75;
+        }
+        if (playerMod && (playerMod.armorCharges || 0) > 0 && synergyMgr && synergyMgr.hasSynergy('bunker_buster')) {
+            damage *= 1.35;
+        }
+
         e.currentHp -= damage;
 
         const augmentMgr = this.game.getModule('augments');
@@ -370,9 +390,70 @@ export default class EnemyManager {
             }
         }
 
+        // Synergy: Tesla Coil (Assault Drone projectiles chain lightning to 2 nearby enemies)
+        if (p.chainLightning > 0 && synergyMgr) {
+            let chainsLeft = p.chainLightning;
+            let lastOrigin = e;
+            const visited = new Set([e]);
+            const chainRangeSq = 220 * 220;
+
+            while (chainsLeft > 0) {
+                let nearest = null;
+                let nearestDistSq = chainRangeSq;
+                for (const other of this.enemies) {
+                    if (visited.has(other) || other.currentHp <= 0) continue;
+                    const dx = other.x - lastOrigin.x;
+                    const dy = other.y - lastOrigin.y;
+                    const dSq = dx * dx + dy * dy;
+                    if (dSq < nearestDistSq) {
+                        nearestDistSq = dSq;
+                        nearest = other;
+                    }
+                }
+                if (!nearest) break;
+                visited.add(nearest);
+                nearest.currentHp -= damage * 0.75;
+                synergyMgr.addLightningArc(lastOrigin.x, lastOrigin.y, nearest.x, nearest.y, '#00bcff');
+                lastOrigin = nearest;
+                chainsLeft -= 1;
+            }
+        }
+
+        // Synergy: Phantom Barrage (Crits have 25% chance to fire a bonus homing dagger)
+        if (p.isCrit && !p.isBonusDagger && synergyMgr && synergyMgr.hasSynergy('phantom_barrage') && Math.random() < 0.25) {
+            const nextTarget = pm.findNextTarget({ x: e.x, y: e.y }, e);
+            const speed = playerMod ? playerMod.getStat('bulletSpeed') * 1.25 : 1.1;
+            const angle = nextTarget
+                ? Math.atan2(nextTarget.y - e.y, nextTarget.x - e.x)
+                : Math.random() * Math.PI * 2;
+            pm.projectiles.push({
+                x: e.x,
+                y: e.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: 8,
+                life: 1600,
+                isCrit: false,
+                isHoming: true,
+                isBonusDagger: true,
+                bounces: 0,
+                penetration: 0,
+                color: '#00ffcc',
+                damage: (playerMod ? playerMod.getStat('damage') : 1) * 1.2,
+                hitEnemies: new Set([e]),
+                lastHitEnemy: e
+            });
+        }
+
         if (p.bounces > 0) {
             const nextTarget = pm.findNextTarget(p, e);
             if (nextTarget) {
+                // Synergy: Glitch Nova (35% chance on bounce to infect with Secondary Glitch)
+                if (synergyMgr && synergyMgr.hasSynergy('glitch_nova') && Math.random() < 0.35) {
+                    if (nextTarget.glitchPhase === GLITCH_PHASES.NORMAL) {
+                        nextTarget.glitchPhase = GLITCH_PHASES.SECONDARY;
+                    }
+                }
                 p.bounces--;
                 p.lastHitEnemy = e;
                 p.hitEnemies.clear();
@@ -407,9 +488,12 @@ export default class EnemyManager {
         const director = this.game.getModule('director');
         const powerUpMgr = this.game.getModule('powerups');
         const augmentMgr = this.game.getModule('augments');
+        const synergyMgr = this.game.getModule('synergies');
+        const hasViralSwarm = synergyMgr && synergyMgr.hasSynergy('viral_swarm');
+        const isGlitched = e.glitchPhase === GLITCH_PHASES.PRIMARY || e.glitchPhase === GLITCH_PHASES.SECONDARY;
 
-        if (e.glitchPhase === GLITCH_PHASES.PRIMARY) {
-            const radiusPx = GLITCH_EFFECT_CONFIG.spreadRadiusPx;
+        if (e.glitchPhase === GLITCH_PHASES.PRIMARY || (hasViralSwarm && isGlitched)) {
+            const radiusPx = hasViralSwarm ? 220 : GLITCH_EFFECT_CONFIG.spreadRadiusPx;
             for (const other of this.enemies) {
                 if (other === e || other.currentHp <= 0) continue;
 
@@ -420,6 +504,34 @@ export default class EnemyManager {
                     other.currentHp = Math.max(0, other.currentHp - GLITCH_EFFECT_CONFIG.spreadDamage);
                     other.glitchPhase = GLITCH_PHASES.SECONDARY;
                     if (particles) particles.createGlitchEffect(other.x, other.y);
+                }
+            }
+
+            if (hasViralSwarm) {
+                const pm = this.game.getModule('projectiles');
+                const playerMod = this.game.getModule('player');
+                if (pm) {
+                    const shardSpeed = playerMod ? playerMod.getStat('bulletSpeed') : 0.9;
+                    const shardDmg = Math.max(1.5, (playerMod ? playerMod.getStat('damage') : 1) * 1.2);
+                    for (let s = 0; s < 3; s++) {
+                        const angle = (Math.PI * 2 / 3) * s + Math.random() * 0.5;
+                        pm.projectiles.push({
+                            x: e.x,
+                            y: e.y,
+                            vx: Math.cos(angle) * shardSpeed,
+                            vy: Math.sin(angle) * shardSpeed,
+                            size: 8,
+                            life: 1600,
+                            isCrit: false,
+                            isHoming: true,
+                            bounces: 0,
+                            penetration: 0,
+                            color: '#bc00ff',
+                            damage: shardDmg,
+                            hitEnemies: new Set([e]),
+                            lastHitEnemy: e
+                        });
+                    }
                 }
             }
         }
@@ -448,8 +560,17 @@ export default class EnemyManager {
         const baseConfig = ENEMY_TYPES[typeKey];
 
         const margin = 100;
-        let spawnX = Math.random() < 0.5 ? -margin : this.game.canvas.width + margin;
-        let spawnY = Math.random() * this.game.canvas.height;
+        let spawnX;
+        let spawnY;
+        if (Math.random() < 0.5) {
+            // Left or right edge
+            spawnX = Math.random() < 0.5 ? -margin : this.game.canvas.width + margin;
+            spawnY = Math.random() * this.game.canvas.height;
+        } else {
+            // Top or bottom edge
+            spawnX = Math.random() * this.game.canvas.width;
+            spawnY = Math.random() < 0.5 ? -margin : this.game.canvas.height + margin;
+        }
         const worldX = spawnX + player.pos.x - center.x;
         const worldY = spawnY + player.pos.y - center.y;
 
@@ -519,7 +640,8 @@ export default class EnemyManager {
                 const img = this.sprites.get(e.type);
                 ctx.drawImage(img, drawX - e.size/2, drawY - e.size/2, e.size, e.size);
             } else {
-                ctx.shadowBlur = 15;
+                const glowEnabled = this.game?.settings?.performance?.glowEffects !== false;
+                ctx.shadowBlur = glowEnabled ? 15 : 0;
                 ctx.shadowColor = e.color;
                 ctx.fillStyle = e.color + '66';
                 ctx.strokeStyle = e.color;

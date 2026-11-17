@@ -460,6 +460,34 @@ export const UPGRADES = [
         }
     },
     {
+        id: 'unlock_data_siphon',
+        name: 'Unlock hack: Data Siphon',
+        description: 'Pulls all XP orbs and drops across the map to you and grants +5 bonus XP per enemy.',
+        rarity: 'Epic',
+        tags: ['utility', 'hack', 'unlock'],
+        weight: 25,
+        unique: true,
+        unlockHackId: 'DATA_SIPHON',
+        onApply: (player, game) => {
+            const hackMgr = game?.getModule('hack');
+            if (hackMgr?.unlockHack) hackMgr.unlockHack('DATA_SIPHON');
+        }
+    },
+    {
+        id: 'unlock_holo_decoy',
+        name: 'Unlock hack: Holo-Decoy',
+        description: 'Deploys a decoy at your cursor for 8s that taunts enemies and explodes on expiration.',
+        rarity: 'Epic',
+        tags: ['utility', 'hack', 'unlock'],
+        weight: 25,
+        unique: true,
+        unlockHackId: 'HOLO_DECOY',
+        onApply: (player, game) => {
+            const hackMgr = game?.getModule('hack');
+            if (hackMgr?.unlockHack) hackMgr.unlockHack('HOLO_DECOY');
+        }
+    },
+    {
         id: 'EXTRA_DRONE_CAPACITY',
         name: 'Mothership Protocol',
         description: 'Increases your maximum drone capacity by 1.',
@@ -480,6 +508,19 @@ export const UPGRADES = [
         maxStack: 2,
         onApply: (player) => {
             player.stats.upgradeOptions += 1;
+        }
+    },
+    {
+        id: 'auto_recycler_protocol',
+        name: 'Auto-Recycler Protocol',
+        description: 'Choose a target Augment Set in the Augments menu; other sets auto-scrap on pickup (or convert to XP at full Mk.III).',
+        rarity: 'Rare',
+        tags: ['utility', 'augments'],
+        weight: 30,
+        unique: true,
+        onApply: (player, game) => {
+            const augMgr = game?.getModule('augments');
+            if (augMgr) augMgr.autoRecyclerUnlocked = true;
         }
     }
 ];

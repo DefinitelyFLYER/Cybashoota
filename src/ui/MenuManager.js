@@ -1,10 +1,12 @@
 ﻿import { getFormattedStats } from '../ui/Infobox.js';
 import CHANGELOG, { CURRENT_VERSION } from '../ui/Changelog.js';
 import { MENU_DEFINITIONS } from '../data/MenuDefinitions.js';
-import { AUGMENT_SLOTS, AUGMENT_SLOT_LIST, AUGMENT_TYPES, AUGMENT_SET_BONUSES } from '../data/AugmentData.js';
+import { AUGMENT_SLOTS, AUGMENT_SLOT_LIST, AUGMENT_TYPES, AUGMENT_SET_BONUSES, AUGMENTS } from '../data/AugmentData.js';
 import { UPGRADES } from '../data/UpgradeData.js';
 import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
+import { DRONE_TYPES } from '../data/DroneTypes.js';
 import { HACK_DATA } from '../data/HackData.js';
+import { SYNERGIES } from '../data/SynergyData.js';
 
 export default class MenuManager {
     constructor() {
@@ -17,9 +19,11 @@ export default class MenuManager {
         this.settingsOrigin = null;
         this.augmentsOrigin = null;
         this.augmentsTab = 'augments';
+        this.codexTab = 'synergies';
         this.selectedAugmentItem = null;
         this.loadoutScrollOffset = 0;
         this.maxLoadoutScrollOffset = 0;
+        this._lastStorageClick = { index: -1, time: 0 };
         this.mousePos = { x: 0, y: 0 };
         this.isMouseDown = false;
         this.activeSlider = null;
@@ -457,7 +461,7 @@ export default class MenuManager {
             this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScrollOffset));
             return;
         }
-        if (this.game.augmentsOpen && this.augmentsTab === 'loadout') {
+        if (this.game.augmentsOpen && (this.augmentsTab === 'loadout' || this.augmentsTab === 'synergies')) {
             this.loadoutScrollOffset += deltaY;
             this.loadoutScrollOffset = Math.max(0, Math.min(this.loadoutScrollOffset, this.maxLoadoutScrollOffset));
             return;
@@ -510,12 +514,22 @@ export default class MenuManager {
         this.game.augmentsOpen = true;
         this.augmentsOrigin = origin;
         this.augmentsTab = 'augments';
+        this.codexTab = 'synergies';
         this.selectedAugmentItem = null;
         this.loadoutScrollOffset = 0;
         if (origin === 'gameplay') {
             this.game.isPaused = true;
             this.game.pauseResumeCooldownTimer = 0;
         }
+    }
+
+    openSynergyCodex() {
+        this.game.augmentsOpen = true;
+        this.augmentsOrigin = 'menu';
+        this.augmentsTab = 'synergies';
+        this.codexTab = 'synergies';
+        this.selectedAugmentItem = null;
+        this.loadoutScrollOffset = 0;
     }
 
     closeAugmentsMenu() {
@@ -1284,6 +1298,8 @@ export default class MenuManager {
 
         this.drawPanel(ctx, 0, 0, w, h, '', 'overlay', 0.65);
 
+        const isMenuCodex = this.augmentsOrigin === 'menu';
+
         ctx.save();
         ctx.fillStyle = this.styleConfig.colors.title;
         ctx.font = this.styleConfig.fonts.title;
@@ -1291,49 +1307,92 @@ export default class MenuManager {
         ctx.textBaseline = 'middle';
         ctx.shadowBlur = 20;
         ctx.shadowColor = this.styleConfig.colors.title;
-        ctx.fillText('CYBERWARE & LOADOUT', w / 2, 54);
+        ctx.fillText(isMenuCodex ? 'CODEX' : 'CYBERWARE & LOADOUT', w / 2, 54);
         ctx.restore();
 
         this.augmentsButtons = [];
 
-        if (player) {
+        if (player && !isMenuCodex) {
             this._drawPauseStatsInfobox(ctx, 40, Math.max(150, h / 2 - 200), player);
         }
 
-        const mainX = 310;
+        const mainX = isMenuCodex ? 80 : 310;
         const mainY = 140;
-        const mainW = Math.max(620, w - mainX - 40);
+        const mainW = isMenuCodex ? Math.max(700, w - 160) : Math.max(620, w - mainX - 40);
         const mainH = Math.max(440, h - mainY - 95);
 
-        // Top Tabs: [CYBERWARE AUGMENTS] | [CARDS, DRONES & HACKS]
-        const tabs = [
-            { id: 'augments', label: 'CYBERWARE AUGMENTS' },
-            { id: 'loadout', label: 'CARDS, DRONES & HACKS' }
-        ];
-        const tabW = 280;
-        const tabH = 42;
-        const tabGap = 16;
-        const tabsStartX = mainX;
-        const tabY = mainY - tabH - 10;
+        const synergyMgr = this.game.getModule('synergies');
+        const codexMgr = this.game.getModule('codex');
+        const activeSynCount = synergyMgr ? synergyMgr.activeSynergies.size : 0;
 
-        tabs.forEach((t, idx) => {
-            const tx = tabsStartX + idx * (tabW + tabGap);
-            const isSelected = this.augmentsTab === t.id;
-            const isHovered = pointer && this._isHovered(pointer, tx, tabY, tabW, tabH);
-            const style = isSelected ? 'selectedTab' : 'tab';
-            this.drawButton(ctx, tx, tabY, tabW, tabH, t.label, isHovered || isSelected, style);
-            this.augmentsButtons.push({
-                x: tx,
-                y: tabY,
-                w: tabW,
-                h: tabH,
-                action: () => {
-                    this.augmentsTab = t.id;
-                    this.selectedAugmentItem = null;
-                    this.loadoutScrollOffset = 0;
-                }
+        if (isMenuCodex) {
+            const counts = codexMgr ? codexMgr.getCounts() : {
+                synergies: { found: 0, total: SYNERGIES.length },
+                augments: { found: 0, total: AUGMENTS.length },
+                playerCards: { found: 0, total: UPGRADES.filter(u => !u.unlockHackId).length },
+                droneCards: { found: 0, total: DRONE_UPGRADES.length },
+                dronesAndHacks: { found: 0, total: Object.keys(DRONE_TYPES).length + Object.keys(HACK_DATA).length }
+            };
+            const codexTabs = [
+                { id: 'synergies', label: `SYNERGIES (${counts.synergies.found}/${counts.synergies.total})` },
+                { id: 'augments', label: `AUGMENTS (${counts.augments.found}/${counts.augments.total})` },
+                { id: 'playerCards', label: `PLAYER CARDS (${counts.playerCards.found}/${counts.playerCards.total})` },
+                { id: 'droneCards', label: `DRONE CARDS (${counts.droneCards.found}/${counts.droneCards.total})` },
+                { id: 'dronesAndHacks', label: `DRONES & HACKS (${counts.dronesAndHacks.found}/${counts.dronesAndHacks.total})` }
+            ];
+            const tabGap = 10;
+            const tabW = Math.floor((mainW - tabGap * (codexTabs.length - 1)) / codexTabs.length);
+            const tabH = 42;
+            const tabY = mainY - tabH - 10;
+
+            codexTabs.forEach((t, idx) => {
+                const tx = mainX + idx * (tabW + tabGap);
+                const isSelected = this.codexTab === t.id;
+                const isHovered = pointer && this._isHovered(pointer, tx, tabY, tabW, tabH);
+                this.drawButton(ctx, tx, tabY, tabW, tabH, t.label, isHovered || isSelected, isSelected ? 'selectedTab' : 'tab');
+                this.augmentsButtons.push({
+                    x: tx,
+                    y: tabY,
+                    w: tabW,
+                    h: tabH,
+                    action: () => {
+                        this.codexTab = t.id;
+                        this.selectedAugmentItem = null;
+                        this.loadoutScrollOffset = 0;
+                    }
+                });
             });
-        });
+        } else {
+            const tabs = [
+                { id: 'augments', label: 'CYBERWARE AUGMENTS' },
+                { id: 'loadout', label: 'CARDS, DRONES & HACKS' },
+                { id: 'synergies', label: `SYNERGIES (${activeSynCount}/${SYNERGIES.length})` }
+            ];
+            const tabW = 240;
+            const tabH = 42;
+            const tabGap = 14;
+            const tabsStartX = mainX;
+            const tabY = mainY - tabH - 10;
+
+            tabs.forEach((t, idx) => {
+                const tx = tabsStartX + idx * (tabW + tabGap);
+                const isSelected = this.augmentsTab === t.id;
+                const isHovered = pointer && this._isHovered(pointer, tx, tabY, tabW, tabH);
+                const style = isSelected ? 'selectedTab' : 'tab';
+                this.drawButton(ctx, tx, tabY, tabW, tabH, t.label, isHovered || isSelected, style);
+                this.augmentsButtons.push({
+                    x: tx,
+                    y: tabY,
+                    w: tabW,
+                    h: tabH,
+                    action: () => {
+                        this.augmentsTab = t.id;
+                        this.selectedAugmentItem = null;
+                        this.loadoutScrollOffset = 0;
+                    }
+                });
+            });
+        }
 
         this.drawPanel(ctx, mainX, mainY, mainW, mainH, '', 'default', 0.8);
 
@@ -1363,8 +1422,22 @@ export default class MenuManager {
             return lines;
         };
 
+        if (isMenuCodex) {
+            if (this.codexTab === 'synergies') {
+                this._drawSynergiesTabContent(ctx, w, h, pointer, synergyMgr, innerX, innerY, innerW, topAreaH, inspectorH, wrapCardText);
+            } else {
+                this._drawCodexCategoryContent(ctx, w, h, pointer, codexMgr, innerX, innerY, innerW, topAreaH, inspectorH, wrapCardText);
+            }
+            return;
+        }
+
         if (this.augmentsTab === 'loadout') {
             this._drawLoadoutTabContent(ctx, w, h, pointer, player, augmentMgr, innerX, innerY, innerW, topAreaH, inspectorH, wrapCardText);
+            return;
+        }
+
+        if (this.augmentsTab === 'synergies') {
+            this._drawSynergiesTabContent(ctx, w, h, pointer, synergyMgr, innerX, innerY, innerW, topAreaH, inspectorH, wrapCardText);
             return;
         }
 
@@ -1383,12 +1456,68 @@ export default class MenuManager {
 
         ctx.textAlign = 'right';
         ctx.fillStyle = '#ff9900';
+        const isFullMk3 = augmentMgr.isFullMk3Build();
+        const nearForge = augmentMgr.isPlayerNearForge();
         ctx.fillText(
-            `CYBER-SCRAP: ${augmentMgr.scrap}   •   FORGE CHARGES: ${augmentMgr.forgeCharges}`,
+            `CYBER-SCRAP: ${augmentMgr.scrap}${nearForge ? '  •  [FORGE IN RANGE]' : ''}`,
             rightColX + rightColW,
             innerY + 16
         );
         ctx.restore();
+
+        // Optional compact utility buttons in header: Auto-Recycler Filter & Full Mk.III Scrap->XP
+        if (augmentMgr.autoRecyclerUnlocked) {
+            const pref = augmentMgr.preferredSet;
+            const filterLabel = pref ? `AUTO-RECYCLE: KEEP ${pref}` : 'AUTO-RECYCLE: OFF';
+            const fW = 210;
+            const fH = 26;
+            const fX = leftColX + leftColW - fW;
+            const fY = innerY - 6;
+            const fHover = pointer && this._isHovered(pointer, fX, fY, fW, fH);
+            this.drawButton(ctx, fX, fY, fW, fH, filterLabel, fHover, pref ? 'selectedTab' : 'tab');
+            this.augmentsButtons.push({
+                x: fX,
+                y: fY,
+                w: fW,
+                h: fH,
+                action: () => {
+                    const order = [null, ...Object.keys(AUGMENT_TYPES)];
+                    const idx = order.indexOf(augmentMgr.preferredSet);
+                    augmentMgr.preferredSet = order[(idx + 1) % order.length];
+                }
+            });
+        }
+
+        if (isFullMk3 && player) {
+            const xpPerScrap = Math.max(10, Math.round(player.xpNextLevel * 0.2));
+            const xpBtnW = 210;
+            const xpBtnH = 26;
+            const xpBtnX = rightColX + 165;
+            const xpBtnY = innerY - 6;
+            const canExchange = augmentMgr.scrap >= 1;
+            const xpHover = canExchange && pointer && this._isHovered(pointer, xpBtnX, xpBtnY, xpBtnW, xpBtnH);
+            this.drawButton(
+                ctx,
+                xpBtnX,
+                xpBtnY,
+                xpBtnW,
+                xpBtnH,
+                `1 SCRAP -> +${xpPerScrap} XP`,
+                xpHover,
+                canExchange ? 'selectedTab' : 'toggle'
+            );
+            if (canExchange) {
+                this.augmentsButtons.push({
+                    x: xpBtnX,
+                    y: xpBtnY,
+                    w: xpBtnW,
+                    h: xpBtnH,
+                    action: () => {
+                        augmentMgr.convertScrapToXp(1);
+                    }
+                });
+            }
+        }
 
         // 1. Equipped Slots (2x2 Grid + Type Set Bar)
         const setBarH = 44;
@@ -1507,10 +1636,12 @@ export default class MenuManager {
                 ctx.fillRect(cellX + 2, setBarY + 2, typeCellW - 4, setBarH - 4);
             }
 
+            const twoTier = count >= 2 ? augmentMgr.getTwoPieceTier(tKey) : 0;
+            const tierTag = twoTier >= 2 ? ` [${augmentMgr.getTierLabel(twoTier)}]` : '';
             ctx.fillStyle = count >= 2 ? tInfo.color : (count > 0 ? '#d0e8ec' : '#556668');
-            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.font = 'bold 17px "VT323", monospace';
             ctx.textAlign = 'center';
-            ctx.fillText(`${tInfo.name.toUpperCase()}: ${count}/4`, cellX + typeCellW / 2, setBarY + 27);
+            ctx.fillText(`${tInfo.name.toUpperCase()}: ${count}/4${tierTag}`, cellX + typeCellW / 2, setBarY + 27);
 
             this.augmentsButtons.push({
                 x: cellX,
@@ -1604,7 +1735,19 @@ export default class MenuManager {
                 h: storageCardH,
                 action: () => {
                     if (item) {
-                        this.selectedAugmentItem = { source: 'storage', key: idx };
+                        const now = Date.now();
+                        const isDoubleClick = this._lastStorageClick.index === idx && (now - this._lastStorageClick.time) < 380;
+                        this._lastStorageClick = { index: idx, time: now };
+
+                        if (isDoubleClick) {
+                            const targetSlot = item.slot;
+                            if (augmentMgr.equipFromStorage(idx)) {
+                                this.selectedAugmentItem = { source: 'equipped', key: targetSlot };
+                                this._lastStorageClick = { index: -1, time: 0 };
+                            }
+                        } else {
+                            this.selectedAugmentItem = { source: 'storage', key: idx };
+                        }
                     } else {
                         this.selectedAugmentItem = null;
                     }
@@ -1614,17 +1757,18 @@ export default class MenuManager {
 
         // Cyber-Forge Slot Crafting Bar (aligned with Set Bar at setBarY)
         ctx.save();
-        const canForge = augmentMgr.forgeCharges > 0 &&
+        const isNearForge = augmentMgr.isPlayerNearForge();
+        const canForge = isNearForge &&
             augmentMgr.scrap >= augmentMgr.forgeSlotCost &&
             augmentMgr.getStoredCount() < augmentMgr.maxStorage;
 
         ctx.fillStyle = '#050809';
-        ctx.strokeStyle = augmentMgr.forgeCharges > 0 ? '#ff9900' : '#1f4447';
+        ctx.strokeStyle = isNearForge ? '#ff9900' : '#1f4447';
         ctx.lineWidth = 2;
         ctx.fillRect(rightColX, setBarY, rightColW, setBarH);
         ctx.strokeRect(rightColX, setBarY, rightColW, setBarH);
 
-        if (augmentMgr.forgeCharges > 0) {
+        if (isNearForge) {
             const forgeSlots = [
                 AUGMENT_SLOTS.HEAD,
                 AUGMENT_SLOTS.ARMS,
@@ -2232,15 +2376,41 @@ export default class MenuManager {
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 24px "VT323", monospace';
             ctx.textAlign = 'left';
-            ctx.fillText(d.name.toUpperCase(), innerX + 18, inspY + 30);
+            ctx.fillText(d.name.toUpperCase(), innerX + 18, inspY + 28);
+
+            // Live calculated drone stats
+            let statSummary = `BEHAVIOR: ${d.behavior}`;
+            if (droneMgr && player) {
+                const parts = [];
+                if (d.damage !== undefined) {
+                    parts.push(`DMG: ${droneMgr._getStat(d, 'damage', player).toFixed(1)}`);
+                } else if (d.collisionDamage !== undefined) {
+                    parts.push(`RAM DMG: ${droneMgr._getStat(d, 'collisionDamage', player).toFixed(1)}`);
+                }
+                if (d.fireRate !== undefined) {
+                    const rate = 1000 / Math.max(50, droneMgr._getStat(d, 'fireRate', player));
+                    parts.push(`RATE: ${rate.toFixed(1)}/s`);
+                } else if (d.actionRate !== undefined) {
+                    const cd = droneMgr._getStat(d, 'actionRate', player) / 1000;
+                    parts.push(`CD: ${cd.toFixed(1)}s`);
+                } else if (d.cooldown !== undefined) {
+                    const cd = droneMgr._getStat(d, 'cooldown', player);
+                    parts.push(`BLOCK CD: ${Math.round(cd)}ms`);
+                }
+                if (d.range !== undefined) {
+                    parts.push(`RANGE: ${droneMgr._getStat(d, 'range', player).toFixed(1)}u`);
+                }
+                parts.push(`SPD: ${(droneMgr._getStat(d, 'speedMulti', player) * 100).toFixed(0)}%`);
+                statSummary = parts.join('  •  ');
+            }
 
             ctx.fillStyle = d.color || '#00ffcc';
             ctx.font = 'bold 18px "VT323", monospace';
-            ctx.fillText(`DRONE UNIT • BEHAVIOR: ${d.behavior}`, innerX + 18, inspY + 54);
+            ctx.fillText(statSummary, innerX + 18, inspY + 54);
 
             ctx.fillStyle = '#d0e8ec';
             ctx.font = '19px "VT323", monospace';
-            ctx.fillText(d.description || '', innerX + 18, inspY + 80);
+            ctx.fillText(d.description || '', innerX + 18, inspY + 82);
 
             const btnW = 210;
             const btnH = 44;
@@ -2333,6 +2503,650 @@ export default class MenuManager {
         const backHovered = pointer && this._isHovered(pointer, backX, backY, backWidth, backHeight);
 
         this.drawButton(ctx, backX, backY, backWidth, backHeight, backText, backHovered, 'default');
+        this.augmentsButtons.push({
+            x: backX,
+            y: backY,
+            w: backWidth,
+            h: backHeight,
+            action: () => this.closeAugmentsMenu()
+        });
+    }
+
+    _drawCodexCategoryContent(ctx, w, h, pointer, codexMgr, innerX, innerY, innerW, topAreaH, inspectorH, wrapCardText) {
+        let entries = [];
+        let title = '';
+
+        if (this.codexTab === 'augments') {
+            title = 'CYBERWARE AUGMENTS CODEX';
+            entries = AUGMENTS.map(a => ({
+                id: a.id,
+                category: 'augments',
+                name: a.name,
+                tag: `${a.slot.toUpperCase()} • ${AUGMENT_TYPES[a.type]?.name.toUpperCase() || a.type}`,
+                subtitle: `${a.rarity.toUpperCase()} AUGMENT • SLOT: ${a.slot.toUpperCase()}`,
+                color: AUGMENT_TYPES[a.type]?.color || '#00ffcc',
+                description: a.description
+            }));
+        } else if (this.codexTab === 'playerCards') {
+            title = 'PLAYER UPGRADE CARDS CODEX';
+            const rarityColors = { Common: '#00ffcc', Rare: '#00bcff', Epic: '#bc00ff', Legendary: '#ffcc00' };
+            entries = UPGRADES.filter(u => !u.unlockHackId).map(u => ({
+                id: u.id,
+                category: 'playerCards',
+                name: u.name,
+                tag: (u.rarity || 'Common').toUpperCase(),
+                subtitle: `PLAYER UPGRADE CARD • ${(u.rarity || 'Common').toUpperCase()}`,
+                color: rarityColors[u.rarity] || '#00ffcc',
+                description: u.description
+            }));
+        } else if (this.codexTab === 'droneCards') {
+            title = 'DRONE UPGRADE CARDS CODEX';
+            entries = DRONE_UPGRADES.map(u => ({
+                id: u.id,
+                category: 'droneCards',
+                name: u.name,
+                tag: (u.targetBehaviors || ['ALL']).join('/'),
+                subtitle: `DRONE UPGRADE CARD • TARGET: ${(u.targetBehaviors || ['ALL']).join(' & ')}`,
+                color: '#ff55ff',
+                description: u.description
+            }));
+        } else if (this.codexTab === 'dronesAndHacks') {
+            title = 'DRONES & HACKS CODEX';
+            const droneEntries = Object.values(DRONE_TYPES).map(d => ({
+                id: d.id,
+                category: 'drones',
+                name: d.name,
+                tag: `DRONE • ${d.behavior}`,
+                subtitle: `DRONE UNIT • BEHAVIOR: ${d.behavior}`,
+                color: d.color || '#00ffcc',
+                description: d.description
+            }));
+            const hackEntries = Object.values(HACK_DATA).map(hk => {
+                const unlockCard = UPGRADES.find(u => u.unlockHackId === hk.id);
+                return {
+                    id: hk.id,
+                    category: 'hacks',
+                    name: hk.name,
+                    tag: 'ACTIVE HACK',
+                    subtitle: `HACK MODULE • ID: ${hk.id}`,
+                    color: '#bc00ff',
+                    description: unlockCard ? unlockCard.description : 'Active cyberware hack ability.'
+                };
+            });
+            entries = [...droneEntries, ...hackEntries];
+        }
+
+        const discoveredCount = entries.filter(e => codexMgr && codexMgr.isDiscovered(e.category, e.id)).length;
+
+        ctx.save();
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = this.styleConfig.fonts.infoTitle;
+        ctx.textAlign = 'left';
+        ctx.fillText(`${title} (${discoveredCount}/${entries.length})`, innerX, innerY + 16);
+        ctx.restore();
+
+        const gridTopY = innerY + 30;
+        const gridH = topAreaH - 30;
+        const cols = 4;
+        const gap = 12;
+        const cardW = Math.floor((innerW - gap * (cols - 1)) / cols);
+        const cardH = 82;
+        const totalRows = Math.ceil(entries.length / cols);
+        const contentH = totalRows * (cardH + gap);
+
+        this.maxLoadoutScrollOffset = Math.max(0, contentH - gridH);
+        this.loadoutScrollOffset = Math.max(0, Math.min(this.loadoutScrollOffset, this.maxLoadoutScrollOffset));
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(innerX, gridTopY, innerW, gridH);
+        ctx.clip();
+
+        entries.forEach((entry, idx) => {
+            const col = idx % cols;
+            const row = Math.floor(idx / cols);
+            const cx = innerX + col * (cardW + gap);
+            const cy = gridTopY + row * (cardH + gap) - this.loadoutScrollOffset;
+
+            if (cy + cardH < gridTopY || cy > gridTopY + gridH) return;
+
+            const isDiscovered = codexMgr ? codexMgr.isDiscovered(entry.category, entry.id) : false;
+            const isSelected = this.selectedAugmentItem &&
+                this.selectedAugmentItem.source === 'codexEntry' &&
+                this.selectedAugmentItem.key === `${entry.category}:${entry.id}`;
+            const isHovered = pointer && this._isHovered(pointer, cx, cy, cardW, cardH);
+
+            const accent = isDiscovered ? entry.color : '#2a3d3f';
+            const border = isSelected ? '#ffffff' : (isHovered ? '#00ffcc' : accent);
+
+            ctx.save();
+            ctx.fillStyle = isSelected ? '#122628' : (isDiscovered ? '#081214' : '#050708');
+            ctx.strokeStyle = border;
+            ctx.lineWidth = isSelected ? 2.5 : 1.5;
+            ctx.fillRect(cx, cy, cardW, cardH);
+            ctx.strokeRect(cx, cy, cardW, cardH);
+
+            if (isDiscovered) {
+                ctx.fillStyle = entry.color;
+                ctx.font = 'bold 15px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(`[${entry.tag}]`, cx + 10, cy + 22);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 19px "VT323", monospace';
+                ctx.fillText(entry.name.toUpperCase(), cx + 10, cy + 48);
+            } else {
+                ctx.fillStyle = '#556668';
+                ctx.font = 'bold 15px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText('[UNDISCOVERED]', cx + 10, cy + 22);
+
+                ctx.fillStyle = '#778c8f';
+                ctx.font = 'bold 20px "VT323", monospace';
+                ctx.fillText('???', cx + 10, cy + 48);
+            }
+            ctx.restore();
+
+            this.augmentsButtons.push({
+                x: cx,
+                y: cy,
+                w: cardW,
+                h: cardH,
+                action: () => {
+                    this.selectedAugmentItem = {
+                        source: 'codexEntry',
+                        key: `${entry.category}:${entry.id}`,
+                        data: entry,
+                        discovered: isDiscovered
+                    };
+                }
+            });
+        });
+        ctx.restore();
+
+        // Bottom Inspector
+        const inspY = innerY + topAreaH + 16;
+        ctx.save();
+        ctx.fillStyle = '#050809';
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 2;
+        ctx.fillRect(innerX, inspY, innerW, inspectorH);
+        ctx.strokeRect(innerX, inspY, innerW, inspectorH);
+
+        const sel = this.selectedAugmentItem;
+        if (!sel || sel.source !== 'codexEntry' || !sel.data) {
+            ctx.fillStyle = '#88c8d0';
+            ctx.font = '20px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                'Select any discovered entry above to inspect its stats and description.',
+                innerX + innerW / 2,
+                inspY + 48
+            );
+            ctx.fillStyle = '#778c8f';
+            ctx.font = '18px "VT323", monospace';
+            ctx.fillText(
+                'Undiscovered entries unlock permanently when you obtain them during a run.',
+                innerX + innerW / 2,
+                inspY + 78
+            );
+        } else if (!sel.discovered) {
+            ctx.fillStyle = '#88999c';
+            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText('UNDISCOVERED ENTRY (???)', innerX + 18, inspY + 36);
+
+            ctx.fillStyle = '#778c8f';
+            ctx.font = '19px "VT323", monospace';
+            ctx.fillText('Obtain or equip this item during a run to unlock its details in the Codex.', innerX + 18, inspY + 72);
+        } else {
+            const e = sel.data;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(e.name.toUpperCase(), innerX + 18, inspY + 30);
+
+            ctx.fillStyle = e.color;
+            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.fillText(e.subtitle, innerX + 18, inspY + 56);
+
+            ctx.fillStyle = '#d0e8ec';
+            ctx.font = '19px "VT323", monospace';
+            const lines = wrapCardText(e.description, innerW - 36).slice(0, 2);
+            lines.forEach((line, lIdx) => {
+                ctx.fillText(line, innerX + 18, inspY + 84 + lIdx * 20);
+            });
+        }
+        ctx.restore();
+
+        // Back Button
+        const backWidth = 220;
+        const backHeight = 50;
+        const backX = w / 2 - backWidth / 2;
+        const backY = h - 75;
+        const backHovered = pointer && this._isHovered(pointer, backX, backY, backWidth, backHeight);
+
+        this.drawButton(ctx, backX, backY, backWidth, backHeight, 'BACK', backHovered, 'default');
+        this.augmentsButtons.push({
+            x: backX,
+            y: backY,
+            w: backWidth,
+            h: backHeight,
+            action: () => this.closeAugmentsMenu()
+        });
+    }
+
+    _drawSynergiesTabContent(ctx, w, h, pointer, synergyMgr, innerX, innerY, innerW, topAreaH, inspectorH, wrapCardText) {
+        if (synergyMgr) {
+            synergyMgr.evaluateSynergies(false);
+        }
+
+        const discoveredCount = synergyMgr ? synergyMgr.discoveredSynergies.size : 0;
+        const activeCount = synergyMgr ? synergyMgr.activeSynergies.size : 0;
+
+        ctx.save();
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = this.styleConfig.fonts.infoTitle;
+        ctx.textAlign = 'left';
+        ctx.fillText(`SYNERGY CODEX (DISCOVERED: ${discoveredCount}/${SYNERGIES.length})`, innerX, innerY + 16);
+
+        ctx.textAlign = 'right';
+        ctx.fillStyle = activeCount > 0 ? '#ffcc00' : '#88c8d0';
+        ctx.fillText(`ACTIVE THIS RUN: ${activeCount}`, innerX + innerW, innerY + 16);
+        ctx.restore();
+
+        const gridTopY = innerY + 30;
+        const gridH = topAreaH - 30;
+        const cols = 3;
+        const gap = 12;
+        const cardW = Math.floor((innerW - gap * (cols - 1)) / cols);
+        const cardH = 92;
+        const totalRows = Math.ceil(SYNERGIES.length / cols);
+        const contentH = totalRows * (cardH + gap);
+
+        this.maxLoadoutScrollOffset = Math.max(0, contentH - gridH);
+        this.loadoutScrollOffset = Math.max(0, Math.min(this.loadoutScrollOffset, this.maxLoadoutScrollOffset));
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(innerX, gridTopY, innerW, gridH);
+        ctx.clip();
+
+        SYNERGIES.forEach((syn, idx) => {
+            const col = idx % cols;
+            const row = Math.floor(idx / cols);
+            const cx = innerX + col * (cardW + gap);
+            const cy = gridTopY + row * (cardH + gap) - this.loadoutScrollOffset;
+
+            if (cy + cardH < gridTopY || cy > gridTopY + gridH) return;
+
+            const isActive = synergyMgr ? synergyMgr.hasSynergy(syn.id) : false;
+            const isDiscovered = synergyMgr ? synergyMgr.isDiscovered(syn.id) : false;
+            const isSelected = this.selectedAugmentItem &&
+                this.selectedAugmentItem.source === 'synergy' &&
+                this.selectedAugmentItem.key === syn.id;
+            const isHovered = pointer && this._isHovered(pointer, cx, cy, cardW, cardH);
+
+            const accent = isActive ? syn.color : (isDiscovered ? '#55888c' : '#2a3d3f');
+            const border = isSelected ? '#ffffff' : (isHovered ? '#00ffcc' : accent);
+
+            ctx.save();
+            ctx.fillStyle = isSelected ? '#122628' : (isActive ? '#0c1c1e' : '#050708');
+            ctx.strokeStyle = border;
+            ctx.lineWidth = isSelected || isActive ? 2.5 : 1.5;
+            if (isActive) {
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = syn.color;
+            }
+            ctx.fillRect(cx, cy, cardW, cardH);
+            ctx.strokeRect(cx, cy, cardW, cardH);
+            ctx.shadowBlur = 0;
+
+            if (isDiscovered || isActive) {
+                ctx.fillStyle = isActive ? syn.color : '#88c8d0';
+                ctx.font = 'bold 15px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(isActive ? '[ACTIVE]' : '[DISCOVERED]', cx + 10, cy + 20);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 20px "VT323", monospace';
+                ctx.fillText(syn.name.toUpperCase(), cx + 10, cy + 42);
+
+                const statuses = synergyMgr ? synergyMgr.getRequirementStatuses(syn) : [];
+                const metCount = statuses.filter(s => s.met).length;
+                ctx.fillStyle = isActive ? '#00ffcc' : '#b8d0d4';
+                ctx.font = '16px "VT323", monospace';
+                ctx.fillText(`COMPONENTS: ${metCount}/${statuses.length}`, cx + 10, cy + 68);
+            } else {
+                ctx.fillStyle = '#556668';
+                ctx.font = 'bold 15px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText('[UNDISCOVERED]', cx + 10, cy + 20);
+
+                ctx.fillStyle = '#88999c';
+                ctx.font = 'bold 20px "VT323", monospace';
+                ctx.fillText('???', cx + 10, cy + 42);
+
+                const hintParts = syn.requirements.map(r => (r.revealedInHint ? r.label : '???'));
+                ctx.fillStyle = '#667a7d';
+                ctx.font = '15px "VT323", monospace';
+                const hintLine = wrapCardText(`HINT: ${hintParts.join(' + ')}`, cardW - 20)[0] || '';
+                ctx.fillText(hintLine, cx + 10, cy + 68);
+            }
+            ctx.restore();
+
+            this.augmentsButtons.push({
+                x: cx,
+                y: cy,
+                w: cardW,
+                h: cardH,
+                action: () => {
+                    this.selectedAugmentItem = { source: 'synergy', key: syn.id, data: syn };
+                }
+            });
+        });
+        ctx.restore();
+
+        // Bottom Inspector
+        const inspY = innerY + topAreaH + 16;
+        ctx.save();
+        ctx.fillStyle = '#050809';
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 2;
+        ctx.fillRect(innerX, inspY, innerW, inspectorH);
+        ctx.strokeRect(innerX, inspY, innerW, inspectorH);
+
+        const sel = this.selectedAugmentItem;
+        if (!sel || sel.source !== 'synergy' || !sel.data) {
+            ctx.fillStyle = '#88c8d0';
+            ctx.font = '20px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                'Select any Synergy card above to view its recipe or cryptic hint.',
+                innerX + innerW / 2,
+                inspY + 48
+            );
+            ctx.fillStyle = '#ffcc00';
+            ctx.font = '18px "VT323", monospace';
+            ctx.fillText(
+                'Discovered Synergies are saved permanently in your Codex across runs!',
+                innerX + innerW / 2,
+                inspY + 78
+            );
+        } else {
+            const syn = sel.data;
+            const isActive = synergyMgr ? synergyMgr.hasSynergy(syn.id) : false;
+            const isDiscovered = synergyMgr ? synergyMgr.isDiscovered(syn.id) : false;
+            const statuses = synergyMgr ? synergyMgr.getRequirementStatuses(syn) : [];
+
+            if (isDiscovered || isActive) {
+                ctx.fillStyle = syn.color;
+                ctx.font = 'bold 24px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(`${syn.name.toUpperCase()} ${isActive ? '[ACTIVE]' : '[INACTIVE]'}`, innerX + 18, inspY + 28);
+
+                const reqLine = statuses.map(s => `${s.met ? '✓' : '✗'} ${s.label}`).join('   |   ');
+                ctx.fillStyle = '#00ffcc';
+                ctx.font = '17px "VT323", monospace';
+                ctx.fillText(reqLine, innerX + 18, inspY + 54);
+
+                ctx.fillStyle = '#d0e8ec';
+                ctx.font = '18px "VT323", monospace';
+                const descLines = wrapCardText(syn.description, innerW - 36).slice(0, 2);
+                descLines.forEach((line, lIdx) => {
+                    ctx.fillText(line, innerX + 18, inspY + 80 + lIdx * 20);
+                });
+            } else {
+                ctx.fillStyle = '#88999c';
+                ctx.font = 'bold 24px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText('UNDISCOVERED SYNERGY', innerX + 18, inspY + 30);
+
+                const hintParts = statuses.map(s => (s.revealedInHint ? `${s.met ? '✓' : '•'} ${s.label}` : '???'));
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = '19px "VT323", monospace';
+                ctx.fillText(`HINT: ${hintParts.join('   +   ')}`, innerX + 18, inspY + 62);
+
+                ctx.fillStyle = '#778c8f';
+                ctx.font = '18px "VT323", monospace';
+                ctx.fillText('Combine matching Augments, Drones, Hacks, and Upgrade Cards to discover this Synergy.', innerX + 18, inspY + 92);
+            }
+        }
+        ctx.restore();
+
+        // Back / Resume Button
+        const backWidth = 220;
+        const backHeight = 50;
+        const backX = w / 2 - backWidth / 2;
+        const backY = h - 75;
+        const backText = this.augmentsOrigin === 'gameplay' ? 'RESUME' : 'BACK';
+        const backHovered = pointer && this._isHovered(pointer, backX, backY, backWidth, backHeight);
+
+        this.drawButton(ctx, backX, backY, backWidth, backHeight, backText, backHovered, 'default');
+        this.augmentsButtons.push({
+            x: backX,
+            y: backY,
+            w: backWidth,
+            h: backHeight,
+            action: () => this.closeAugmentsMenu()
+        });
+    }
+
+    _drawCodexCategoryContent(ctx, w, h, pointer, codexMgr, innerX, innerY, innerW, topAreaH, inspectorH, wrapCardText) {
+        let entries = [];
+        let title = '';
+
+        if (this.codexTab === 'augments') {
+            title = 'CYBERWARE AUGMENTS CODEX';
+            entries = AUGMENTS.map(a => ({
+                id: a.id,
+                category: 'augments',
+                name: a.name,
+                tag: `${a.slot.toUpperCase()} • ${AUGMENT_TYPES[a.type]?.name.toUpperCase() || a.type}`,
+                subtitle: `${a.rarity.toUpperCase()} AUGMENT • SLOT: ${a.slot.toUpperCase()}`,
+                color: AUGMENT_TYPES[a.type]?.color || '#00ffcc',
+                description: a.description
+            }));
+        } else if (this.codexTab === 'playerCards') {
+            title = 'PLAYER UPGRADE CARDS CODEX';
+            const rarityColors = { Common: '#00ffcc', Rare: '#00bcff', Epic: '#bc00ff', Legendary: '#ffcc00' };
+            entries = UPGRADES.filter(u => !u.unlockHackId).map(u => ({
+                id: u.id,
+                category: 'playerCards',
+                name: u.name,
+                tag: (u.rarity || 'Common').toUpperCase(),
+                subtitle: `PLAYER UPGRADE CARD • ${(u.rarity || 'Common').toUpperCase()}`,
+                color: rarityColors[u.rarity] || '#00ffcc',
+                description: u.description
+            }));
+        } else if (this.codexTab === 'droneCards') {
+            title = 'DRONE UPGRADE CARDS CODEX';
+            entries = DRONE_UPGRADES.map(u => ({
+                id: u.id,
+                category: 'droneCards',
+                name: u.name,
+                tag: (u.targetBehaviors || ['ALL']).join('/'),
+                subtitle: `DRONE UPGRADE CARD • TARGET: ${(u.targetBehaviors || ['ALL']).join(' & ')}`,
+                color: '#ff55ff',
+                description: u.description
+            }));
+        } else if (this.codexTab === 'dronesAndHacks') {
+            title = 'DRONES & HACKS CODEX';
+            const droneEntries = Object.values(DRONE_TYPES).map(d => ({
+                id: d.id,
+                category: 'drones',
+                name: d.name,
+                tag: `DRONE • ${d.behavior}`,
+                subtitle: `DRONE UNIT • BEHAVIOR: ${d.behavior}`,
+                color: d.color || '#00ffcc',
+                description: d.description
+            }));
+            const hackEntries = Object.values(HACK_DATA).map(hk => {
+                const unlockCard = UPGRADES.find(u => u.unlockHackId === hk.id);
+                return {
+                    id: hk.id,
+                    category: 'hacks',
+                    name: hk.name,
+                    tag: 'ACTIVE HACK',
+                    subtitle: `HACK MODULE • ID: ${hk.id}`,
+                    color: '#bc00ff',
+                    description: unlockCard ? unlockCard.description : 'Active cyberware hack ability.'
+                };
+            });
+            entries = [...droneEntries, ...hackEntries];
+        }
+
+        const discoveredCount = entries.filter(e => codexMgr && codexMgr.isDiscovered(e.category, e.id)).length;
+
+        ctx.save();
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = this.styleConfig.fonts.infoTitle;
+        ctx.textAlign = 'left';
+        ctx.fillText(`${title} (${discoveredCount}/${entries.length})`, innerX, innerY + 16);
+        ctx.restore();
+
+        const gridTopY = innerY + 30;
+        const gridH = topAreaH - 30;
+        const cols = 4;
+        const gap = 12;
+        const cardW = Math.floor((innerW - gap * (cols - 1)) / cols);
+        const cardH = 82;
+        const totalRows = Math.ceil(entries.length / cols);
+        const contentH = totalRows * (cardH + gap);
+
+        this.maxLoadoutScrollOffset = Math.max(0, contentH - gridH);
+        this.loadoutScrollOffset = Math.max(0, Math.min(this.loadoutScrollOffset, this.maxLoadoutScrollOffset));
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(innerX, gridTopY, innerW, gridH);
+        ctx.clip();
+
+        entries.forEach((entry, idx) => {
+            const col = idx % cols;
+            const row = Math.floor(idx / cols);
+            const cx = innerX + col * (cardW + gap);
+            const cy = gridTopY + row * (cardH + gap) - this.loadoutScrollOffset;
+
+            if (cy + cardH < gridTopY || cy > gridTopY + gridH) return;
+
+            const isDiscovered = codexMgr ? codexMgr.isDiscovered(entry.category, entry.id) : false;
+            const isSelected = this.selectedAugmentItem &&
+                this.selectedAugmentItem.source === 'codexEntry' &&
+                this.selectedAugmentItem.key === `${entry.category}:${entry.id}`;
+            const isHovered = pointer && this._isHovered(pointer, cx, cy, cardW, cardH);
+
+            const accent = isDiscovered ? entry.color : '#2a3d3f';
+            const border = isSelected ? '#ffffff' : (isHovered ? '#00ffcc' : accent);
+
+            ctx.save();
+            ctx.fillStyle = isSelected ? '#122628' : (isDiscovered ? '#081214' : '#050708');
+            ctx.strokeStyle = border;
+            ctx.lineWidth = isSelected ? 2.5 : 1.5;
+            ctx.fillRect(cx, cy, cardW, cardH);
+            ctx.strokeRect(cx, cy, cardW, cardH);
+
+            if (isDiscovered) {
+                ctx.fillStyle = entry.color;
+                ctx.font = 'bold 15px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(`[${entry.tag}]`, cx + 10, cy + 22);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 19px "VT323", monospace';
+                ctx.fillText(entry.name.toUpperCase(), cx + 10, cy + 48);
+            } else {
+                ctx.fillStyle = '#556668';
+                ctx.font = 'bold 15px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText('[UNDISCOVERED]', cx + 10, cy + 22);
+
+                ctx.fillStyle = '#778c8f';
+                ctx.font = 'bold 20px "VT323", monospace';
+                ctx.fillText('???', cx + 10, cy + 48);
+            }
+            ctx.restore();
+
+            this.augmentsButtons.push({
+                x: cx,
+                y: cy,
+                w: cardW,
+                h: cardH,
+                action: () => {
+                    this.selectedAugmentItem = {
+                        source: 'codexEntry',
+                        key: `${entry.category}:${entry.id}`,
+                        data: entry,
+                        discovered: isDiscovered
+                    };
+                }
+            });
+        });
+        ctx.restore();
+
+        // Bottom Inspector
+        const inspY = innerY + topAreaH + 16;
+        ctx.save();
+        ctx.fillStyle = '#050809';
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 2;
+        ctx.fillRect(innerX, inspY, innerW, inspectorH);
+        ctx.strokeRect(innerX, inspY, innerW, inspectorH);
+
+        const sel = this.selectedAugmentItem;
+        if (!sel || sel.source !== 'codexEntry' || !sel.data) {
+            ctx.fillStyle = '#88c8d0';
+            ctx.font = '20px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                'Select any discovered entry above to inspect its stats and description.',
+                innerX + innerW / 2,
+                inspY + 48
+            );
+            ctx.fillStyle = '#778c8f';
+            ctx.font = '18px "VT323", monospace';
+            ctx.fillText(
+                'Undiscovered entries unlock permanently when you obtain them during a run.',
+                innerX + innerW / 2,
+                inspY + 78
+            );
+        } else if (!sel.discovered) {
+            ctx.fillStyle = '#88999c';
+            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText('UNDISCOVERED ENTRY (???)', innerX + 18, inspY + 36);
+
+            ctx.fillStyle = '#778c8f';
+            ctx.font = '19px "VT323", monospace';
+            ctx.fillText('Obtain or equip this item during a run to unlock its details in the Codex.', innerX + 18, inspY + 72);
+        } else {
+            const e = sel.data;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(e.name.toUpperCase(), innerX + 18, inspY + 30);
+
+            ctx.fillStyle = e.color;
+            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.fillText(e.subtitle, innerX + 18, inspY + 56);
+
+            ctx.fillStyle = '#d0e8ec';
+            ctx.font = '19px "VT323", monospace';
+            const lines = wrapCardText(e.description, innerW - 36).slice(0, 2);
+            lines.forEach((line, lIdx) => {
+                ctx.fillText(line, innerX + 18, inspY + 84 + lIdx * 20);
+            });
+        }
+        ctx.restore();
+
+        // Back Button
+        const backWidth = 220;
+        const backHeight = 50;
+        const backX = w / 2 - backWidth / 2;
+        const backY = h - 75;
+        const backHovered = pointer && this._isHovered(pointer, backX, backY, backWidth, backHeight);
+
+        this.drawButton(ctx, backX, backY, backWidth, backHeight, 'BACK', backHovered, 'default');
         this.augmentsButtons.push({
             x: backX,
             y: backY,

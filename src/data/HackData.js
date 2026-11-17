@@ -22,6 +22,20 @@ export const HACK_DATA = {
         durationMs: 10000,
         speedBoostMultiplier: 1.5,
         alpha: 0.4
+    },
+    DATA_SIPHON: {
+        id: 'DATA_SIPHON',
+        name: 'Data Siphon',
+        unlocked: false,
+        xpPerEnemy: 5
+    },
+    HOLO_DECOY: {
+        id: 'HOLO_DECOY',
+        name: 'Holo-Decoy',
+        unlocked: false,
+        durationMs: 8000,
+        explosionRadius: 220,
+        explosionDamage: 15
     }
 };
 

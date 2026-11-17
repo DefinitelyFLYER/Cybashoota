@@ -28,6 +28,7 @@
     }
 
     draw(ctx) {
+        if (this.game?.settings?.performance?.backgroundGrid === false) return;
         const player = this.game.getModule('player');
         if (!player || !this.offscreenCanvas) return;
 

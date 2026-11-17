@@ -255,6 +255,27 @@
         ctx.restore();
     }
 
+    _drawSynergyHud(ctx, virtualW) {
+        const synergyMgr = this.game.getModule('synergies');
+        if (!synergyMgr || typeof synergyMgr.getActiveSynergyList !== 'function') return;
+        const active = synergyMgr.getActiveSynergyList();
+        if (active.length === 0) return;
+
+        ctx.save();
+        ctx.textAlign = 'right';
+        ctx.font = 'bold 16px "VT323", monospace';
+        let y = 70;
+
+        for (const syn of active) {
+            ctx.fillStyle = syn.color;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = syn.color;
+            ctx.fillText(`★ ${syn.name.toUpperCase()}`, virtualW - 20, y);
+            y += 20;
+        }
+        ctx.restore();
+    }
+
     _getUiScale() {
         return Math.max(0.5, Math.min(2, Number(this.game?.settings?.ui?.scale ?? 1)));
     }
@@ -418,6 +439,16 @@
         ctx.textAlign = 'right';
         ctx.font = '20px "VT323", monospace';
         ctx.fillText(`HI-SCORE: ${this.highScore.toString().padStart(6, '0')}`, virtualW - 20, 40);
+
+        if (this.game?.settings?.performance?.showFps) {
+            ctx.save();
+            ctx.fillStyle = '#88c8d0';
+            ctx.font = '18px "VT323", monospace';
+            ctx.textAlign = 'right';
+            ctx.shadowBlur = 0;
+            ctx.fillText(`FPS: ${this.game.fps || 60}`, virtualW - 20, 58);
+            ctx.restore();
+        }
         
         ctx.shadowBlur = 0;
 
@@ -458,6 +489,7 @@
 
         this._drawHackHud(ctx, virtualW, virtualH);
         this._drawUltimateHud(ctx, virtualW, virtualH);
+        this._drawSynergyHud(ctx, virtualW);
         this._drawXpBar(ctx, virtualW);
         this._drawActiveBuffs(ctx, virtualW, virtualH);
         this._drawNotifications(ctx, virtualW, virtualH);
