@@ -35,6 +35,12 @@ export const unlockHack = (hackId) => {
     }
 };
 
+export const resetHacks = () => {
+    for (const hack of Object.values(HACK_DATA)) {
+        hack.unlocked = false;
+    }
+};
+
 export const GLITCH_PHASES = {
     NORMAL: 0,
     PRIMARY: 1,

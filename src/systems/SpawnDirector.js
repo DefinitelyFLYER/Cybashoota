@@ -25,12 +25,23 @@ export default class SpawnDirector {
 
         const phase = SPAWN_TIMELINE.find(p => seconds >= p.start && seconds < p.end);
 
+        if (this.phaseChanged) {
+            this.phaseTimer += deltaTime;
+            if (this.phaseTimer > 5000) {
+                this.phaseChanged = false;
+            }
+        }
+
         if (phase && seconds > phase.end - 1 && !this.phaseChanged) {
             this.phaseChanged = true;
             this.phaseTimer = 0;
         }
 
         if (phase && phase !== this.currentPhase) {
+            if (this.currentPhase !== null) {
+                this.phaseChanged = true;
+                this.phaseTimer = 0;
+            }
             this.currentPhase = phase;
             const enemyMgr = this.game.getModule('enemies');
             if (enemyMgr) {

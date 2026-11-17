@@ -1,7 +1,8 @@
-import { HACK_DATA, getUnlockedHackIds, GLITCH_PHASES } from '../data/HackData.js';
+import { HACK_DATA, getUnlockedHackIds, resetHacks, GLITCH_PHASES } from '../data/HackData.js';
 
 export default class HackManager {
     constructor() {
+        this.signalJammerTimeout = null;
         this.HACK_TYPES = {
             [HACK_DATA.OVERLOAD.id]: {
                 id: HACK_DATA.OVERLOAD.id,
@@ -25,11 +26,12 @@ export default class HackManager {
                 execute: (game) => {
                     const enemyManager = game.getModule('enemies');
                     const input = game.getModule('input');
+                    const proj = game.getModule('projectiles');
                     const player = game.getModule('player');
                     if (!enemyManager || !enemyManager.enemies || enemyManager.enemies.length === 0 || !input || !player) return false;
 
-                    const mouseX = input.mouseX || 0;
-                    const mouseY = input.mouseY || 0;
+                    const targetX = proj && typeof proj.crosshairX === 'number' ? proj.crosshairX : (input.mouseX || 0);
+                    const targetY = proj && typeof proj.crosshairY === 'number' ? proj.crosshairY : (input.mouseY || 0);
                     let closestEnemy = null;
                     let closestDistance = Infinity;
 
@@ -38,8 +40,8 @@ export default class HackManager {
 
                         const screenX = enemy.x - player.pos.x + game.center.x;
                         const screenY = enemy.y - player.pos.y + game.center.y;
-                        const dx = screenX - mouseX;
-                        const dy = screenY - mouseY;
+                        const dx = screenX - targetX;
+                        const dy = screenY - targetY;
                         const distance = dx * dx + dy * dy;
 
                         if (distance < closestDistance) {
@@ -64,8 +66,12 @@ export default class HackManager {
                         projectileManager.enemyProjectiles = [];
                     }
                     game.isSignalJammed = true;
-                    setTimeout(() => {
+                    if (this.signalJammerTimeout) {
+                        clearTimeout(this.signalJammerTimeout);
+                    }
+                    this.signalJammerTimeout = setTimeout(() => {
                         if (game) game.isSignalJammed = false;
+                        this.signalJammerTimeout = null;
                     }, HACK_DATA.SIGNAL_JAMMER.durationMs);
                     return true;
                 }
@@ -95,30 +101,88 @@ export default class HackManager {
         this.game = game;
     }
 
+    reset() {
+        resetHacks();
+        this.unlockedHacks = [];
+        this.activeHack = null;
+        this.cooldownTimer = 0;
+        if (this.signalJammerTimeout) {
+            clearTimeout(this.signalJammerTimeout);
+            this.signalJammerTimeout = null;
+        }
+    }
+
     unlockHack(hackId) {
         if (!HACK_DATA[hackId]) return;
-        HACK_DATA[hackId].unlocked = true;
 
         const player = this.game?.getModule('player');
         const maxSlots = player ? Math.max(1, Math.floor(player.getStat('maxHackSlots'))) : 1;
-        const availableHacks = getUnlockedHackIds().slice(0, maxSlots);
 
-        this.unlockedHacks = availableHacks;
+        if (!this.unlockedHacks.includes(hackId)) {
+            while (this.unlockedHacks.length >= maxSlots && this.unlockedHacks.length > 0) {
+                const replaceIdx = this.activeHack && this.unlockedHacks.includes(this.activeHack)
+                    ? this.unlockedHacks.indexOf(this.activeHack)
+                    : 0;
+                const removedId = this.unlockedHacks.splice(replaceIdx, 1)[0];
+                if (HACK_DATA[removedId]) {
+                    HACK_DATA[removedId].unlocked = false;
+                }
+                this._clearUnlockUpgradeFromInventory(removedId);
+            }
+            this.unlockedHacks.push(hackId);
+        }
+
+        HACK_DATA[hackId].unlocked = true;
         this.activeHack = hackId;
+    }
+
+    removeHack(hackId) {
+        const idx = this.unlockedHacks.indexOf(hackId);
+        if (idx === -1) return false;
+
+        this.unlockedHacks.splice(idx, 1);
+        if (HACK_DATA[hackId]) {
+            HACK_DATA[hackId].unlocked = false;
+        }
+        this._clearUnlockUpgradeFromInventory(hackId);
+
+        if (this.activeHack === hackId) {
+            this.activeHack = this.unlockedHacks.length > 0 ? this.unlockedHacks[0] : null;
+        }
+        return true;
+    }
+
+    _clearUnlockUpgradeFromInventory(hackId) {
+        const upgrades = this.game?.getModule('upgrades');
+        if (!upgrades || !upgrades.inventory) return;
+        const map = {
+            OVERLOAD: 'unlock_overload',
+            GLITCH_EM: 'unlock_glitch_em',
+            SIGNAL_JAMMER: 'unlock_signal_jammer',
+            GHOST_PROTOCOL: 'unlock_ghost_protocol'
+        };
+        const upgId = map[hackId];
+        if (upgId && upgrades.inventory[upgId]) {
+            delete upgrades.inventory[upgId];
+        }
     }
 
     update(deltaTime) {
         const player = this.game.getModule('player');
         if (player) {
             const maxSlots = Math.max(1, Math.floor(player.getStat('maxHackSlots')));
-            const availableHacks = getUnlockedHackIds().slice(0, maxSlots);
-            if (availableHacks.length > 0) {
-                this.unlockedHacks = availableHacks;
+            while (this.unlockedHacks.length > maxSlots) {
+                const removedId = this.unlockedHacks.pop();
+                if (HACK_DATA[removedId]) {
+                    HACK_DATA[removedId].unlocked = false;
+                }
+                this._clearUnlockUpgradeFromInventory(removedId);
+            }
+            if (this.unlockedHacks.length > 0) {
                 if (!this.unlockedHacks.includes(this.activeHack)) {
                     this.activeHack = this.unlockedHacks[0];
                 }
             } else {
-                this.unlockedHacks = [];
                 this.activeHack = null;
             }
         }
@@ -135,9 +199,11 @@ export default class HackManager {
 
         if (cyclePressed) {
             if (input) input.isHackCyclePressed = false;
-            const currentIndex = this.unlockedHacks.indexOf(this.activeHack);
-            const nextIndex = (currentIndex + 1) % this.unlockedHacks.length;
-            this.activeHack = this.unlockedHacks[nextIndex];
+            if (this.unlockedHacks.length > 0) {
+                const currentIndex = this.unlockedHacks.indexOf(this.activeHack);
+                const nextIndex = (currentIndex + 1) % this.unlockedHacks.length;
+                this.activeHack = this.unlockedHacks[nextIndex];
+            }
         }
 
         if (this.cooldownTimer > 0) {
@@ -163,7 +229,12 @@ export default class HackManager {
             return false;
         }
 
-        this.cooldownTimer = this.cooldownDuration;
+        const augmentMgr = this.game?.getModule('augments');
+        const cdMulti = augmentMgr ? augmentMgr.getHackCooldownMultiplier() : 1.0;
+        this.cooldownTimer = this.cooldownDuration * cdMulti;
+        if (augmentMgr) {
+            augmentMgr.onHackExecuted();
+        }
         return true;
     }
 }

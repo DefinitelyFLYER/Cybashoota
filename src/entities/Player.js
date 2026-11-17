@@ -21,8 +21,7 @@ export default class Player {
             critMultiplier: 2.2,
             magnetRange: 0.85,
             xpMultiplier: 1.0,
-            luck: 1.0,
-            maxHackSlots: 0
+            luck: 1.0
         };
 
         this.multipliers = {
@@ -33,14 +32,13 @@ export default class Player {
             critMultiplier: 1.0,
             magnetRange: 1.0,
             xpMultiplier: 1.0,
-            luck: 1.0,
-            maxHackSlots: 1.0
+            luck: 1.0
         };
 
         this.stats = {
             hp: 3,
             maxHp: 3, 
-            defense: 0, // irrelevant now
+            defense: 0,
             damage: 1,
             dodgeChance: 0.08,
             projectileCount: 1,
@@ -52,7 +50,19 @@ export default class Player {
             upgradeOptions: 3,
             rerolls: 3,
             maxDrones: 1,
-            maxHackSlots: 0
+            maxHackSlots: 1
+        };
+
+        this.armorCharges = 0;
+        this._lastKnownDefense = 0;
+        this.armorRechargeTimer = 0;
+        this.armorRechargeDuration = 20000;
+
+        this.augments = {
+            head: null,
+            arms: null,
+            legs: null,
+            core: null
         };
         
         this.sprite = new Image();
@@ -73,16 +83,32 @@ export default class Player {
         this.shockwaveMaxRadius = 400;
         this.shockwaveDuration = 1400;
         this.shockwaveTimer = 0;
+        this.shockwaveDamage = 0;
+        this.shockwaveColor = '#00ffcc';
+        this.shockwaveHitEnemies = new Set();
+    }
+
+    equipAugment(augmentOrId) {
+        const augmentMgr = this.game?.getModule('augments');
+        if (!augmentMgr) return false;
+        return augmentMgr.equipAugment(augmentOrId);
+    }
+
+    unequipAugment(slot) {
+        const augmentMgr = this.game?.getModule('augments');
+        if (!augmentMgr) return null;
+        return augmentMgr.unequipSlot(slot);
     }
 
     getStat(name) {
         if (name === 'damage') {
-            return this.stats.damage;
+            return Math.max(0.1, this.stats.damage);
         }
 
         if (this.baseStats[name] !== undefined) {
-            if (name === 'fireRate') return this.baseStats[name] / this.multipliers[name];
-            return this.baseStats[name] * this.multipliers[name];
+            const mult = Math.max(0.1, this.multipliers[name]);
+            if (name === 'fireRate') return this.baseStats[name] / mult;
+            return this.baseStats[name] * mult;
         }
         return this.stats[name];
     }
@@ -114,13 +140,12 @@ export default class Player {
             critMultiplier: 1.0,
             magnetRange: 1.0,
             xpMultiplier: 1.0,
-            luck: 1.0,
-            maxHackSlots: 1.0
+            luck: 1.0
         };
         this.stats = {
             hp: 3,
             maxHp: 3, 
-            defense: 0, // irrelevant now
+            defense: 0,
             damage: 1,
             dodgeChance: 0.08,
             projectileCount: 1,
@@ -132,30 +157,110 @@ export default class Player {
             upgradeOptions: 3,
             rerolls: 3,
             maxDrones: 1,
-            maxHackSlots: 0
+            maxHackSlots: 1
+        };
+
+        this.armorCharges = 0;
+        this._lastKnownDefense = 0;
+        this.armorRechargeTimer = 0;
+        this.armorRechargeDuration = 20000;
+
+        this.augments = {
+            head: null,
+            arms: null,
+            legs: null,
+            core: null
         };
         this.weaponAnchorDist = 5;
         this.weaponAngle = 0;
         this.shockwaveActive = false;
         this.shockwaveRadius = 0;
         this.shockwaveMaxRadius = 400;
+        this.shockwaveDuration = 1400;
         this.shockwaveTimer = 0;
+        this.shockwaveDamage = 0;
+        this.shockwaveColor = '#00ffcc';
+        this.shockwaveHitEnemies = new Set();
+    }
+
+    triggerShockwave(options = {}) {
+        this.shockwaveActive = true;
+        this.shockwaveRadius = 0;
+        this.shockwaveTimer = 0;
+        this.shockwaveMaxRadius = options.maxRadius || 400;
+        this.shockwaveDuration = options.duration || 1400;
+        this.shockwaveDamage = options.damage || 0;
+        this.shockwaveColor = options.color || '#00ffcc';
+        this.shockwaveHitEnemies = new Set();
+    }
+
+    getMaxArmor() {
+        return Math.max(0, Math.floor(this.stats.defense || 0));
+    }
+
+    _syncArmorWithDefense() {
+        const maxArmor = this.getMaxArmor();
+        if (maxArmor > this._lastKnownDefense) {
+            const gained = maxArmor - this._lastKnownDefense;
+            this.armorCharges = Math.min(maxArmor, this.armorCharges + gained);
+        } else if (this.armorCharges > maxArmor) {
+            this.armorCharges = maxArmor;
+        }
+        this._lastKnownDefense = maxArmor;
+    }
+
+    _updateArmor(deltaTime) {
+        this._syncArmorWithDefense();
+        const maxArmor = this.getMaxArmor();
+        if (maxArmor <= 0 || this.armorCharges >= maxArmor) {
+            this.armorRechargeTimer = 0;
+            return;
+        }
+
+        this.armorRechargeTimer += deltaTime;
+        if (this.armorRechargeTimer >= this.armorRechargeDuration) {
+            this.armorRechargeTimer = 0;
+            this.armorCharges = Math.min(maxArmor, this.armorCharges + 1);
+            const particles = this.game?.getModule('particles');
+            if (particles) {
+                particles.emit(this.pos.x, this.pos.y, '#ff9900', 10);
+            }
+        }
     }
 
     takeDamage(amount = 1) {
         if (this.ghostActive) return;
         if (this.invulnerable > 0) return;
 
+        this._syncArmorWithDefense();
+        const augmentMgr = this.game?.getModule('augments');
+
         if (Math.random() < this.stats.dodgeChance) {
             this.invulnerable = 500;
+            if (augmentMgr) augmentMgr.onPlayerDamagedOrDodged(true);
             return;
         }
 
-        const finalDamage = Math.max(1, amount - this.stats.defense);
+        // Rechargeable Armor Charge blocks 1 hit completely
+        if (this.armorCharges > 0) {
+            this.armorCharges -= 1;
+            this.armorRechargeTimer = 0;
+            this.invulnerable = 1000;
+            const particles = this.game?.getModule('particles');
+            if (particles) {
+                particles.emit(this.pos.x, this.pos.y, '#ff9900', 14);
+            }
+            if (augmentMgr) augmentMgr.onPlayerDamagedOrDodged(false);
+            return;
+        }
+
+        this.armorRechargeTimer = 0;
+        const finalDamage = Math.max(1, amount);
         
         this.stats.hp -= finalDamage;
         
         this.invulnerable = 1500;
+        if (augmentMgr) augmentMgr.onPlayerDamagedOrDodged(false);
 
         if (this.stats.hp <= 0) {
             this.stats.hp = 0;
@@ -181,14 +286,14 @@ export default class Player {
         this.level++;
         this.xpNextLevel = Math.floor(this.xpNextLevel * 1.2 + 50);
 
-        this.shockwaveActive = true;
-        this.shockwaveRadius = 0;
-        this.shockwaveTimer = 0;
+        this.triggerShockwave({ maxRadius: 400, duration: 1400, damage: 0, color: '#00ffcc' });
 
         const upgrades = this.game.getModule('upgrades');
         if (upgrades) {
+            const reachedLevel = this.level;
             setTimeout(() => {
-                if (upgrades.addLevelUp) upgrades.addLevelUp();
+                if (this.game && (this.game.isGameOver || this.game.gameState !== 'PLAYING')) return;
+                if (upgrades.addLevelUp) upgrades.addLevelUp(reachedLevel);
                 else upgrades.showSelection(); 
             }, 200);
         }
@@ -277,20 +382,6 @@ export default class Player {
         }
     }
 
-    _checkEnemyCollisions(enemyMgr) {
-        if (this.ghostActive) return;
-        if (enemyMgr && enemyMgr.enemies && this.stats.hp > 0) {
-            for (const enemy of enemyMgr.enemies) {
-                const dx = this.pos.x - enemy.x;
-                const dy = this.pos.y - enemy.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 35) { 
-                    this.takeDamage();
-                }
-            }
-        }
-    }
-
     _updateShockwave(deltaTime, enemyMgr, projMgr, particles) {
         this.shockwaveTimer += deltaTime;
         const progress = this.shockwaveTimer / this.shockwaveDuration;
@@ -306,11 +397,18 @@ export default class Player {
                 const dy = e.y - this.pos.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (Math.abs(dist - this.shockwaveRadius) < 40) {
+                if (dist > 0 && Math.abs(dist - this.shockwaveRadius) < 40) {
                     const pushForce = 1.0; 
                     e.x += (dx / dist) * pushForce * deltaTime;
                     e.y += (dy / dist) * pushForce * deltaTime;
-                    e.turboCooldown = 2000; 
+                    e.turboCooldown = 2000;
+                    if (this.shockwaveDamage > 0 && !this.shockwaveHitEnemies.has(e)) {
+                        this.shockwaveHitEnemies.add(e);
+                        e.currentHp -= this.shockwaveDamage;
+                        if (particles) {
+                            particles.emit(e.x, e.y, this.shockwaveColor || '#ff7b00', 8);
+                        }
+                    }
                 }
             }
         }
@@ -342,7 +440,7 @@ export default class Player {
         this._handleWeaponAim(projMgr);
         this._updateInvulnerability(deltaTime);
         this._updateGhostState(deltaTime);
-        this._checkEnemyCollisions(enemyMgr);
+        this._updateArmor(deltaTime);
 
         if (this.shockwaveActive) {
             this._updateShockwave(deltaTime, enemyMgr, projMgr, particles);
@@ -353,7 +451,29 @@ export default class Player {
         const screenX = this.game.center.x;
         const screenY = this.game.center.y;
 
+        this._syncArmorWithDefense();
+
         if (!this.ghostActive && this.invulnerable > 0 && Math.floor(Date.now() / 100) % 2 === 0) return;
+
+        if (this.armorCharges > 0) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 153, 0, 0.55)';
+            ctx.lineWidth = 2.5;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ff9900';
+            ctx.beginPath();
+            const r = this.size * 0.62;
+            for (let i = 0; i < 6; i++) {
+                const a = (Math.PI / 3) * i - Math.PI / 6;
+                const px = screenX + r * Math.cos(a);
+                const py = screenY + r * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+        }
 
         if (this.game.isSignalJammed) {
             ctx.save();
@@ -413,15 +533,17 @@ export default class Player {
 
     _drawShockwave(ctx) {
         const progress = this.shockwaveTimer / this.shockwaveDuration;
+        const waveColor = this.shockwaveColor || '#00ffcc';
         ctx.save();
         
         ctx.beginPath();
         ctx.arc(this.game.center.x, this.game.center.y, this.shockwaveRadius, 0, Math.PI * 2);
         
-        ctx.strokeStyle = `rgba(0, 255, 204, ${1 - progress})`;
+        ctx.globalAlpha = Math.max(0, 1 - progress);
+        ctx.strokeStyle = waveColor;
         ctx.lineWidth = 15 * (1 - progress);
         ctx.shadowBlur = 25;
-        ctx.shadowColor = '#00ffcc';
+        ctx.shadowColor = waveColor;
 
         ctx.setLineDash([20, 15]);
         

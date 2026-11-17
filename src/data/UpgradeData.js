@@ -109,7 +109,7 @@ export const UPGRADES = [
     },
     {
         id: 'big_bullets',
-        name: 'Glichy Ammo',
+        name: 'Glitchy Ammo',
         description: 'Increases projectile size by 25%.',
         rarity: 'Common',
         tags: ['weapon', 'projectile'],
@@ -139,11 +139,25 @@ export const UPGRADES = [
         rarity: 'Epic',
         tags: ['weapon', 'projectile', 'ricochet', 'risky'],
         weight: 15,
+        maxStack: 2,
         requirements: (player) => player.stats.ricochetCount >= 1,
         requirementText: 'Requires at least 1 Ricochet.',
         onApply: (player) => { 
             player.multipliers.projectileSize -= 0.3;
             player.multipliers.bulletSpeed += 0.5;
+            player.stats.ricochetCount += 1;
+        }
+    },
+    {
+        id: 'smart_targeting',
+        name: 'Smart Targeting',
+        description: '+35% Aim Assist (Projectiles home toward enemies in your line of fire).',
+        rarity: 'Rare',
+        tags: ['weapon', 'projectile'],
+        weight: 35,
+        maxStack: 3,
+        onApply: (player) => {
+            player.stats.aimAssist += 0.35;
         }
     },
 
@@ -173,10 +187,10 @@ export const UPGRADES = [
     {
         id: 'armor',
         name: 'Titan Shell',
-        description: '+1 Defense (Reduces incoming damage).',
+        description: '+1 Defense (Grants 1 rechargeable Armor Shield that blocks a hit every 20s).',
         rarity: 'Rare',
         tags: ['defense'],
-        weight: 0,
+        weight: 35,
         maxStack: 5,
         onApply: (player) => { player.stats.defense += 1; }
     },
@@ -386,7 +400,7 @@ export const UPGRADES = [
         weight: 2,
         unique: true,
         onApply: (player) => {
-            player.baseStats.maxHackSlots += 1;
+            player.stats.maxHackSlots += 1;
         }
     },
     {

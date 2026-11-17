@@ -88,7 +88,7 @@ export default class PowerUpManager {
             const dy = player.pos.y - d.y;
             const distPx = Math.sqrt(dx * dx + dy * dy);
 
-            if (distPx < magnetRangePx) {
+            if (distPx > 0 && distPx < magnetRangePx) {
                 const magnetSpeed = 0.5; 
                 d.x += (dx / distPx) * magnetSpeed * deltaTime;
                 d.y += (dy / distPx) * magnetSpeed * deltaTime;
@@ -162,7 +162,7 @@ export default class PowerUpManager {
                 const value = effect.modifiers[stat];
 
                 if (stat === 'damage') {
-                    player.stats.damage -= value;
+                    player.stats.damage = Math.max(1, player.stats.damage - value);
                 } else if (player.multipliers[stat] !== undefined) {
                     player.multipliers[stat] -= value;
                 } else if (player.stats[stat] !== undefined) {

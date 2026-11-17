@@ -7,18 +7,23 @@ export default class InputHandler {
         this.isMouseDown = false;
         this.isHackPressed = false;
         this.isHackCyclePressed = false;
+        this.isUltimatePressed = false;
         this.lastMouseMoveTime = 0;
         this.wheelDeltaY = 0;
 
         window.addEventListener('keydown', (e) => {
             const hackBinding = this._getActionBinding('hack');
             const hackCycleBinding = this._getActionBinding('hackCycle');
+            const ultimateBinding = this._getActionBinding('setUltimate');
 
             if (e.code === hackBinding) {
                 this.isHackPressed = true;
             }
             if (e.code === hackCycleBinding) {
                 this.isHackCyclePressed = true;
+            }
+            if (e.code === ultimateBinding) {
+                this.isUltimatePressed = true;
             }
 
             this.keys[e.code] = true;
@@ -31,12 +36,16 @@ export default class InputHandler {
         window.addEventListener('keyup', (e) => {
             const hackBinding = this._getActionBinding('hack');
             const hackCycleBinding = this._getActionBinding('hackCycle');
+            const ultimateBinding = this._getActionBinding('setUltimate');
 
             if (e.code === hackBinding) {
                 this.isHackPressed = false;
             }
             if (e.code === hackCycleBinding) {
                 this.isHackCyclePressed = false;
+            }
+            if (e.code === ultimateBinding) {
+                this.isUltimatePressed = false;
             }
             this.keys[e.code] = false;
         });
@@ -50,21 +59,46 @@ export default class InputHandler {
         window.addEventListener('mousedown', (e) => {
             const buttonKey = `Mouse${e.button}`;
             this.mouseButtons[buttonKey] = true;
-            this.isMouseDown = e.button === 0;
+            if (e.button === 0) {
+                this.isMouseDown = true;
+            }
 
             if (this._getActionBinding('hack') === buttonKey) {
                 this.isHackPressed = true;
+            }
+            if (this._getActionBinding('hackCycle') === buttonKey) {
+                this.isHackCyclePressed = true;
+            }
+            if (this._getActionBinding('setUltimate') === buttonKey) {
+                this.isUltimatePressed = true;
             }
         });
 
         window.addEventListener('mouseup', (e) => {
             const buttonKey = `Mouse${e.button}`;
             this.mouseButtons[buttonKey] = false;
-            this.isMouseDown = false;
+            if (e.button === 0) {
+                this.isMouseDown = false;
+            }
 
             if (this._getActionBinding('hack') === buttonKey) {
                 this.isHackPressed = false;
             }
+            if (this._getActionBinding('hackCycle') === buttonKey) {
+                this.isHackCyclePressed = false;
+            }
+            if (this._getActionBinding('setUltimate') === buttonKey) {
+                this.isUltimatePressed = false;
+            }
+        });
+
+        window.addEventListener('blur', () => {
+            this.keys = {};
+            this.mouseButtons = {};
+            this.isMouseDown = false;
+            this.isHackPressed = false;
+            this.isHackCyclePressed = false;
+            this.isUltimatePressed = false;
         });
     }
 

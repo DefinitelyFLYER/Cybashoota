@@ -11,6 +11,7 @@ import Player from './entities/Player.js';
 import ProjectileManager from './entities/ProjectileManager.js';
 
 // systems
+import AugmentManager from './systems/AugmentManager.js';
 import ExperienceManager from './systems/ExperienceManager.js';
 import PowerUpManager from './systems/PowerUpManager.js';
 import SpawnDirector from './systems/SpawnDirector.js';
@@ -41,5 +42,6 @@ game.addModule('director', new SpawnDirector());
 
 const player = new Player(window.innerWidth / 2, window.innerHeight / 2);
 game.addModule('player', player);
+game.addModule('augments', new AugmentManager());
 
 game.start();

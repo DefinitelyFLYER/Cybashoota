@@ -1,6 +1,10 @@
 ﻿import { getFormattedStats } from '../ui/Infobox.js';
 import CHANGELOG, { CURRENT_VERSION } from '../ui/Changelog.js';
 import { MENU_DEFINITIONS } from '../data/MenuDefinitions.js';
+import { AUGMENT_SLOTS, AUGMENT_SLOT_LIST, AUGMENT_TYPES, AUGMENT_SET_BONUSES } from '../data/AugmentData.js';
+import { UPGRADES } from '../data/UpgradeData.js';
+import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
+import { HACK_DATA } from '../data/HackData.js';
 
 export default class MenuManager {
     constructor() {
@@ -8,8 +12,14 @@ export default class MenuManager {
         this.pauseButtons = [];
         this.gameOverButtons = [];
         this.settingsButtons = [];
+        this.augmentsButtons = [];
         this.settingsTab = 'performance';
         this.settingsOrigin = null;
+        this.augmentsOrigin = null;
+        this.augmentsTab = 'augments';
+        this.selectedAugmentItem = null;
+        this.loadoutScrollOffset = 0;
+        this.maxLoadoutScrollOffset = 0;
         this.mousePos = { x: 0, y: 0 };
         this.isMouseDown = false;
         this.activeSlider = null;
@@ -19,6 +29,8 @@ export default class MenuManager {
         this.suppressNextSettingsMouseCapture = false;
         this.scrollOffset = 0;
         this.maxScrollOffset = 0;
+        this.changelogScrollOffset = 0;
+        this.maxChangelogScrollOffset = 0;
         this.logo = new Image();
         this.logoLoaded = false;
         this.logo.onload = () => {
@@ -180,6 +192,11 @@ export default class MenuManager {
             return;
         }
 
+        if (this.game.augmentsOpen) {
+            this._updateAugmentsInput(deltaTime, gamepad);
+            return;
+        }
+
         if (this.game.isGameOver) {
             this._updateScreenInput(deltaTime, this.gameOverButtons, gamepad);
             return;
@@ -194,6 +211,11 @@ export default class MenuManager {
     draw(ctx) {
         if (this.game.settingsOpen) {
             this._drawSettingsMenu(ctx);
+            return;
+        }
+
+        if (this.game.augmentsOpen) {
+            this._drawAugmentsMenu(ctx);
             return;
         }
 
@@ -328,13 +350,15 @@ export default class MenuManager {
     _handleClick() {
         const buttons = this.game.settingsOpen
             ? this.settingsButtons
-            : this.game.gameState === 'MENU'
-                ? this.buttons
-                : this.game.isGameOver
-                    ? this.gameOverButtons
-                    : this.game.isPaused
-                        ? this.pauseButtons
-                        : [];
+            : this.game.augmentsOpen
+                ? this.augmentsButtons
+                : this.game.gameState === 'MENU'
+                    ? this.buttons
+                    : this.game.isGameOver
+                        ? this.gameOverButtons
+                        : this.game.isPaused
+                            ? this.pauseButtons
+                            : [];
 
         this._checkInput(this.mousePos, buttons);
     }
@@ -379,12 +403,26 @@ export default class MenuManager {
         }
     }
 
+    _updateAugmentsInput(deltaTime, gamepad) {
+        const pointer = this._getPointer();
+        const hasPad = gamepad && gamepad.gamepadIndex !== null;
+        if (!pointer || !hasPad) return;
+
+        if (gamepad.justPressed.B) {
+            this.closeAugmentsMenu();
+            return;
+        }
+
+        if (gamepad.justPressed.A || gamepad.justPressed.X) {
+            this._checkInput(pointer, this.augmentsButtons);
+        }
+    }
+
     _isOverlayActive() {
-        return this.game.gameState === 'MENU' || this.game.settingsOpen || this.game.isGameOver || this.game.isPaused;
+        return this.game.gameState === 'MENU' || this.game.settingsOpen || this.game.augmentsOpen || this.game.isGameOver || this.game.isPaused;
     }
 
     _handleMouseMove(e) {
-        if (!this._isOverlayActive()) return;
         const rect = this.game.canvas.getBoundingClientRect();
         this.mousePos.x = e.clientX - rect.left;
         this.mousePos.y = e.clientY - rect.top;
@@ -414,9 +452,20 @@ export default class MenuManager {
     }
 
     handleScroll(deltaY) {
-        if (!this.game.settingsOpen) return;
-        this.scrollOffset += deltaY;
-        this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScrollOffset));
+        if (this.game.settingsOpen) {
+            this.scrollOffset += deltaY;
+            this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScrollOffset));
+            return;
+        }
+        if (this.game.augmentsOpen && this.augmentsTab === 'loadout') {
+            this.loadoutScrollOffset += deltaY;
+            this.loadoutScrollOffset = Math.max(0, Math.min(this.loadoutScrollOffset, this.maxLoadoutScrollOffset));
+            return;
+        }
+        if (this.game.gameState === 'MENU') {
+            this.changelogScrollOffset += deltaY;
+            this.changelogScrollOffset = Math.max(0, Math.min(this.changelogScrollOffset, this.maxChangelogScrollOffset));
+        }
     }
 
     _formatBindingLabel(binding) {
@@ -455,6 +504,32 @@ export default class MenuManager {
         this.game.settingsOpen = false;
         this.settingsButtons = [];
         this.settingsOrigin = null;
+    }
+
+    openAugmentsMenu(origin = 'pause') {
+        this.game.augmentsOpen = true;
+        this.augmentsOrigin = origin;
+        this.augmentsTab = 'augments';
+        this.selectedAugmentItem = null;
+        this.loadoutScrollOffset = 0;
+        if (origin === 'gameplay') {
+            this.game.isPaused = true;
+            this.game.pauseResumeCooldownTimer = 0;
+        }
+    }
+
+    closeAugmentsMenu() {
+        const augmentMgr = this.game?.getModule('augments');
+        if (augmentMgr && augmentMgr.pendingFourPieceChoiceType) return;
+
+        const origin = this.augmentsOrigin;
+        this.game.augmentsOpen = false;
+        this.augmentsButtons = [];
+        this.selectedAugmentItem = null;
+        this.augmentsOrigin = null;
+        if (origin === 'gameplay') {
+            this.game.resumeGame();
+        }
     }
 
     setSettingsTab(tab) {
@@ -640,7 +715,13 @@ export default class MenuManager {
 
         const panelHeight = Math.min(Math.max(requiredHeight + 40, 260), maxPanelHeight);
         const panelY = Math.max(40, (this.game.canvas.height - panelHeight) / 2);
-        let currentY = panelY + 70;
+        const viewportTop = panelY + 48;
+        const viewportHeight = panelHeight - 68;
+        const contentHeight = requiredHeight - 40;
+        this.maxChangelogScrollOffset = Math.max(0, contentHeight - viewportHeight);
+        this.changelogScrollOffset = Math.max(0, Math.min(this.changelogScrollOffset, this.maxChangelogScrollOffset));
+
+        let currentY = panelY + 70 - this.changelogScrollOffset;
 
         this.drawPanel(ctx, panelX - 10, panelY - 10, panelWidth, panelHeight);
 
@@ -652,6 +733,10 @@ export default class MenuManager {
         ctx.restore();
 
         ctx.save();
+        ctx.beginPath();
+        ctx.rect(panelX - 8, viewportTop, panelWidth - 4, viewportHeight);
+        ctx.clip();
+
         ctx.fillStyle = '#ffffff';
         ctx.font = this.styleConfig.fonts.infoText;
         ctx.textAlign = 'left';
@@ -822,7 +907,7 @@ export default class MenuManager {
 
         const drawSlider = (item) => {
             const value = this._getSettingsValue(item.path);
-            const displayValue = item.step < 1 ? value.toFixed(1) : value.toString();
+            const displayValue = item.step < 0.1 ? value.toFixed(2) : (item.step < 1 ? value.toFixed(1) : value.toString());
             const sliderDisabled = this.settingsOrigin === 'menu' && item.id === 'uiScale';
             const trackX = optionX;
             const trackY = optionY + 30;
@@ -870,7 +955,7 @@ export default class MenuManager {
                 let ratio = (pointer.x - trackX) / sliderWidth;
                 ratio = Math.max(0, Math.min(1, ratio));
                 const raw = item.min + ratio * (item.max - item.min);
-                const stepped = Math.round(raw / item.step) * item.step;
+                const stepped = Number((Math.round(raw / item.step) * item.step).toFixed(4));
                 this._setSettingsValue(item.path, stepped);
             };
 
@@ -1175,17 +1260,1195 @@ export default class MenuManager {
 
         const btnWidth = 260;
         const btnHeight = 64;
+        const btnSpacing = 24;
+        const totalBtnH = MENU_DEFINITIONS.PAUSE_MENU.length * btnHeight + (MENU_DEFINITIONS.PAUSE_MENU.length - 1) * btnSpacing;
         const btnX = w - btnWidth - 40;
-        const btnY = h / 2 - btnHeight - 10;
+        const btnY = (h - totalBtnH) / 2;
 
         this.pauseButtons = this.renderMenu(ctx, 'PAUSE_MENU', {
             startX: btnX,
             startY: btnY,
             width: btnWidth,
             itemHeight: btnHeight,
-            spacing: 24,
+            spacing: btnSpacing,
             pointer: this._getPointer()
         });
+    }
+
+    _drawAugmentsMenu(ctx) {
+        const w = this.game.canvas.width;
+        const h = this.game.canvas.height;
+        const pointer = this._getPointer() || this.mousePos;
+        const player = this.game.getModule('player');
+        const augmentMgr = this.game.getModule('augments');
+
+        this.drawPanel(ctx, 0, 0, w, h, '', 'overlay', 0.65);
+
+        ctx.save();
+        ctx.fillStyle = this.styleConfig.colors.title;
+        ctx.font = this.styleConfig.fonts.title;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = this.styleConfig.colors.title;
+        ctx.fillText('CYBERWARE & LOADOUT', w / 2, 54);
+        ctx.restore();
+
+        this.augmentsButtons = [];
+
+        if (player) {
+            this._drawPauseStatsInfobox(ctx, 40, Math.max(150, h / 2 - 200), player);
+        }
+
+        const mainX = 310;
+        const mainY = 140;
+        const mainW = Math.max(620, w - mainX - 40);
+        const mainH = Math.max(440, h - mainY - 95);
+
+        // Top Tabs: [CYBERWARE AUGMENTS] | [CARDS, DRONES & HACKS]
+        const tabs = [
+            { id: 'augments', label: 'CYBERWARE AUGMENTS' },
+            { id: 'loadout', label: 'CARDS, DRONES & HACKS' }
+        ];
+        const tabW = 280;
+        const tabH = 42;
+        const tabGap = 16;
+        const tabsStartX = mainX;
+        const tabY = mainY - tabH - 10;
+
+        tabs.forEach((t, idx) => {
+            const tx = tabsStartX + idx * (tabW + tabGap);
+            const isSelected = this.augmentsTab === t.id;
+            const isHovered = pointer && this._isHovered(pointer, tx, tabY, tabW, tabH);
+            const style = isSelected ? 'selectedTab' : 'tab';
+            this.drawButton(ctx, tx, tabY, tabW, tabH, t.label, isHovered || isSelected, style);
+            this.augmentsButtons.push({
+                x: tx,
+                y: tabY,
+                w: tabW,
+                h: tabH,
+                action: () => {
+                    this.augmentsTab = t.id;
+                    this.selectedAugmentItem = null;
+                    this.loadoutScrollOffset = 0;
+                }
+            });
+        });
+
+        this.drawPanel(ctx, mainX, mainY, mainW, mainH, '', 'default', 0.8);
+
+        if (!augmentMgr) return;
+
+        const pad = 24;
+        const innerX = mainX + pad;
+        const innerY = mainY + pad;
+        const innerW = mainW - pad * 2;
+        const inspectorH = 120;
+        const topAreaH = mainH - pad * 2 - inspectorH - 16;
+
+        const wrapCardText = (text, maxWidth) => {
+            const words = (text || '').split(' ');
+            const lines = [];
+            let line = '';
+            for (const word of words) {
+                const test = line ? `${line} ${word}` : word;
+                if (ctx.measureText(test).width > maxWidth && line) {
+                    lines.push(line);
+                    line = word;
+                } else {
+                    line = test;
+                }
+            }
+            if (line) lines.push(line);
+            return lines;
+        };
+
+        if (this.augmentsTab === 'loadout') {
+            this._drawLoadoutTabContent(ctx, w, h, pointer, player, augmentMgr, innerX, innerY, innerW, topAreaH, inspectorH, wrapCardText);
+            return;
+        }
+
+        const leftColW = Math.floor(innerW * 0.48);
+        const rightColW = innerW - leftColW - 24;
+        const leftColX = innerX;
+        const rightColX = innerX + leftColW + 24;
+
+        // Section Headers
+        ctx.save();
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = this.styleConfig.fonts.infoTitle;
+        ctx.textAlign = 'left';
+        ctx.fillText('EQUIPPED SLOTS (BODY)', leftColX, innerY + 16);
+        ctx.fillText(`STORAGE STASH (${augmentMgr.getStoredCount()}/${augmentMgr.maxStorage})`, rightColX, innerY + 16);
+
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ff9900';
+        ctx.fillText(
+            `CYBER-SCRAP: ${augmentMgr.scrap}   •   FORGE CHARGES: ${augmentMgr.forgeCharges}`,
+            rightColX + rightColW,
+            innerY + 16
+        );
+        ctx.restore();
+
+        // 1. Equipped Slots (2x2 Grid + Type Set Bar)
+        const setBarH = 44;
+        const equipGridY = innerY + 30;
+        const equipGridH = topAreaH - 30 - setBarH - 12;
+        const equipGap = 14;
+        const equipCardW = Math.floor((leftColW - equipGap) / 2);
+        const equipCardH = Math.floor((equipGridH - equipGap) / 2);
+
+        const slotOrder = [
+            AUGMENT_SLOTS.HEAD,
+            AUGMENT_SLOTS.CORE,
+            AUGMENT_SLOTS.ARMS,
+            AUGMENT_SLOTS.LEGS
+        ];
+
+        slotOrder.forEach((slotKey, idx) => {
+            const col = idx % 2;
+            const row = Math.floor(idx / 2);
+            const cardX = leftColX + col * (equipCardW + equipGap);
+            const cardY = equipGridY + row * (equipCardH + equipGap);
+            const equipped = augmentMgr.getEquippedAugment(slotKey);
+            const isSelected = this.selectedAugmentItem &&
+                this.selectedAugmentItem.source === 'equipped' &&
+                this.selectedAugmentItem.key === slotKey;
+            const isHovered = pointer && this._isHovered(pointer, cardX, cardY, equipCardW, equipCardH);
+
+            const typeInfo = equipped ? AUGMENT_TYPES[equipped.type] : null;
+            const accentColor = typeInfo ? typeInfo.color : '#335555';
+            const borderColor = isSelected ? '#ffffff' : (isHovered ? '#00ffcc' : accentColor);
+
+            ctx.save();
+            ctx.fillStyle = isSelected ? '#122628' : (equipped ? '#081214' : '#050708');
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = isSelected ? 3 : 2;
+            if (isSelected || (equipped && isHovered)) {
+                ctx.shadowBlur = 14;
+                ctx.shadowColor = borderColor;
+            }
+            ctx.fillRect(cardX, cardY, equipCardW, equipCardH);
+            ctx.strokeRect(cardX, cardY, equipCardW, equipCardH);
+
+            // Slot tag
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#00ffcc';
+            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(`[${slotKey.toUpperCase()}]`, cardX + 10, cardY + 22);
+
+            if (equipped) {
+                const tierLabel = augmentMgr.getTierLabel(equipped.tier || 1);
+                ctx.fillStyle = accentColor;
+                ctx.textAlign = 'right';
+                ctx.fillText(
+                    `${typeInfo ? typeInfo.name.toUpperCase() : equipped.type} • ${tierLabel}`,
+                    cardX + equipCardW - 10,
+                    cardY + 22
+                );
+
+                ctx.fillStyle = (equipped.tier || 1) > 1 ? '#ffcc00' : '#ffffff';
+                ctx.font = 'bold 21px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(`${equipped.name.toUpperCase()} (${tierLabel})`, cardX + 10, cardY + 46);
+
+                ctx.fillStyle = '#b8d0d4';
+                ctx.font = '17px "VT323", monospace';
+                const descLines = wrapCardText(equipped.description, equipCardW - 20).slice(0, 3);
+                descLines.forEach((line, lineIdx) => {
+                    ctx.fillText(line, cardX + 10, cardY + 68 + lineIdx * 18);
+                });
+            } else {
+                ctx.fillStyle = '#4a6668';
+                ctx.font = '18px "VT323", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('EMPTY SLOT', cardX + equipCardW / 2, cardY + equipCardH / 2 + 6);
+            }
+            ctx.restore();
+
+            this.augmentsButtons.push({
+                x: cardX,
+                y: cardY,
+                w: equipCardW,
+                h: equipCardH,
+                action: () => {
+                    if (equipped) {
+                        this.selectedAugmentItem = { source: 'equipped', key: slotKey };
+                    } else {
+                        this.selectedAugmentItem = null;
+                    }
+                }
+            });
+        });
+
+        // Set / Type Counts Bar (clickable to inspect set bonuses)
+        const setBarY = equipGridY + equipGridH + 12;
+        ctx.save();
+        ctx.fillStyle = '#050809';
+        ctx.strokeStyle = '#1f4447';
+        ctx.lineWidth = 2;
+        ctx.fillRect(leftColX, setBarY, leftColW, setBarH);
+        ctx.strokeRect(leftColX, setBarY, leftColW, setBarH);
+
+        const typeKeys = Object.keys(AUGMENT_TYPES);
+        const typeCellW = leftColW / typeKeys.length;
+        typeKeys.forEach((tKey, i) => {
+            const tInfo = AUGMENT_TYPES[tKey];
+            const count = augmentMgr.getTypeCount(tKey);
+            const cellX = leftColX + i * typeCellW;
+            const isSetSelected = this.selectedAugmentItem &&
+                this.selectedAugmentItem.source === 'set' &&
+                this.selectedAugmentItem.key === tKey;
+            const isSetHovered = pointer && this._isHovered(pointer, cellX, setBarY, typeCellW, setBarH);
+
+            if (isSetSelected || isSetHovered) {
+                ctx.fillStyle = isSetSelected ? 'rgba(0, 255, 204, 0.16)' : 'rgba(0, 255, 204, 0.08)';
+                ctx.fillRect(cellX + 2, setBarY + 2, typeCellW - 4, setBarH - 4);
+            }
+
+            ctx.fillStyle = count >= 2 ? tInfo.color : (count > 0 ? '#d0e8ec' : '#556668');
+            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${tInfo.name.toUpperCase()}: ${count}/4`, cellX + typeCellW / 2, setBarY + 27);
+
+            this.augmentsButtons.push({
+                x: cellX,
+                y: setBarY,
+                w: typeCellW,
+                h: setBarH,
+                action: () => {
+                    this.selectedAugmentItem = { source: 'set', key: tKey };
+                }
+            });
+        });
+        ctx.restore();
+
+        // 2. Storage Grid (2 columns x 3 rows = 6 slots) + Cyber-Forge Bar
+        const storageGridY = innerY + 30;
+        const storageGridH = topAreaH - 30 - setBarH - 12;
+        const storageCols = 2;
+        const storageRows = 3;
+        const storageGap = 12;
+        const storageCardW = Math.floor((rightColW - storageGap) / storageCols);
+        const storageCardH = Math.floor((storageGridH - storageGap * (storageRows - 1)) / storageRows);
+        const storageList = augmentMgr.getStorage();
+
+        for (let idx = 0; idx < augmentMgr.maxStorage; idx++) {
+            const col = idx % storageCols;
+            const row = Math.floor(idx / storageCols);
+            const cardX = rightColX + col * (storageCardW + storageGap);
+            const cardY = storageGridY + row * (storageCardH + storageGap);
+            const item = storageList[idx];
+            const isSelected = this.selectedAugmentItem &&
+                this.selectedAugmentItem.source === 'storage' &&
+                this.selectedAugmentItem.key === idx;
+            const isHovered = pointer && this._isHovered(pointer, cardX, cardY, storageCardW, storageCardH);
+
+            const typeInfo = item ? AUGMENT_TYPES[item.type] : null;
+            const accentColor = typeInfo ? typeInfo.color : '#2a3d3f';
+            const borderColor = isSelected ? '#ffffff' : (isHovered ? '#00ffcc' : accentColor);
+
+            ctx.save();
+            ctx.fillStyle = isSelected ? '#122628' : (item ? '#081214' : '#050708');
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = isSelected ? 3 : 2;
+            if (isSelected || (item && isHovered)) {
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = borderColor;
+            }
+            ctx.fillRect(cardX, cardY, storageCardW, storageCardH);
+            ctx.strokeRect(cardX, cardY, storageCardW, storageCardH);
+
+            ctx.shadowBlur = 0;
+            if (item) {
+                const eqMatch = augmentMgr.getEquippedAugment(item.slot);
+                const isDuplicate = eqMatch && eqMatch.id === item.id;
+
+                ctx.fillStyle = isDuplicate ? '#ffcc00' : '#00ffcc';
+                ctx.font = 'bold 16px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(
+                    isDuplicate ? `SLOT: ${item.slot.toUpperCase()} [DUPLICATE]` : `SLOT: ${item.slot.toUpperCase()}`,
+                    cardX + 10,
+                    cardY + 18
+                );
+
+                ctx.fillStyle = accentColor;
+                ctx.textAlign = 'right';
+                ctx.fillText(typeInfo ? typeInfo.name.toUpperCase() : item.type, cardX + storageCardW - 10, cardY + 18);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 19px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(item.name.toUpperCase(), cardX + 10, cardY + 38);
+
+                ctx.fillStyle = '#b8d0d4';
+                ctx.font = '15px "VT323", monospace';
+                const descLines = wrapCardText(item.description, storageCardW - 20).slice(0, 2);
+                descLines.forEach((line, lineIdx) => {
+                    ctx.fillText(line, cardX + 10, cardY + 56 + lineIdx * 15);
+                });
+            } else {
+                ctx.fillStyle = '#3d5557';
+                ctx.font = '17px "VT323", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(`EMPTY [0${idx + 1}]`, cardX + storageCardW / 2, cardY + storageCardH / 2 + 6);
+            }
+            ctx.restore();
+
+            this.augmentsButtons.push({
+                x: cardX,
+                y: cardY,
+                w: storageCardW,
+                h: storageCardH,
+                action: () => {
+                    if (item) {
+                        this.selectedAugmentItem = { source: 'storage', key: idx };
+                    } else {
+                        this.selectedAugmentItem = null;
+                    }
+                }
+            });
+        }
+
+        // Cyber-Forge Slot Crafting Bar (aligned with Set Bar at setBarY)
+        ctx.save();
+        const canForge = augmentMgr.forgeCharges > 0 &&
+            augmentMgr.scrap >= augmentMgr.forgeSlotCost &&
+            augmentMgr.getStoredCount() < augmentMgr.maxStorage;
+
+        ctx.fillStyle = '#050809';
+        ctx.strokeStyle = augmentMgr.forgeCharges > 0 ? '#ff9900' : '#1f4447';
+        ctx.lineWidth = 2;
+        ctx.fillRect(rightColX, setBarY, rightColW, setBarH);
+        ctx.strokeRect(rightColX, setBarY, rightColW, setBarH);
+
+        if (augmentMgr.forgeCharges > 0) {
+            const forgeSlots = [
+                AUGMENT_SLOTS.HEAD,
+                AUGMENT_SLOTS.ARMS,
+                AUGMENT_SLOTS.LEGS,
+                AUGMENT_SLOTS.CORE
+            ];
+            const cellW = rightColW / forgeSlots.length;
+            forgeSlots.forEach((fSlot, i) => {
+                const cellX = rightColX + i * cellW;
+                const isHover = pointer && this._isHovered(pointer, cellX, setBarY, cellW, setBarH);
+                if (isHover && canForge) {
+                    ctx.fillStyle = 'rgba(255, 153, 0, 0.22)';
+                    ctx.fillRect(cellX + 2, setBarY + 2, cellW - 4, setBarH - 4);
+                }
+                ctx.fillStyle = canForge ? (isHover ? '#ffffff' : '#ff9900') : '#665544';
+                ctx.font = 'bold 17px "VT323", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(
+                    `FORGE ${fSlot.toUpperCase()} (${augmentMgr.forgeSlotCost})`,
+                    cellX + cellW / 2,
+                    setBarY + 27
+                );
+
+                this.augmentsButtons.push({
+                    x: cellX,
+                    y: setBarY,
+                    w: cellW,
+                    h: setBarH,
+                    action: () => {
+                        if (!canForge) return;
+                        const res = augmentMgr.forgeBySlot(fSlot);
+                        if (res.success && typeof res.index === 'number') {
+                            this.selectedAugmentItem = { source: 'storage', key: res.index };
+                        }
+                    }
+                });
+            });
+        } else {
+            ctx.fillStyle = '#668082';
+            ctx.font = '17px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                `CYBER-FORGE OFFLINE — REACH A FORGE TERMINAL IN ARENA TO CRAFT BY SLOT (${augmentMgr.forgeSlotCost} SCRAP)`,
+                rightColX + rightColW / 2,
+                setBarY + 27
+            );
+        }
+        ctx.restore();
+
+        // 3. Bottom Inspector & Action Bar
+        const inspY = innerY + topAreaH + 16;
+        ctx.save();
+        ctx.fillStyle = '#050809';
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 2;
+        ctx.fillRect(innerX, inspY, innerW, inspectorH);
+        ctx.strokeRect(innerX, inspY, innerW, inspectorH);
+
+        let selectedAug = null;
+        let selectedSetKey = null;
+        if (this.selectedAugmentItem) {
+            if (this.selectedAugmentItem.source === 'equipped') {
+                selectedAug = augmentMgr.getEquippedAugment(this.selectedAugmentItem.key);
+            } else if (this.selectedAugmentItem.source === 'storage') {
+                selectedAug = storageList[this.selectedAugmentItem.key] || null;
+            } else if (this.selectedAugmentItem.source === 'set') {
+                selectedSetKey = this.selectedAugmentItem.key;
+            }
+            if (!selectedAug && !selectedSetKey) {
+                this.selectedAugmentItem = null;
+            }
+        }
+
+        if (selectedSetKey && AUGMENT_TYPES[selectedSetKey]) {
+            const tInfo = AUGMENT_TYPES[selectedSetKey];
+            const bonuses = AUGMENT_SET_BONUSES[selectedSetKey];
+            const count = augmentMgr.getTypeCount(selectedSetKey);
+            const has2Pc = count >= 2;
+            const has4Pc = count >= 4;
+
+            ctx.fillStyle = tInfo.color;
+            ctx.font = 'bold 22px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${tInfo.name.toUpperCase()} SET BONUSES (${count}/4 EQUIPPED)`, innerX + 18, inspY + 26);
+
+            if (bonuses) {
+                ctx.fillStyle = has2Pc ? '#00ffcc' : '#778c8f';
+                ctx.font = '18px "VT323", monospace';
+                ctx.fillText(
+                    `[2-PC] ${bonuses.twoPiece.name}: ${bonuses.twoPiece.description}`,
+                    innerX + 18,
+                    inspY + 52
+                );
+
+                const activeChosen = has4Pc && augmentMgr.fourPieceChoice === 'active';
+                const passiveChosen = has4Pc && augmentMgr.fourPieceChoice === 'passive';
+
+                ctx.fillStyle = activeChosen ? '#00ffcc' : (has4Pc ? '#ffffff' : '#778c8f');
+                ctx.fillText(
+                    `[4-PC ACTIVE${activeChosen ? ' ★' : ''}] ${bonuses.fourPiece.active.name}: ${bonuses.fourPiece.active.description}`,
+                    innerX + 18,
+                    inspY + 78
+                );
+
+                ctx.fillStyle = passiveChosen ? '#00ffcc' : (has4Pc ? '#ffffff' : '#778c8f');
+                ctx.fillText(
+                    `[4-PC PASSIVE${passiveChosen ? ' ★' : ''}] ${bonuses.fourPiece.passive.name}: ${bonuses.fourPiece.passive.description}`,
+                    innerX + 18,
+                    inspY + 102
+                );
+            }
+        } else if (!selectedAug) {
+            ctx.fillStyle = '#88c8d0';
+            ctx.font = '20px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                'Select an augment or click a Set name above to inspect set bonuses.',
+                innerX + innerW / 2,
+                inspY + 48
+            );
+            ctx.fillStyle = '#ff7b00';
+            ctx.font = '18px "VT323", monospace';
+            ctx.fillText(
+                'NOTE: Unequipping or overwriting an installed augment permanently destroys it.',
+                innerX + innerW / 2,
+                inspY + 78
+            );
+        } else {
+            const tInfo = AUGMENT_TYPES[selectedAug.type] || { name: selectedAug.type, color: '#00ffcc' };
+            const tierLabel = augmentMgr.getTierLabel(selectedAug.tier || 1);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${selectedAug.name.toUpperCase()} (${tierLabel})`, innerX + 18, inspY + 30);
+
+            ctx.fillStyle = tInfo.color;
+            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.fillText(
+                `[${selectedAug.slot.toUpperCase()}] • ${tInfo.name.toUpperCase()} • ${selectedAug.rarity.toUpperCase()} • ${tierLabel}`,
+                innerX + 18,
+                inspY + 54
+            );
+
+            ctx.fillStyle = '#d0e8ec';
+            ctx.font = '19px "VT323", monospace';
+            ctx.fillText(selectedAug.description, innerX + 18, inspY + 80);
+
+            if (this.selectedAugmentItem.source === 'storage') {
+                const storageIdx = this.selectedAugmentItem.key;
+                const existingInSlot = augmentMgr.getEquippedAugment(selectedAug.slot);
+                const isDuplicate = existingInSlot && existingInSlot.id === selectedAug.id;
+                const canFuse = isDuplicate && (existingInSlot.tier || 1) < augmentMgr.maxTier;
+                const isMaxTierDup = isDuplicate && (existingInSlot.tier || 1) >= augmentMgr.maxTier;
+                const scrapValue = augmentMgr.getScrapValue(selectedAug);
+
+                if (canFuse) {
+                    const nextTierLabel = augmentMgr.getTierLabel((existingInSlot.tier || 1) + 1);
+                    ctx.fillStyle = '#00ffcc';
+                    ctx.font = '17px "VT323", monospace';
+                    ctx.fillText(
+                        `DUPLICATE MATCH: Fuse to overclock "${existingInSlot.name}" to ${nextTierLabel} (+25% stats)!`,
+                        innerX + 18,
+                        inspY + 104
+                    );
+                } else if (isMaxTierDup) {
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.font = '17px "VT323", monospace';
+                    ctx.fillText(
+                        `Equipped "${existingInSlot.name}" is already at MAX TIER (Mk.III). Scrap for +${scrapValue} Cyber-Scrap.`,
+                        innerX + 18,
+                        inspY + 104
+                    );
+                } else if (existingInSlot) {
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.font = '17px "VT323", monospace';
+                    ctx.fillText(
+                        `WARNING: Overwrites & destroys equipped "${existingInSlot.name}"!`,
+                        innerX + 18,
+                        inspY + 104
+                    );
+                }
+
+                const btnW = 195;
+                const btnH = 44;
+                const scrapX = innerX + innerW - btnW - 18;
+                const installX = scrapX - btnW - 14;
+                const btnY = inspY + (inspectorH - btnH) / 2;
+
+                const scrapHover = pointer && this._isHovered(pointer, scrapX, btnY, btnW, btnH);
+                this.drawButton(ctx, scrapX, btnY, btnW, btnH, `SCRAP (+${scrapValue})`, scrapHover, 'danger');
+
+                if (!isMaxTierDup) {
+                    const nextTierLabel = existingInSlot
+                        ? augmentMgr.getTierLabel((existingInSlot.tier || 1) + 1)
+                        : 'Mk.II';
+                    const installText = canFuse
+                        ? `FUSE -> ${nextTierLabel}`
+                        : (existingInSlot ? 'OVERWRITE' : 'INSTALL');
+                    const installHover = pointer && this._isHovered(pointer, installX, btnY, btnW, btnH);
+
+                    this.drawButton(ctx, installX, btnY, btnW, btnH, installText, installHover, 'selectedTab');
+                    this.augmentsButtons.push({
+                        x: installX,
+                        y: btnY,
+                        w: btnW,
+                        h: btnH,
+                        action: () => {
+                            const targetSlot = selectedAug.slot;
+                            if (canFuse) {
+                                if (augmentMgr.fuseFromStorage(storageIdx)) {
+                                    this.selectedAugmentItem = { source: 'equipped', key: targetSlot };
+                                }
+                            } else if (augmentMgr.equipFromStorage(storageIdx)) {
+                                this.selectedAugmentItem = { source: 'equipped', key: targetSlot };
+                            }
+                        }
+                    });
+                }
+
+                this.augmentsButtons.push({
+                    x: scrapX,
+                    y: btnY,
+                    w: btnW,
+                    h: btnH,
+                    action: () => {
+                        augmentMgr.scrapFromStorage(storageIdx);
+                        this.selectedAugmentItem = null;
+                    }
+                });
+            } else if (this.selectedAugmentItem.source === 'equipped') {
+                const slotKey = this.selectedAugmentItem.key;
+                ctx.fillStyle = '#ff0055';
+                ctx.font = '17px "VT323", monospace';
+                ctx.fillText(
+                    'WARNING: Unequipping permanently destroys this augment!',
+                    innerX + 18,
+                    inspY + 104
+                );
+
+                const btnW = 220;
+                const btnH = 44;
+                const destroyX = innerX + innerW - btnW - 18;
+                const btnY = inspY + (inspectorH - btnH) / 2;
+                const destroyHover = pointer && this._isHovered(pointer, destroyX, btnY, btnW, btnH);
+
+                this.drawButton(ctx, destroyX, btnY, btnW, btnH, 'UNEQUIP & DESTROY', destroyHover, 'danger');
+                this.augmentsButtons.push({
+                    x: destroyX,
+                    y: btnY,
+                    w: btnW,
+                    h: btnH,
+                    action: () => {
+                        augmentMgr.unequipSlot(slotKey);
+                        this.selectedAugmentItem = null;
+                    }
+                });
+            }
+        }
+        ctx.restore();
+
+        // Back / Resume Button
+        const backWidth = 220;
+        const backHeight = 50;
+        const backX = w / 2 - backWidth / 2;
+        const backY = h - 75;
+        const backText = this.augmentsOrigin === 'gameplay' ? 'RESUME' : 'BACK';
+        const backHovered = pointer && this._isHovered(pointer, backX, backY, backWidth, backHeight);
+
+        this.drawButton(ctx, backX, backY, backWidth, backHeight, backText, backHovered, 'default');
+        this.augmentsButtons.push({
+            x: backX,
+            y: backY,
+            w: backWidth,
+            h: backHeight,
+            action: () => this.closeAugmentsMenu()
+        });
+
+        // 4. 4-Piece Set Bonus Selection Modal (when player completes a 4-piece set)
+        if (augmentMgr.pendingFourPieceChoiceType) {
+            this._drawFourPieceChoiceModal(ctx, w, h, pointer, augmentMgr, wrapCardText);
+        }
+    }
+
+    _drawLoadoutTabContent(ctx, w, h, pointer, player, augmentMgr, innerX, innerY, innerW, topAreaH, inspectorH, wrapCardText) {
+        const droneMgr = this.game.getModule('drones');
+        const hackMgr = this.game.getModule('hack');
+        const upgradeMgr = this.game.getModule('upgrades');
+
+        const leftColW = Math.floor(innerW * 0.48);
+        const rightColW = innerW - leftColW - 24;
+        const leftColX = innerX;
+        const rightColX = innerX + leftColW + 24;
+
+        const activeDrones = droneMgr?.drones || [];
+        const maxDrones = player ? player.stats.maxDrones : 1;
+        const unlockedHacks = hackMgr?.unlockedHacks || [];
+        const maxHacks = player ? Math.max(1, Math.floor(player.getStat('maxHackSlots'))) : 1;
+
+        // Top Row: Active Drones (Left) & Unlocked Hacks (Right)
+        ctx.save();
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = this.styleConfig.fonts.infoTitle;
+        ctx.textAlign = 'left';
+        ctx.fillText(`ACTIVE DRONES (${activeDrones.length}/${maxDrones})`, leftColX, innerY + 16);
+        ctx.fillText(`UNLOCKED HACKS (${unlockedHacks.length}/${maxHacks})`, rightColX, innerY + 16);
+
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ff9900';
+        ctx.fillText(`CYBER-SCRAP: ${augmentMgr.scrap}`, rightColX + rightColW, innerY + 16);
+        ctx.restore();
+
+        const topRowY = innerY + 28;
+        const topRowH = 66;
+        const droneCols = Math.max(2, Math.min(4, Math.max(maxDrones, activeDrones.length)));
+        const droneGap = 10;
+        const droneCardW = Math.floor((leftColW - droneGap * (droneCols - 1)) / droneCols);
+
+        for (let i = 0; i < droneCols; i++) {
+            const d = activeDrones[i] || null;
+            const cx = leftColX + i * (droneCardW + droneGap);
+            const cy = topRowY;
+            const isSelected = this.selectedAugmentItem &&
+                this.selectedAugmentItem.source === 'drone' &&
+                this.selectedAugmentItem.key === (d && d.id);
+            const isHovered = pointer && this._isHovered(pointer, cx, cy, droneCardW, topRowH);
+            const accent = d ? (d.color || '#00ffcc') : '#2a3d3f';
+            const border = isSelected ? '#ffffff' : (isHovered ? '#00ffcc' : accent);
+
+            ctx.save();
+            ctx.fillStyle = isSelected ? '#122628' : (d ? '#081214' : '#050708');
+            ctx.strokeStyle = border;
+            ctx.lineWidth = isSelected ? 3 : 2;
+            ctx.fillRect(cx, cy, droneCardW, topRowH);
+            ctx.strokeRect(cx, cy, droneCardW, topRowH);
+
+            if (d) {
+                ctx.fillStyle = accent;
+                ctx.font = 'bold 15px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(`[${d.behavior}]`, cx + 8, cy + 18);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 18px "VT323", monospace';
+                ctx.fillText(d.name.toUpperCase(), cx + 8, cy + 40);
+
+                ctx.fillStyle = '#88c8d0';
+                ctx.font = '14px "VT323", monospace';
+                ctx.fillText('CLICK TO INSPECT / SCRAP', cx + 8, cy + 56);
+            } else {
+                ctx.fillStyle = '#3d5557';
+                ctx.font = '16px "VT323", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(i < maxDrones ? 'EMPTY DRONE SLOT' : 'LOCKED', cx + droneCardW / 2, cy + 38);
+            }
+            ctx.restore();
+
+            if (d) {
+                this.augmentsButtons.push({
+                    x: cx,
+                    y: cy,
+                    w: droneCardW,
+                    h: topRowH,
+                    action: () => {
+                        this.selectedAugmentItem = { source: 'drone', key: d.id, data: d };
+                    }
+                });
+            }
+        }
+
+        const hackCols = Math.max(2, Math.min(4, Math.max(maxHacks, unlockedHacks.length)));
+        const hackGap = 10;
+        const hackCardW = Math.floor((rightColW - hackGap * (hackCols - 1)) / hackCols);
+
+        for (let i = 0; i < hackCols; i++) {
+            const hId = unlockedHacks[i] || null;
+            const hData = hId ? HACK_DATA[hId] : null;
+            const cx = rightColX + i * (hackCardW + hackGap);
+            const cy = topRowY;
+            const isSelected = this.selectedAugmentItem &&
+                this.selectedAugmentItem.source === 'hack' &&
+                this.selectedAugmentItem.key === hId;
+            const isHovered = pointer && this._isHovered(pointer, cx, cy, hackCardW, topRowH);
+            const isActiveHack = hId && hackMgr && hackMgr.activeHack === hId;
+            const accent = hData ? '#bc00ff' : '#2a3d3f';
+            const border = isSelected ? '#ffffff' : (isHovered ? '#00ffcc' : accent);
+
+            ctx.save();
+            ctx.fillStyle = isSelected ? '#1e1028' : (hData ? '#0d0814' : '#050708');
+            ctx.strokeStyle = border;
+            ctx.lineWidth = isSelected ? 3 : 2;
+            ctx.fillRect(cx, cy, hackCardW, topRowH);
+            ctx.strokeRect(cx, cy, hackCardW, topRowH);
+
+            if (hData) {
+                ctx.fillStyle = isActiveHack ? '#00ffcc' : '#bc00ff';
+                ctx.font = 'bold 15px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(isActiveHack ? '[ACTIVE HACK]' : '[UNLOCKED HACK]', cx + 8, cy + 18);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 18px "VT323", monospace';
+                ctx.fillText(hData.name.toUpperCase(), cx + 8, cy + 40);
+
+                ctx.fillStyle = '#88c8d0';
+                ctx.font = '14px "VT323", monospace';
+                ctx.fillText('CLICK TO INSPECT / SCRAP', cx + 8, cy + 56);
+            } else {
+                ctx.fillStyle = '#3d5557';
+                ctx.font = '16px "VT323", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(i < maxHacks ? 'EMPTY HACK SLOT' : 'LOCKED', cx + hackCardW / 2, cy + 38);
+            }
+            ctx.restore();
+
+            if (hData) {
+                this.augmentsButtons.push({
+                    x: cx,
+                    y: cy,
+                    w: hackCardW,
+                    h: topRowH,
+                    action: () => {
+                        this.selectedAugmentItem = { source: 'hack', key: hId, data: hData };
+                    }
+                });
+            }
+        }
+
+        // Middle Area: Player Upgrade Cards (Left) & Drone Upgrade Cards (Right)
+        const cardsHeaderY = topRowY + topRowH + 26;
+        const playerInv = upgradeMgr?.inventory || {};
+        const droneInv = upgradeMgr?.droneUpgradeInventory || {};
+
+        const ownedPlayerCards = UPGRADES
+            .filter(u => (playerInv[u.id] || 0) > 0 && !u.unlockHackId)
+            .map(u => ({ ...u, count: playerInv[u.id] }));
+
+        const ownedDroneCards = DRONE_UPGRADES
+            .filter(u => (droneInv[u.id] || 0) > 0)
+            .map(u => ({ ...u, count: droneInv[u.id] }));
+
+        const totalPlayerCardStacks = ownedPlayerCards.reduce((sum, c) => sum + c.count, 0);
+        const totalDroneCardStacks = ownedDroneCards.reduce((sum, c) => sum + c.count, 0);
+
+        ctx.save();
+        ctx.fillStyle = '#00ffcc';
+        ctx.font = this.styleConfig.fonts.infoTitle;
+        ctx.textAlign = 'left';
+        ctx.fillText(`PLAYER UPGRADE CARDS (${totalPlayerCardStacks})`, leftColX, cardsHeaderY);
+        ctx.fillText(`DRONE UPGRADE CARDS (${totalDroneCardStacks})`, rightColX, cardsHeaderY);
+        ctx.restore();
+
+        const listTopY = cardsHeaderY + 12;
+        const listH = Math.max(100, (innerY + topAreaH) - listTopY);
+        const rowH = 38;
+        const rowGap = 6;
+
+        const maxRows = Math.max(ownedPlayerCards.length, ownedDroneCards.length);
+        const contentH = maxRows * (rowH + rowGap);
+        this.maxLoadoutScrollOffset = Math.max(0, contentH - listH);
+        this.loadoutScrollOffset = Math.max(0, Math.min(this.loadoutScrollOffset, this.maxLoadoutScrollOffset));
+
+        const getRarityColor = (rarity) => {
+            switch (rarity) {
+                case 'Common': return '#00ffcc';
+                case 'Rare': return '#00bcff';
+                case 'Epic': return '#bc00ff';
+                case 'Legendary': return '#ffcc00';
+                default: return '#00ffcc';
+            }
+        };
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(innerX, listTopY, innerW, listH);
+        ctx.clip();
+
+        // Draw Player Cards List
+        if (ownedPlayerCards.length === 0) {
+            ctx.fillStyle = '#4a6668';
+            ctx.font = '18px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('NO PLAYER CARDS COLLECTED YET', leftColX + leftColW / 2, listTopY + listH / 2);
+        } else {
+            ownedPlayerCards.forEach((card, i) => {
+                const ry = listTopY + i * (rowH + rowGap) - this.loadoutScrollOffset;
+                if (ry + rowH < listTopY || ry > listTopY + listH) return;
+
+                const isSelected = this.selectedAugmentItem &&
+                    this.selectedAugmentItem.source === 'playerCard' &&
+                    this.selectedAugmentItem.key === card.id;
+                const isHovered = pointer && this._isHovered(pointer, leftColX, ry, leftColW, rowH);
+                const rColor = getRarityColor(card.rarity);
+
+                ctx.fillStyle = isSelected ? '#122628' : '#071012';
+                ctx.strokeStyle = isSelected ? '#ffffff' : (isHovered ? '#00ffcc' : rColor);
+                ctx.lineWidth = isSelected ? 2.5 : 1.5;
+                ctx.fillRect(leftColX, ry, leftColW, rowH);
+                ctx.strokeRect(leftColX, ry, leftColW, rowH);
+
+                ctx.fillStyle = rColor;
+                ctx.font = 'bold 16px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(`[${(card.rarity || 'Common').toUpperCase()}]`, leftColX + 10, ry + 24);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 19px "VT323", monospace';
+                ctx.fillText(card.name.toUpperCase(), leftColX + 105, ry + 24);
+
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = 'bold 20px "VT323", monospace';
+                ctx.textAlign = 'right';
+                ctx.fillText(`x${card.count}`, leftColX + leftColW - 12, ry + 24);
+
+                this.augmentsButtons.push({
+                    x: leftColX,
+                    y: ry,
+                    w: leftColW,
+                    h: rowH,
+                    action: () => {
+                        this.selectedAugmentItem = { source: 'playerCard', key: card.id, data: card };
+                    }
+                });
+            });
+        }
+
+        // Draw Drone Cards List
+        if (ownedDroneCards.length === 0) {
+            ctx.fillStyle = '#4a6668';
+            ctx.font = '18px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('NO DRONE CARDS COLLECTED YET', rightColX + rightColW / 2, listTopY + listH / 2);
+        } else {
+            ownedDroneCards.forEach((card, i) => {
+                const ry = listTopY + i * (rowH + rowGap) - this.loadoutScrollOffset;
+                if (ry + rowH < listTopY || ry > listTopY + listH) return;
+
+                const isSelected = this.selectedAugmentItem &&
+                    this.selectedAugmentItem.source === 'droneCard' &&
+                    this.selectedAugmentItem.key === card.id;
+                const isHovered = pointer && this._isHovered(pointer, rightColX, ry, rightColW, rowH);
+                const rColor = '#ff55ff';
+
+                ctx.fillStyle = isSelected ? '#221026' : '#100712';
+                ctx.strokeStyle = isSelected ? '#ffffff' : (isHovered ? '#00ffcc' : rColor);
+                ctx.lineWidth = isSelected ? 2.5 : 1.5;
+                ctx.fillRect(rightColX, ry, rightColW, rowH);
+                ctx.strokeRect(rightColX, ry, rightColW, rowH);
+
+                const tag = (card.targetBehaviors || ['ALL']).join('/');
+                ctx.fillStyle = rColor;
+                ctx.font = 'bold 16px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(`[${tag}]`, rightColX + 10, ry + 24);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 19px "VT323", monospace';
+                ctx.fillText(card.name.toUpperCase(), rightColX + 115, ry + 24);
+
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = 'bold 20px "VT323", monospace';
+                ctx.textAlign = 'right';
+                ctx.fillText(`x${card.count}`, rightColX + rightColW - 12, ry + 24);
+
+                this.augmentsButtons.push({
+                    x: rightColX,
+                    y: ry,
+                    w: rightColW,
+                    h: rowH,
+                    action: () => {
+                        this.selectedAugmentItem = { source: 'droneCard', key: card.id, data: card };
+                    }
+                });
+            });
+        }
+        ctx.restore();
+
+        // Bottom Inspector for Loadout Tab
+        const inspY = innerY + topAreaH + 16;
+        ctx.save();
+        ctx.fillStyle = '#050809';
+        ctx.strokeStyle = '#00ffcc';
+        ctx.lineWidth = 2;
+        ctx.fillRect(innerX, inspY, innerW, inspectorH);
+        ctx.strokeRect(innerX, inspY, innerW, inspectorH);
+
+        const sel = this.selectedAugmentItem;
+        if (!sel || !sel.data) {
+            ctx.fillStyle = '#88c8d0';
+            ctx.font = '20px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                'Click any Active Drone, Unlocked Hack, or Upgrade Card above to inspect details.',
+                innerX + innerW / 2,
+                inspY + 48
+            );
+            ctx.fillStyle = '#ff9900';
+            ctx.font = '18px "VT323", monospace';
+            ctx.fillText(
+                'TIP: You can scrap active Drones or Hacks for +2 Cyber-Scrap to free up a slot!',
+                innerX + innerW / 2,
+                inspY + 78
+            );
+        } else if (sel.source === 'drone') {
+            const d = sel.data;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(d.name.toUpperCase(), innerX + 18, inspY + 30);
+
+            ctx.fillStyle = d.color || '#00ffcc';
+            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.fillText(`DRONE UNIT • BEHAVIOR: ${d.behavior}`, innerX + 18, inspY + 54);
+
+            ctx.fillStyle = '#d0e8ec';
+            ctx.font = '19px "VT323", monospace';
+            ctx.fillText(d.description || '', innerX + 18, inspY + 80);
+
+            const btnW = 210;
+            const btnH = 44;
+            const btnX = innerX + innerW - btnW - 18;
+            const btnY = inspY + (inspectorH - btnH) / 2;
+            const isHover = pointer && this._isHovered(pointer, btnX, btnY, btnW, btnH);
+
+            this.drawButton(ctx, btnX, btnY, btnW, btnH, 'SCRAP DRONE (+2)', isHover, 'danger');
+            this.augmentsButtons.push({
+                x: btnX,
+                y: btnY,
+                w: btnW,
+                h: btnH,
+                action: () => {
+                    if (droneMgr && droneMgr.removeDrone(d.id)) {
+                        augmentMgr.scrap += 2;
+                        const ui = this.game.getModule('ui');
+                        if (ui && ui.showNotification) {
+                            ui.showNotification(`DRONE SCRAPPED: +2 CYBER-SCRAP`, '#ff9900');
+                        }
+                        this.selectedAugmentItem = null;
+                    }
+                }
+            });
+        } else if (sel.source === 'hack') {
+            const hData = sel.data;
+            const unlockUpgrade = UPGRADES.find(u => u.unlockHackId === hData.id);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(hData.name.toUpperCase(), innerX + 18, inspY + 30);
+
+            ctx.fillStyle = '#bc00ff';
+            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.fillText(`ACTIVE HACK MODULE • ID: ${hData.id}`, innerX + 18, inspY + 54);
+
+            ctx.fillStyle = '#d0e8ec';
+            ctx.font = '19px "VT323", monospace';
+            ctx.fillText(unlockUpgrade ? unlockUpgrade.description : 'Active cyberware hack ability.', innerX + 18, inspY + 80);
+
+            const btnW = 210;
+            const btnH = 44;
+            const btnX = innerX + innerW - btnW - 18;
+            const btnY = inspY + (inspectorH - btnH) / 2;
+            const isHover = pointer && this._isHovered(pointer, btnX, btnY, btnW, btnH);
+
+            this.drawButton(ctx, btnX, btnY, btnW, btnH, 'SCRAP HACK (+2)', isHover, 'danger');
+            this.augmentsButtons.push({
+                x: btnX,
+                y: btnY,
+                w: btnW,
+                h: btnH,
+                action: () => {
+                    if (hackMgr && hackMgr.removeHack(hData.id)) {
+                        augmentMgr.scrap += 2;
+                        const ui = this.game.getModule('ui');
+                        if (ui && ui.showNotification) {
+                            ui.showNotification(`HACK SCRAPPED: +2 CYBER-SCRAP`, '#ff9900');
+                        }
+                        this.selectedAugmentItem = null;
+                    }
+                }
+            });
+        } else if (sel.source === 'playerCard' || sel.source === 'droneCard') {
+            const c = sel.data;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${c.name.toUpperCase()} (OWNED: x${c.count})`, innerX + 18, inspY + 30);
+
+            ctx.fillStyle = sel.source === 'playerCard' ? '#00ffcc' : '#ff55ff';
+            ctx.font = 'bold 18px "VT323", monospace';
+            const sub = sel.source === 'playerCard'
+                ? `PLAYER UPGRADE CARD • ${(c.rarity || 'Common').toUpperCase()}`
+                : `DRONE UPGRADE CARD • TARGET: ${(c.targetBehaviors || ['ALL']).join(' & ')}`;
+            ctx.fillText(sub, innerX + 18, inspY + 56);
+
+            ctx.fillStyle = '#d0e8ec';
+            ctx.font = '19px "VT323", monospace';
+            ctx.fillText(c.description || '', innerX + 18, inspY + 84);
+        }
+        ctx.restore();
+
+        // Back / Resume Button
+        const backWidth = 220;
+        const backHeight = 50;
+        const backX = w / 2 - backWidth / 2;
+        const backY = h - 75;
+        const backText = this.augmentsOrigin === 'gameplay' ? 'RESUME' : 'BACK';
+        const backHovered = pointer && this._isHovered(pointer, backX, backY, backWidth, backHeight);
+
+        this.drawButton(ctx, backX, backY, backWidth, backHeight, backText, backHovered, 'default');
+        this.augmentsButtons.push({
+            x: backX,
+            y: backY,
+            w: backWidth,
+            h: backHeight,
+            action: () => this.closeAugmentsMenu()
+        });
+    }
+
+    _drawFourPieceChoiceModal(ctx, w, h, pointer, augmentMgr, wrapCardText) {
+        const typeKey = augmentMgr.pendingFourPieceChoiceType;
+        const tInfo = AUGMENT_TYPES[typeKey];
+        const bonuses = AUGMENT_SET_BONUSES[typeKey]?.fourPiece;
+        if (!tInfo || !bonuses) return;
+
+        // Block background buttons while modal is open
+        this.augmentsButtons = [];
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+        ctx.fillRect(0, 0, w, h);
+
+        const modalW = Math.min(820, w - 80);
+        const modalH = 420;
+        const modalX = (w - modalW) / 2;
+        const modalY = (h - modalH) / 2;
+
+        ctx.fillStyle = '#060c0e';
+        ctx.strokeStyle = tInfo.color;
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 24;
+        ctx.shadowColor = tInfo.color;
+        ctx.fillRect(modalX, modalY, modalW, modalH);
+        ctx.strokeRect(modalX, modalY, modalW, modalH);
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = tInfo.color;
+        ctx.font = 'bold 36px "VT323", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`4-PIECE ${tInfo.name.toUpperCase()} SET COMPLETED!`, w / 2, modalY + 46);
+
+        ctx.fillStyle = '#d0e8ec';
+        ctx.font = '22px "VT323", monospace';
+        ctx.fillText('CHOOSE YOUR 4-PIECE SET BONUS SPECIALIZATION:', w / 2, modalY + 80);
+
+        const cardGap = 28;
+        const cardW = Math.floor((modalW - 72 - cardGap) / 2);
+        const cardH = modalH - 130;
+        const cardY = modalY + 104;
+
+        const choices = [
+            { mode: 'active', label: 'ACTIVE ULTIMATE', data: bonuses.active },
+            { mode: 'passive', label: 'PASSIVE MASTERY', data: bonuses.passive }
+        ];
+
+        choices.forEach((choice, idx) => {
+            const cardX = modalX + 36 + idx * (cardW + cardGap);
+            const isHovered = pointer && this._isHovered(pointer, cardX, cardY, cardW, cardH);
+
+            ctx.save();
+            ctx.fillStyle = isHovered ? '#102428' : '#081214';
+            ctx.strokeStyle = isHovered ? '#ffffff' : tInfo.color;
+            ctx.lineWidth = isHovered ? 3 : 2;
+            if (isHovered) {
+                ctx.shadowBlur = 18;
+                ctx.shadowColor = tInfo.color;
+            }
+            ctx.fillRect(cardX, cardY, cardW, cardH);
+            ctx.strokeRect(cardX, cardY, cardW, cardH);
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = tInfo.color;
+            ctx.font = 'bold 20px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`[${choice.label}]`, cardX + cardW / 2, cardY + 34);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 28px "VT323", monospace';
+            ctx.fillText(choice.data.name.toUpperCase(), cardX + cardW / 2, cardY + 72);
+
+            ctx.fillStyle = '#c8e0e4';
+            ctx.font = '20px "VT323", monospace';
+            const lines = wrapCardText(choice.data.description, cardW - 32);
+            lines.forEach((line, lIdx) => {
+                ctx.fillText(line, cardX + cardW / 2, cardY + 115 + lIdx * 24);
+            });
+
+            const btnW = cardW - 48;
+            const btnH = 46;
+            const btnX = cardX + 24;
+            const btnY = cardY + cardH - btnH - 20;
+            this.drawButton(
+                ctx,
+                btnX,
+                btnY,
+                btnW,
+                btnH,
+                `SELECT ${choice.mode.toUpperCase()}`,
+                isHovered,
+                'selectedTab'
+            );
+            ctx.restore();
+
+            this.augmentsButtons.push({
+                x: cardX,
+                y: cardY,
+                w: cardW,
+                h: cardH,
+                action: () => {
+                    augmentMgr.selectFourPieceBonus(choice.mode);
+                    this.selectedAugmentItem = { source: 'set', key: typeKey };
+                }
+            });
+        });
+
+        ctx.restore();
     }
 
     _drawPauseCountdown(ctx) {
@@ -1202,17 +2465,18 @@ export default class MenuManager {
     _drawPauseStatsInfobox(ctx, x, y, player) {
         const rowHeight = 22;
         const panelWidth = 260;
-        const panelHeight = 420;
+        const displayStats = getFormattedStats(player);
+        const panelHeight = displayStats.length * rowHeight + 50;
 
         this.drawPanel(ctx, x - 10, y - 40, panelWidth, panelHeight);
 
+        ctx.save();
         ctx.fillStyle = '#00ffcc';
         ctx.font = this.styleConfig.fonts.infoTitle;
         ctx.textAlign = 'left';
         ctx.fillText('STATUS', x, y - 15);
         ctx.font = this.styleConfig.fonts.infoText;
 
-        const displayStats = getFormattedStats(player);
         displayStats.forEach((stat, index) => {
             const currentY = y + (index * rowHeight);
             ctx.fillStyle = '#00ffcc';
@@ -1222,6 +2486,7 @@ export default class MenuManager {
             ctx.fillText(stat.val, x + panelWidth - 30, currentY);
             ctx.textAlign = 'left';
         });
+        ctx.restore();
     }
 
     _drawGameOverScreen(ctx) {

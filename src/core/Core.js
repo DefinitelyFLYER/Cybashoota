@@ -11,6 +11,7 @@ export default class Game {
         this.isGameOver = false;
         this.gameState = 'MENU';
         this.settingsOpen = false;
+        this.augmentsOpen = false;
         this.settingsKey = 'cyberpunk_settings';
         this.settings = {
             performance: {
@@ -20,6 +21,7 @@ export default class Game {
             gameplay: {
                 autoFire: false,
                 resumeCooldown: true,
+                aimAssistStrength: 1,
                 crosshairColor: '#00ffcc',
                 cursorBorderEnabled: true,
                 cursorBorderColor: '#000',
@@ -42,7 +44,9 @@ export default class Game {
                 shoot: 'Mouse0',
                 pause: 'Escape',
                 hack: 'Space',
-                hackCycle: 'KeyQ'
+                hackCycle: 'KeyQ',
+                augments: 'KeyE',
+                setUltimate: 'KeyR'
             }
         };
 
@@ -109,7 +113,7 @@ export default class Game {
     resetGame() {
         const resets = [
             'player', 'ui', 'projectiles', 'enemies', 'drones', 'powerups',
-            'experience', 'director', 'upgrades', 'particles'
+            'experience', 'director', 'upgrades', 'particles', 'hack', 'augments'
         ];
 
         for (const name of resets) {
@@ -121,6 +125,7 @@ export default class Game {
 
         this.isPaused = false;
         this.isGameOver = false;
+        this.augmentsOpen = false;
         this.pauseResumeCooldownTimer = 0;
         this.isSignalJammed = false;
     }
@@ -178,7 +183,7 @@ export default class Game {
             this._update(deltaTime);
         }
 
-        if (this.gameState === 'MENU' || isMenuOpen || this.isPaused || this.isGameOver || this.settingsOpen) {
+        if (this.gameState === 'MENU' || isMenuOpen || this.isPaused || this.isGameOver || this.settingsOpen || this.augmentsOpen) {
             this._updateMenuInput(deltaTime);
         }
 
@@ -262,8 +267,51 @@ export default class Game {
     }
 
     _handleGlobalKeydown(e) {
+        const menu = this.getModule('menu');
+        if (menu && menu.isWaitingForKey) return;
+
         const pauseKey = this.settings.controls?.pause ?? 'Escape';
+        const augmentsKey = this.settings.controls?.augments ?? 'KeyE';
+
+        if (e.code === augmentsKey) {
+            if (this.gameState !== 'PLAYING' || this.isGameOver || this.settingsOpen) return;
+            if (this.pauseResumeCooldownTimer > 0) return;
+
+            const upgrades = this.getModule('upgrades');
+            if (upgrades && upgrades.isSelectionActive) return;
+
+            if (this.augmentsOpen) {
+                if (menu && typeof menu.closeAugmentsMenu === 'function') {
+                    menu.closeAugmentsMenu();
+                } else {
+                    this.augmentsOpen = false;
+                }
+            } else if (menu && typeof menu.openAugmentsMenu === 'function') {
+                menu.openAugmentsMenu(this.isPaused ? 'pause' : 'gameplay');
+            }
+            return;
+        }
+
         if (e.code !== pauseKey) return;
+
+        if (this.settingsOpen) {
+            if (menu && typeof menu.closeSettingsMenu === 'function') {
+                menu.closeSettingsMenu();
+            } else {
+                this.settingsOpen = false;
+            }
+            return;
+        }
+
+        if (this.augmentsOpen) {
+            if (menu && typeof menu.closeAugmentsMenu === 'function') {
+                menu.closeAugmentsMenu();
+            } else {
+                this.augmentsOpen = false;
+            }
+            return;
+        }
+
         if (this.gameState !== 'PLAYING' || this.isGameOver) return;
         if (this.pauseResumeCooldownTimer > 0) return;
 
@@ -281,6 +329,27 @@ export default class Game {
         const gamepad = this.getModule('gamepad');
         if (!gamepad || gamepad.gamepadIndex === null) return;
         if (!gamepad.justPressed.menu) return;
+
+        if (this.settingsOpen) {
+            const menu = this.getModule('menu');
+            if (menu && typeof menu.closeSettingsMenu === 'function') {
+                menu.closeSettingsMenu();
+            } else {
+                this.settingsOpen = false;
+            }
+            return;
+        }
+
+        if (this.augmentsOpen) {
+            const menu = this.getModule('menu');
+            if (menu && typeof menu.closeAugmentsMenu === 'function') {
+                menu.closeAugmentsMenu();
+            } else {
+                this.augmentsOpen = false;
+            }
+            return;
+        }
+
         if (this.gameState !== 'PLAYING' || this.isGameOver) return;
         if (this.pauseResumeCooldownTimer > 0) return;
 
@@ -296,6 +365,8 @@ export default class Game {
 
     _handleWindowInactivity() {
         if (this.gameState !== 'PLAYING' || this.isGameOver) return;
+        const upgrades = this.getModule('upgrades');
+        if (upgrades && upgrades.isSelectionActive) return;
         if (this.pauseResumeCooldownTimer > 0) {
             this.pauseResumeCooldownTimer = 0;
         }
@@ -316,11 +387,13 @@ export default class Game {
         this.gameState = 'MENU';
         this.isPaused = false;
         this.isGameOver = false;
+        this.augmentsOpen = false;
     }
 
     gameOver() {
         this.isPaused = true;
         this.isGameOver = true;
+        this.augmentsOpen = false;
         console.log("Game Over state triggered.");
     }
 }

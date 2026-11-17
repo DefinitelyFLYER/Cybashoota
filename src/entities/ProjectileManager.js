@@ -17,7 +17,7 @@ export default class ProjectileManager {
         this.lastMouseMoveTime = 0;
         this.lastGamepadInputTime = 0;
 
-        this.HOMING_RANGE = 3;
+        this.HOMING_RANGE = 4.5;
         this.RICOCHET_RANGE = 8;
         this.NEARBY_LIMIT = 0.5;
 
@@ -180,13 +180,15 @@ export default class ProjectileManager {
 
     _updateEnemyProjectiles(player, deltaTime) {
         const particles = this.game.getModule('particles');
+        const augmentMgr = this.game.getModule('augments');
+        const projDt = deltaTime * (augmentMgr ? augmentMgr.timeSlowFactor : 1);
 
         for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
             const p = this.enemyProjectiles[i];
             
-            p.x += p.vx * deltaTime;
-            p.y += p.vy * deltaTime;
-            p.life -= deltaTime;
+            p.x += p.vx * projDt;
+            p.y += p.vy * projDt;
+            p.life -= projDt;
 
             if (particles && Math.random() > 0.3) {
                 particles.emitTrail(p.x, p.y, p.color || '#ff0055'); 
@@ -206,8 +208,10 @@ export default class ProjectileManager {
                         let effectiveRadius = drone.size / 2;
 
                         if (drone.behavior === 'INTERCEPTOR') {
-                            isReady = drone.actionTimer >= (drone.cooldown || 0);
-                            effectiveRadius = drone.blockRadius ? (drone.blockRadius * this.game.UNIT_SIZE) : (drone.size / 2);
+                            const cooldown = droneMgr._getStat(drone, 'cooldown', player) || 0;
+                            const blockRadius = droneMgr._getStat(drone, 'blockRadius', player);
+                            isReady = drone.actionTimer >= cooldown;
+                            effectiveRadius = blockRadius ? (blockRadius * this.game.UNIT_SIZE) : (drone.size / 2);
                         }
 
                         if (isReady && dist < (effectiveRadius + p.size / 2)) {
@@ -232,7 +236,7 @@ export default class ProjectileManager {
             const dy = player.pos.y - p.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist < (player.size / 2 + p.size / 2) * 0.8) {
+            if (!player.ghostActive && dist < (player.size / 2 + p.size / 2) * 0.8) {
                 player.takeDamage(p.damage);
                 this.enemyProjectiles.splice(i, 1);
                 continue;
@@ -312,14 +316,16 @@ export default class ProjectileManager {
         const enemyMgr = this.game.getModule('enemies');
         const particles = this.game.getModule('particles'); 
 
+        const rawAimAssist = player.getStat('aimAssist') || 0;
+        const settingScale = Number(this.game?.settings?.gameplay?.aimAssistStrength ?? 1.0);
+        const effectiveAimAssist = Math.max(0, rawAimAssist * settingScale);
+
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
 
-            const currentBulletSpeed = player.getStat('bulletSpeed');
-            const aimAssist = player.getStat('aimAssist');
-
-            if (aimAssist > 0) {
-                this._applyHoming(p, aimAssist, currentBulletSpeed, enemyMgr, deltaTime);
+            if (effectiveAimAssist > 0 && p.damage === undefined) {
+                const currentSpeed = Math.sqrt(p.vx * p.vx + p.vy * p.vy) || player.getStat('bulletSpeed');
+                this._applyHoming(p, effectiveAimAssist, currentSpeed, enemyMgr, deltaTime);
             }
 
             p.x += p.vx * deltaTime;
@@ -337,50 +343,100 @@ export default class ProjectileManager {
     }
 
     _applyHoming(p, intensity, speed, enemyMgr, deltaTime) {
-        if (!enemyMgr) return;
+        if (!enemyMgr || !enemyMgr.enemies || enemyMgr.enemies.length === 0) return;
+        if (speed <= 0) return;
 
-        const target = this._findHomingTarget(p, enemyMgr);
-        if (target) {
-            const dx = target.x - p.x;
-            const dy = target.y - p.y;
-            const distPx = Math.sqrt(dx * dx + dy * dy);
-            
-            const distUnits = distPx / this.game.UNIT_SIZE;
+        const target = this._findHomingTarget(p, speed, intensity, enemyMgr);
+        if (!target) return;
 
-            const targetDirX = dx / distPx;
-            const targetDirY = dy / distPx;
-            const steerStrength = intensity * 0.01 * deltaTime;
+        const dx = target.x - p.x;
+        const dy = target.y - p.y;
+        const distPx = Math.sqrt(dx * dx + dy * dy);
+        if (distPx <= 0) return;
 
-            if (distUnits < this.NEARBY_LIMIT && intensity > 0.8) {
-                p.vx = targetDirX * speed;
-                p.vy = targetDirY * speed;
-            } else {
-                p.vx += (targetDirX - p.vx / speed) * steerStrength;
-                p.vy += (targetDirY - p.vy / speed) * steerStrength;
-            }
+        const currentAngle = Math.atan2(p.vy, p.vx);
+        const targetAngle = Math.atan2(dy, dx);
+        let angleDiff = targetAngle - currentAngle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-            const currentSpeed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-            p.vx = (p.vx / currentSpeed) * speed;
-            p.vy = (p.vy / currentSpeed) * speed;
-        }
+        // Smooth angular turn rate that snaps cleanly without overshooting or orbiting
+        const clampedIntensity = Math.min(1.5, intensity);
+        const maxTurnRad = clampedIntensity * 0.0028 * deltaTime;
+        const turn = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), maxTurnRad);
+        const nextAngle = currentAngle + turn;
+
+        p.vx = Math.cos(nextAngle) * speed;
+        p.vy = Math.sin(nextAngle) * speed;
     }
 
-    _findHomingTarget(p, enemyMgr) {
-        let closest = null;
-        let minDistPx = this.HOMING_RANGE * this.game.UNIT_SIZE;
+    _findHomingTarget(p, speed, intensity, enemyMgr) {
+        const dirX = p.vx / speed;
+        const dirY = p.vy / speed;
+        const maxRangePx = this.HOMING_RANGE * this.game.UNIT_SIZE;
+
+        // 1. First check if the projectile is ALREADY on a direct collision path with an enemy.
+        // If so, never pull it away toward another enemy!
+        let directHitEnemy = null;
+        let closestDirectDot = Infinity;
 
         for (const e of enemyMgr.enemies) {
+            if (e.currentHp <= 0) continue;
             if (p.lastHitEnemy === e || (p.hitEnemies && p.hitEnemies.has(e))) continue;
 
             const dx = e.x - p.x;
             const dy = e.y - p.y;
-            const dSq = dx * dx + dy * dy;
-            if (dSq < minDistPx * minDistPx) {
-                minDistPx = Math.sqrt(dSq);
-                closest = e;
+            const dot = dx * dirX + dy * dirY;
+            if (dot <= 0 || dot > maxRangePx) continue;
+
+            const perpDist = Math.abs(dx * dirY - dy * dirX);
+            const hitRadius = (e.size * 0.48) + (p.size * 0.48);
+
+            if (perpDist <= hitRadius && dot < closestDirectDot) {
+                closestDirectDot = dot;
+                directHitEnemy = e;
             }
         }
-        return closest;
+
+        if (directHitEnemy) {
+            return directHitEnemy;
+        }
+
+        // 2. Otherwise, search strictly within a forward cone around the aim line,
+        // prioritizing enemies closest to the projectile's line of fire.
+        const coneDeg = Math.min(42, 18 + intensity * 20);
+        const minCos = Math.cos((coneDeg * Math.PI) / 180);
+
+        let bestTarget = null;
+        let bestScore = Infinity;
+
+        for (const e of enemyMgr.enemies) {
+            if (e.currentHp <= 0) continue;
+            if (p.lastHitEnemy === e || (p.hitEnemies && p.hitEnemies.has(e))) continue;
+
+            const dx = e.x - p.x;
+            const dy = e.y - p.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq <= 0 || distSq > maxRangePx * maxRangePx) continue;
+
+            const dist = Math.sqrt(distSq);
+            const dot = dx * dirX + dy * dirY;
+            const cosAngle = dot / dist;
+
+            // Ignore enemies outside the forward cone
+            if (cosAngle < minCos) continue;
+
+            const perpDist = Math.abs(dx * dirY - dy * dirX);
+            // Weight perpendicular distance to the aim ray much higher than forward distance
+            const score = perpDist * 2.5 + dot * 0.35;
+
+            if (score < bestScore) {
+                bestScore = score;
+                bestTarget = e;
+            }
+        }
+
+        return bestTarget;
     }
 
     findNextTarget(projectile, currentEnemy) {
@@ -410,14 +466,15 @@ export default class ProjectileManager {
         if (!player) return;
 
         ctx.save();
-        ctx.fillStyle = '#00ffcc';
         ctx.shadowBlur = 15;
-        ctx.shadowColor = '#00ffcc';
         for (const p of this.projectiles) {
+            const color = p.color || '#00ffcc';
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
             const screenX = p.x - player.pos.x + this.game.center.x;
             const screenY = p.y - player.pos.y + this.game.center.y;
             ctx.beginPath();
-            ctx.arc(screenX, screenY, p.size / 2, 0, Math.PI * 2);
+            ctx.arc(screenX, screenY, Math.max(1, p.size / 2), 0, Math.PI * 2);
             ctx.fill();
         }
 

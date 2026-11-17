@@ -7,13 +7,18 @@ import { getUnlockedHackIds } from '../data/HackData.js';
 export default class UpgradeManager {
     constructor() {
         this.inventory = {};
+        this.droneUpgradeInventory = {};
         this.isSelectionActive = false;
         this.currentOptions = [];
         this.selectionMode = 'UPGRADES';
         this.selectedCardId = null; 
         this.confirmBtnBounds = null;
+        this.reRollBtnBounds = null;
+        this.cardBounds = [];
         this.droneLevelInterval = 3;
         this.pendingLevelUps = 0;
+        this.selectionQueue = [];
+        this.nextPhaseTimeout = null;
         this._clickHandler = this._handleInput.bind(this);
         this._gamepadActionHeld = false;
 
@@ -50,13 +55,20 @@ export default class UpgradeManager {
 
     reset() {
         this.inventory = {};
+        this.droneUpgradeInventory = {};
         this.isSelectionActive = false;
         this.currentOptions = [];
         this.selectionMode = 'UPGRADES';
         this.selectedCardId = null;
         this.confirmBtnBounds = null;
         this.reRollBtnBounds = null;
+        this.cardBounds = [];
         this.pendingLevelUps = 0;
+        this.selectionQueue = [];
+        if (this.nextPhaseTimeout) {
+            clearTimeout(this.nextPhaseTimeout);
+            this.nextPhaseTimeout = null;
+        }
         this._gamepadActionHeld = false;
         this.droneMods = {
             'ALL': { damageBonus: 0, speedMulti: 1.0 },
@@ -69,6 +81,7 @@ export default class UpgradeManager {
 
     update(deltaTime) {
         if (!this.isSelectionActive) return;
+        if (this.game.isPaused || this.game.isGameOver || this.game.settingsOpen) return;
 
         const gamepad = this.game.getModule('gamepad');
         const proj = this.game.getModule('projectiles');
@@ -128,7 +141,10 @@ export default class UpgradeManager {
     getAvailableUpgrades(count = 3) {
         const player = this.game.getModule('player');
         const luck = player ? player.getStat('luck') : 1.0;
-        const unlockedHacks = getUnlockedHackIds();
+        const hackMgr = this.game.getModule('hack');
+        const unlockedHacks = hackMgr && Array.isArray(hackMgr.unlockedHacks)
+            ? hackMgr.unlockedHacks
+            : getUnlockedHackIds();
         const hackCapacityFull = player ? unlockedHacks.length >= Math.max(1, Math.floor(player.getStat('maxHackSlots'))) : true;
 
         let pool = UPGRADES.filter(upgrade => {
@@ -138,9 +154,16 @@ export default class UpgradeManager {
             if (upgrade.requirements && !upgrade.requirements(player, this)) return false;
             if (upgrade.unlockHackId) {
                 if (unlockedHacks.includes(upgrade.unlockHackId)) return false;
-                if (hackCapacityFull) return false;
             }
             return true;
+        }).map(upgrade => {
+            if (upgrade.unlockHackId && hackCapacityFull) {
+                return {
+                    ...upgrade,
+                    requirementText: 'Replaces active hack (slots full).'
+                };
+            }
+            return upgrade;
         });
 
         const selected = [];
@@ -198,13 +221,12 @@ export default class UpgradeManager {
             return availableDrones.sort(() => 0.5 - Math.random()).slice(0, count);
         }
 
-        if (ownedCount >= maxDrones) {
-            return availableUpgrades.sort(() => 0.5 - Math.random()).slice(0, count);
-        }
-
         if (availableDrones.length > 0) {
             const shuffledDrones = availableDrones.sort(() => 0.5 - Math.random());
-            selected.push(shuffledDrones[0]);
+            const droneOption = ownedCount >= maxDrones
+                ? { ...shuffledDrones[0], requirementText: 'Replaces oldest drone (slots full).' }
+                : shuffledDrones[0];
+            selected.push(droneOption);
         }
         
         const remainingCount = count - selected.length;
@@ -226,24 +248,31 @@ export default class UpgradeManager {
     applyDroneUpgrade(upgradeId) {
         const upgrade = DRONE_UPGRADES.find(u => u.id === upgradeId);
         if (upgrade) {
+            this.droneUpgradeInventory[upgradeId] = (this.droneUpgradeInventory[upgradeId] || 0) + 1;
             upgrade.onApply(this.droneMods);
         }
     }
 
-    addLevelUp() {
-        this.pendingLevelUps++;
-        if (!this.isSelectionActive) {
-            this.showSelection('UPGRADES');
+    addLevelUp(level) {
+        const player = this.game?.getModule('player');
+        const targetLevel = level !== undefined ? level : (player ? player.level : 1);
+        this.selectionQueue.push('UPGRADES');
+        if (targetLevel % this.droneLevelInterval === 0) {
+            this.selectionQueue.push('DRONES');
+        }
+        this.pendingLevelUps = this.selectionQueue.filter(m => m === 'UPGRADES').length;
+
+        if (!this.isSelectionActive && !this.nextPhaseTimeout) {
+            const nextMode = this.selectionQueue.shift();
+            this.pendingLevelUps = this.selectionQueue.filter(m => m === 'UPGRADES').length;
+            this.showSelection(nextMode);
         }
     }
 
     showSelection(mode = 'UPGRADES') {
+        if (!this.game || this.game.isGameOver || this.game.gameState !== 'PLAYING') return;
         const player = this.game.getModule('player');
         if (!player) return;
-
-        if (mode === 'UPGRADES' && this.pendingLevelUps > 0) {
-            this.pendingLevelUps--;
-        }
 
         this.selectionMode = mode;
         this.selectedCardId = null;
@@ -258,6 +287,7 @@ export default class UpgradeManager {
         this.isSelectionActive = true;
         this.reRollBtnBounds = null;
         this.confirmBtnBounds = null;
+        this.cardBounds = [];
         
         window.removeEventListener('mousedown', this._clickHandler);
         window.addEventListener('mousedown', this._clickHandler);
@@ -265,6 +295,7 @@ export default class UpgradeManager {
 
     _handleInput(e) {
         if (!this.isSelectionActive) return;
+        if (this.game.isPaused || this.game.isGameOver || this.game.settingsOpen) return;
         const rect = this.game.canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -280,12 +311,13 @@ export default class UpgradeManager {
     }
 
     _triggerNextPhaseIfNeeded() {
-        const player = this.game.getModule('player');
-        
-        if (this.selectionMode === 'UPGRADES' && player && player.level % this.droneLevelInterval === 0) {
-            setTimeout(() => this.showSelection('DRONES'), 150);
-        } else if (this.pendingLevelUps > 0) {
-            setTimeout(() => this.showSelection('UPGRADES'), 150);
+        if (this.selectionQueue.length > 0) {
+            const nextMode = this.selectionQueue.shift();
+            this.pendingLevelUps = this.selectionQueue.filter(m => m === 'UPGRADES').length;
+            this.nextPhaseTimeout = setTimeout(() => {
+                this.nextPhaseTimeout = null;
+                this.showSelection(nextMode);
+            }, 150);
         }
     }
 
@@ -352,7 +384,7 @@ export default class UpgradeManager {
                 const isDrone = DRONE_TYPES[selectedId] !== undefined;
                 
                 if (isDrone) {
-                    if (droneMgr && droneMgr.drones.length < player.stats.maxDrones) {
+                    if (droneMgr) {
                         droneMgr.spawnDrone(selectedId);
                     }
                 } else {
@@ -460,7 +492,11 @@ export default class UpgradeManager {
         ctx.fillRect(px, py, size, size);
         ctx.strokeStyle = '#333';
         ctx.strokeRect(px, py, size, size);
-        if (!item.sprite) {
+        const droneMgr = this.game && this.game.getModule('drones');
+        const sprite = item.sprite && droneMgr && droneMgr.sprites ? droneMgr.sprites.get(item.id) : null;
+        if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+            ctx.drawImage(sprite, px + 6, py + 6, size - 12, size - 12);
+        } else {
             const fonts = this._getMenuFonts();
             ctx.fillStyle = '#333'; ctx.font = fonts.cardIcon; ctx.textAlign = 'center';
             ctx.fillText('NO_DATA', x + cardW / 2, py + size / 2 + 4);

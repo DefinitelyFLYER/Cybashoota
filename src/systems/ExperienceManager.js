@@ -14,12 +14,13 @@ export default class ExperienceManager {
     }
 
     spawnOrb(x, y, value, color) {
+        const scaledSize = Math.min(18, 6 + Math.sqrt(Math.max(0, value)) * 0.4);
         this.orbs.push({
             x: x,
             y: y,
             value: value,
             color: color,
-            size: 6 + (value / 20),
+            size: scaledSize,
             pulse: 0,
             seed: Math.random() * Math.PI * 2
         });
@@ -43,7 +44,7 @@ export default class ExperienceManager {
             const dy = center.y - orb.y;
             const distPx = Math.sqrt(dx * dx + dy * dy);
 
-            if (distPx < magnetRangePx) {
+            if (distPx > 0 && distPx < magnetRangePx) {
                 orb.x += (dx / distPx) * magnetSpeed * deltaTime;
                 orb.y += (dy / distPx) * magnetSpeed * deltaTime;
             }

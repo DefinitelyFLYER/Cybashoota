@@ -1,6 +1,36 @@
-export const CURRENT_VERSION = 'v0.2.2';
+export const CURRENT_VERSION = 'v0.3.1';
 
 const CHANGELOG = [
+    {
+        version: 'v0.3.1',
+        title: 'Defense, Aim Assist & Loadout',
+        date: '17-11-2026',
+        notes: [
+            'Reworked Defense into rechargeable Armor Shields and re-enabled Titan Shell.',
+            'Overhauled Aim Assist with forward-cone targeting, a strength slider and Smart Targeting.',
+            'Added Cards, Drones & Hacks loadout tab with Drone/Hack scrapping, 0.5% Cyber-Scrap drops and XP orb size scaling.'
+        ]
+    },
+    {
+        version: 'v0.3.0',
+        title: 'CYBERWARE AUGMENTS!',
+        date: '16-11-2026',
+        notes: [
+            'Added augment system with 16 augments across 4 body slots and 4 types.',
+            'Added 2-piece & 4-piece set bonuses (active ultimates & passives).',
+            'Added augment inventory, duplicate fusion and Cyber-Forge terminals.'
+        ]
+    },
+    {
+        version: 'v0.2.3',
+        title: 'Bugfixes & polish',
+        date: '15-11-2026',
+        notes: [
+            'Fixed drone stats, upgrades and card icons.',
+            'Fixed hack capacity, debuffs and reset state.',
+            'Fixed level-up queue, collisions and UI bugs.'
+        ]
+    },
     {
         version: 'v0.2.2',
         title: 'Rebalance.',

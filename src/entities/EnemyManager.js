@@ -37,14 +37,17 @@ export default class EnemyManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
+        const augmentMgr = this.game.getModule('augments');
+        const enemyDt = deltaTime * (augmentMgr ? augmentMgr.timeSlowFactor : 1);
+
         this._handleSpawning(deltaTime);
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
 
-            this._updateEnemyTimers(e, deltaTime);
-            this._applyPhysics(e, player, deltaTime);
-            this._handleRangedAttack(e, player, deltaTime);
+            this._updateEnemyTimers(e, enemyDt);
+            this._applyPhysics(e, player, enemyDt);
+            this._handleRangedAttack(e, player, enemyDt);
             this._checkPlayerCollision(e, player);
             
             this._checkDroneCollisions(e, player);
@@ -68,6 +71,10 @@ export default class EnemyManager {
     _updateEnemyTimers(e, deltaTime) {
         if (e.turboCooldown === undefined) e.turboCooldown = 0;
         if (e.turboCooldown > 0) e.turboCooldown -= deltaTime;
+        if (e.hackDebuffTimer > 0) {
+            e.hackDebuffTimer -= deltaTime;
+            if (e.hackDebuffTimer < 0) e.hackDebuffTimer = 0;
+        }
     }
 
     _applyPhysics(e, player, deltaTime) {
@@ -96,7 +103,7 @@ export default class EnemyManager {
         }
 
         if (e.speedModifier === undefined) e.speedModifier = 1;
-        if (e.speedModifier < 1) {
+        if (e.speedModifier < 1 && !(e.hackDebuffTimer > 0)) {
             e.speedModifier += deltaTime * 0.002; 
             if (e.speedModifier > 1) e.speedModifier = 1;
         }
@@ -169,6 +176,7 @@ export default class EnemyManager {
     }
 
     _calculateSoftPlayerCollision(e, player) {
+        if (player.ghostActive) return { x: 0, y: 0 };
         const dx = player.pos.x - e.x;
         const dy = player.pos.y - e.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -200,8 +208,9 @@ export default class EnemyManager {
             if (e.isSuicidal) {
                 e.currentHp = 0;
             } else {
-                const dirX = (e.x - player.pos.x) / distP;
-                const dirY = (e.y - player.pos.y) / distP;
+                const safeDist = distP || 1;
+                const dirX = (e.x - player.pos.x) / safeDist;
+                const dirY = (e.y - player.pos.y) / safeDist;
 
                 const knockbackPower = 0.5;
                 e.kbX = dirX * knockbackPower;
@@ -229,7 +238,7 @@ export default class EnemyManager {
                     
                     const pDx = e.x - player.pos.x;
                     const pDy = e.y - player.pos.y;
-                    const pDist = Math.sqrt(pDx * pDx + pDy * pDy);
+                    const pDist = Math.sqrt(pDx * pDx + pDy * pDy) || 1;
 
                     const dirX = pDx / pDist;
                     const dirY = pDy / pDist;
@@ -329,7 +338,7 @@ export default class EnemyManager {
 
     _applyProjectileDamage(e, p, projectileIndex, pm) {
         const playerMod = this.game.getModule('player');
-        let damage = playerMod ? playerMod.getStat('damage') : 1;
+        let damage = p.damage !== undefined ? p.damage : (playerMod ? playerMod.getStat('damage') : 1);
 
         if (p.isCrit) {
             damage *= (playerMod ? playerMod.getStat('critMultiplier') : 2);
@@ -342,6 +351,24 @@ export default class EnemyManager {
         }
 
         e.currentHp -= damage;
+
+        const augmentMgr = this.game.getModule('augments');
+        if (p.isCrit && augmentMgr && augmentMgr.hasExplosiveCrits()) {
+            const explosionRadius = 120;
+            const aoeDamage = damage * 0.5;
+            const particles = this.game.getModule('particles');
+            if (particles) {
+                particles.emit(e.x, e.y, '#ff0055', 16);
+            }
+            for (const other of this.enemies) {
+                if (other === e || other.currentHp <= 0) continue;
+                const dx = other.x - e.x;
+                const dy = other.y - e.y;
+                if (dx * dx + dy * dy <= explosionRadius * explosionRadius) {
+                    other.currentHp -= aoeDamage;
+                }
+            }
+        }
 
         if (p.bounces > 0) {
             const nextTarget = pm.findNextTarget(p, e);
@@ -379,6 +406,7 @@ export default class EnemyManager {
         const xpMgr = this.game.getModule('experience');
         const director = this.game.getModule('director');
         const powerUpMgr = this.game.getModule('powerups');
+        const augmentMgr = this.game.getModule('augments');
 
         if (e.glitchPhase === GLITCH_PHASES.PRIMARY) {
             const radiusPx = GLITCH_EFFECT_CONFIG.spreadRadiusPx;
@@ -403,6 +431,7 @@ export default class EnemyManager {
             xpMgr.spawnOrb(e.x, e.y, drop.value, drop.color);
         }
         if (powerUpMgr) powerUpMgr.trySpawn(e.x, e.y);
+        if (augmentMgr) augmentMgr.trySpawn(e.x, e.y, e);
 
         this.enemies.splice(index, 1);
     }
@@ -414,7 +443,7 @@ export default class EnemyManager {
         const activePhase = director.currentPhase;
         const player = this.game.getModule('player');
         const center = this.game.center;
-        const allowedTypes = this.activePhase.types;
+        const allowedTypes = activePhase.types;
         const typeKey = allowedTypes[Math.floor(Math.random() * allowedTypes.length)];
         const baseConfig = ENEMY_TYPES[typeKey];
 
@@ -428,9 +457,9 @@ export default class EnemyManager {
             ...baseConfig,
             x: worldX,
             y: worldY,
-            maxHp: Math.ceil(baseConfig.hp * this.activePhase.hpMultiplier),
-            currentHp: Math.ceil(baseConfig.hp * this.activePhase.hpMultiplier),
-            speed: baseConfig.speed * this.activePhase.speedMultiplier,
+            maxHp: Math.ceil(baseConfig.hp * activePhase.hpMultiplier),
+            currentHp: Math.ceil(baseConfig.hp * activePhase.hpMultiplier),
+            speed: baseConfig.speed * activePhase.speedMultiplier,
             glitchPhase: GLITCH_PHASES.NORMAL
         });
     }
@@ -447,7 +476,7 @@ export default class EnemyManager {
         const distPx = Math.sqrt(dx * dx + dy * dy);
         const rangePx = e.ranged.range * this.game.UNIT_SIZE;
 
-        if (distPx < rangePx && e.shootTimer >= e.ranged.fireRate) {
+        if (distPx > 0 && distPx < rangePx && e.shootTimer >= e.ranged.fireRate) {
             this._enemyShoot(e, player, dx, dy, distPx);
             e.shootTimer = 0;
         }

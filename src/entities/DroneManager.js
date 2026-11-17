@@ -48,16 +48,30 @@ export default class DroneManager {
         const config = DRONE_TYPES[typeId];
         if (!config) return;
 
+        const player = this.game ? this.game.getModule('player') : null;
+        if (player && this.drones.length >= player.stats.maxDrones && this.drones.length > 0) {
+            this.drones.shift();
+        }
+
+        const startX = player ? player.pos.x : 0;
+        const startY = player ? player.pos.y : 0;
+
         this.drones.push({
             ...config,
             currentAngle: Math.random() * Math.PI * 2,
             actionTimer: 0,
-            x: 0,
-            y: 0,
+            x: startX,
+            y: startY,
             vx: 0,
             vy: 0
         });
         console.log(`Spawned Drone: ${config.name}`);
+    }
+
+    removeDrone(typeId) {
+        const idx = this.drones.findIndex(d => d.id === typeId);
+        if (idx === -1) return null;
+        return this.drones.splice(idx, 1)[0];
     }
 
     update(deltaTime) {
@@ -82,14 +96,16 @@ export default class DroneManager {
             }
 
             if (!isIntercepting) {
+                const speedMulti = this._getStat(drone, 'speedMulti', player);
                 if (drone.movement === 'ORBIT') {
-                    drone.currentAngle += drone.orbitSpeed * deltaTime;
+                    drone.currentAngle += drone.orbitSpeed * speedMulti * deltaTime;
                     
                     const radiusPx = drone.orbitRadius * this.game.UNIT_SIZE;
                     const targetX = player.pos.x + Math.cos(drone.currentAngle) * radiusPx;
                     const targetY = player.pos.y + Math.sin(drone.currentAngle) * radiusPx;
                     
-                    const lerpFactor = 1 - Math.pow(1 - 0.03, deltaTime / 16);
+                    const orbitLerpBase = Math.min(0.95, 0.03 * speedMulti);
+                    const lerpFactor = 1 - Math.pow(1 - orbitLerpBase, deltaTime / 16);
                     drone.x += (targetX - drone.x) * lerpFactor;
                     drone.y += (targetY - drone.y) * lerpFactor;
 
@@ -100,7 +116,8 @@ export default class DroneManager {
                     const targetX = player.pos.x + (offsetX * player.facing);
                     const targetY = player.pos.y + offsetY;
                     
-                    const lerpFactor = 1 - Math.pow(1 - drone.followSpeed, deltaTime / 16);
+                    const followLerpBase = Math.min(0.95, drone.followSpeed * speedMulti);
+                    const lerpFactor = 1 - Math.pow(1 - followLerpBase, deltaTime / 16);
                     drone.x += (targetX - drone.x) * lerpFactor;
                     drone.y += (targetY - drone.y) * lerpFactor;
                 }
@@ -144,6 +161,7 @@ export default class DroneManager {
             if (distToPlayer > patrolRange) continue;
 
             const pMag = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+            if (pMag === 0) continue;
             const pnx = p.vx / pMag;
             const pny = p.vy / pMag;
             
@@ -174,8 +192,8 @@ export default class DroneManager {
             const tx = bestTarget.x - drone.x;
             const ty = bestTarget.y - drone.y;
             const tDist = Math.sqrt(tx * tx + ty * ty);
-            const nx = tx / tDist;
-            const ny = ty / tDist;
+            const nx = tDist > 0 ? tx / tDist : 0;
+            const ny = tDist > 0 ? ty / tDist : 0;
 
             let boostFactor = 1.0;
             if (highestDanger > 0) {
@@ -183,8 +201,9 @@ export default class DroneManager {
                 boostFactor = Math.min(maxBoost, 1.0 + (highestDanger / 100));
             }
 
+            const speedMulti = this._getStat(drone, 'speedMulti', player);
             const baseAccel = this._getStat(drone, 'droneAccuracy', player) * 0.8;
-            const finalAccel = baseAccel * boostFactor;
+            const finalAccel = baseAccel * boostFactor * speedMulti;
             
             drone.vx += nx * finalAccel * deltaTime;
             drone.vy += ny * finalAccel * deltaTime;
@@ -193,7 +212,7 @@ export default class DroneManager {
             drone.vy *= 0.90;
 
             const baseMaxSpeed = 1.5 * this.game.UNIT_SIZE;
-            const currentMaxSpeed = baseMaxSpeed * boostFactor;
+            const currentMaxSpeed = baseMaxSpeed * boostFactor * speedMulti;
 
             const speed = Math.sqrt(drone.vx * drone.vx + drone.vy * drone.vy);
             if (speed > currentMaxSpeed) {
@@ -225,9 +244,11 @@ export default class DroneManager {
         if (drone.targeting === 'CURSOR') {
             const projMgr = this.game.getModule('projectiles');
             if (projMgr) {
+                const aimX = projMgr.crosshairX ?? projMgr.mouseX;
+                const aimY = projMgr.crosshairY ?? projMgr.mouseY;
                 target = {
-                    x: projMgr.mouseX + player.pos.x - this.game.center.x,
-                    y: projMgr.mouseY + player.pos.y - this.game.center.y
+                    x: aimX + player.pos.x - this.game.center.x,
+                    y: aimY + player.pos.y - this.game.center.y
                 };
             }
         } else {
@@ -347,25 +368,42 @@ export default class DroneManager {
         if (typeof baseVal === 'function') baseVal = baseVal(player);
 
         const upgrades = this.game.getModule('upgrades');
+        const augmentMgr = this.game.getModule('augments');
         if (!upgrades) return baseVal;
 
         const globalMods = upgrades.droneMods['ALL'] || {};
         const specificMods = upgrades.droneMods[drone.behavior] || {};
+        const setDmgBonus = augmentMgr ? augmentMgr.getDroneDamageBonus() : 0;
+        const setRateMulti = augmentMgr ? augmentMgr.getDroneRateMultiplier() : 1.0;
 
         switch(statName) {
             case 'damage':
-                let dmgBonus = (globalMods.damageBonus || 0) + (specificMods.damageBonus || 0);
+            case 'collisionDamage': {
+                let dmgBonus = (globalMods.damageBonus || 0) + (specificMods.damageBonus || 0) + setDmgBonus;
                 return baseVal + dmgBonus;
+            }
                 
-            case 'blockRadius':
+            case 'blockRadius': {
                 let blockMulti = specificMods.blockRadiusMulti || 1;
                 return baseVal * blockMulti;
+            }
+
+            case 'range': {
+                let rangeMulti = specificMods.rangeMulti || 1;
+                return baseVal * rangeMulti;
+            }
+
+            case 'speedMulti': {
+                const baseSpeedMulti = (globalMods.speedMulti || 1) + ((specificMods.speedMulti || 1) - 1);
+                return baseSpeedMulti * (1 / setRateMulti);
+            }
                 
             case 'fireRate':
             case 'cooldown':
-            case 'actionRate':
-                let timeMulti = specificMods[`${statName}Multi`] || 1;
+            case 'actionRate': {
+                let timeMulti = (specificMods[`${statName}Multi`] || 1) * setRateMulti;
                 return baseVal * timeMulti;
+            }
                 
             default:
                 return baseVal;

@@ -44,6 +44,15 @@ export const MENU_DEFINITIONS = {
                     path: ['gameplay', 'resumeCooldown']
                 },
                 {
+                    id: 'aimAssistStrength',
+                    type: 'slider',
+                    label: 'Aim Assist Strength',
+                    path: ['gameplay', 'aimAssistStrength'],
+                    min: 0,
+                    max: 1,
+                    step: 0.1
+                },
+                {
                     type: 'section',
                     label: 'CURSOR'
                 },
@@ -163,6 +172,18 @@ export const MENU_DEFINITIONS = {
                     type: 'keybind',
                     label: 'Cycle Hack',
                     path: ['controls', 'hackCycle']
+                },
+                {
+                    id: 'augments',
+                    type: 'keybind',
+                    label: 'Augments Menu',
+                    path: ['controls', 'augments']
+                },
+                {
+                    id: 'set_ultimate',
+                    type: 'keybind',
+                    label: 'Set Ultimate',
+                    path: ['controls', 'setUltimate']
                 }
             ],
             audio: [
@@ -183,6 +204,7 @@ export const MENU_DEFINITIONS = {
     ],
     PAUSE_MENU: [
         { id: 'continue', text: 'CONTINUE', action: 'resumeGame', style: 'default' },
+        { id: 'augments', text: 'AUGMENTS', action: 'openAugmentsMenu', args: ['pause'], style: 'default' },
         { id: 'settings', text: 'SETTINGS', action: 'openSettingsMenu', args: ['pause'], style: 'default' },
         { id: 'restart', text: 'RESTART', action: 'reloadGame', style: 'default' }
     ],

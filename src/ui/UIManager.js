@@ -1,7 +1,7 @@
 ﻿export default class UIManager {
     constructor() {
         this.score = 0;
-        this.highScore = localStorage.getItem('cyberpunk_highscore') || 0;
+        this.highScore = Number(localStorage.getItem('cyberpunk_highscore')) || 0;
         this.notifications = [];
     }
 
@@ -33,7 +33,9 @@
         const iconSize = 32;
         const spacing = 12;
         const startX = 20;
-        let startY = 120;
+        const player = this.game.getModule('player');
+        const hasArmor = player && typeof player.getMaxArmor === 'function' && player.getMaxArmor() > 0;
+        let startY = hasArmor ? 145 : 120;
 
         powerUpMgr.activeEffects.forEach((effect, i) => {
             const rowY = startY + i * (iconSize + spacing);
@@ -93,10 +95,6 @@
             
             ctx.fillText(n.text, w / 2, h / 3 - n.y);
             ctx.restore();
-
-            n.y += 1;
-            n.alpha -= 0.005;
-            if (n.alpha <= 0) this.notifications.splice(i, 1);
         }
     }
 
@@ -138,6 +136,13 @@
     }
 
     update(deltaTime) {
+        const step = deltaTime / 16;
+        for (let i = this.notifications.length - 1; i >= 0; i--) {
+            const n = this.notifications[i];
+            n.y += 1 * step;
+            n.alpha -= 0.005 * step;
+            if (n.alpha <= 0) this.notifications.splice(i, 1);
+        }
     }
 
     _drawHackHud(ctx, virtualW, virtualH) {
@@ -187,6 +192,69 @@
         ctx.restore();
     }
 
+    _drawUltimateHud(ctx, virtualW, virtualH) {
+        const augmentMgr = this.game.getModule('augments');
+        if (!augmentMgr || typeof augmentMgr.getActiveUltimateInfo !== 'function') return;
+        const ult = augmentMgr.getActiveUltimateInfo();
+        if (!ult) return;
+
+        const hack = this.game.getModule('hack');
+        const hasHackHud = hack && hack.unlockedHacks && hack.unlockedHacks.length > 0 && hack.activeHack;
+
+        const x = hasHackHud ? 286 : 20;
+        const y = virtualH - 110;
+        const width = 260;
+        const height = 70;
+        const barWidth = 210;
+        const barHeight = 10;
+
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(x, y, width, height);
+
+        ctx.strokeStyle = ult.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, width, height);
+
+        ctx.fillStyle = ult.color;
+        ctx.font = 'bold 16px "VT323", monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`ULT: ${ult.name.toUpperCase()}`, x + 12, y + 12);
+
+        const cooldownY = y + 34;
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(x + 12, cooldownY, barWidth, barHeight);
+
+        if (ult.activeTimer > 0 && ult.activeDuration > 0) {
+            const activeProgress = Math.min(1, Math.max(0, ult.activeTimer / ult.activeDuration));
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(x + 12, cooldownY, barWidth * activeProgress, barHeight);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '13px "VT323", monospace';
+            ctx.fillText(`ACTIVE ${(ult.activeTimer / 1000).toFixed(1)}s`, x + 12, cooldownY + 16);
+        } else if (ult.cooldownTimer > 0 && ult.cooldownDuration > 0) {
+            const progress = 1 - Math.min(1, Math.max(0, ult.cooldownTimer / ult.cooldownDuration));
+            ctx.fillStyle = ult.color;
+            ctx.fillRect(x + 12, cooldownY, barWidth * progress, barHeight);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '13px "VT323", monospace';
+            ctx.fillText(`RECHARGING ${Math.ceil(ult.cooldownTimer / 1000)}s`, x + 12, cooldownY + 16);
+        } else {
+            ctx.fillStyle = ult.color;
+            ctx.fillRect(x + 12, cooldownY, barWidth, barHeight);
+
+            ctx.fillStyle = ult.color;
+            ctx.font = '13px "VT323", monospace';
+            ctx.fillText('READY', x + 12, cooldownY + 16);
+        }
+
+        ctx.restore();
+    }
+
     _getUiScale() {
         return Math.max(0.5, Math.min(2, Number(this.game?.settings?.ui?.scale ?? 1)));
     }
@@ -206,7 +274,7 @@
         
         const color = gp.crosshairColor || '#00ffcc';
         const skin = gp.cursorSkin || 'classic'; 
-        const borderEnabled = true;
+        const borderEnabled = gp.cursorBorderEnabled !== false;
         const borderColor = gp.cursorBorderColor || '#ffffff';
         const cursorWidth = Math.max(1, Number(gp.cursorWidth ?? 2));
         const cursorSize = Math.max(0.5, Number(gp.cursorSize ?? 1));
@@ -247,7 +315,7 @@
             }
             case 'circle': {
                 const r = (10 + pulse * 6) * cursorSize;
-                drawShape((offset) => ctx.arc(x, y, r + offset, 0, Math.PI * 2), false, borderW * 0.5);
+                drawShape(() => ctx.arc(x, y, r, 0, Math.PI * 2), false, 0);
                 drawShape(() => ctx.rect(x - 1, y - 1, 2, 2), true, 0);
                 break;
             }
@@ -279,8 +347,8 @@
         const virtualW = w / uiScale;
         const virtualH = h / uiScale;
 
+        ctx.save();
         if (uiScale !== 1) {
-            ctx.save();
             ctx.scale(uiScale, uiScale);
         }
 
@@ -317,6 +385,33 @@
                 ctx.shadowColor = '#00bbff';
                 ctx.fillText(shieldText, 20 + metrics.width, 75);
             }
+
+            const maxArmor = typeof player.getMaxArmor === 'function' ? player.getMaxArmor() : 0;
+            if (maxArmor > 0) {
+                const curArmor = Math.max(0, Math.min(maxArmor, player.armorCharges || 0));
+                const missingArmor = maxArmor - curArmor;
+                const armorText = "ARMOR: " + "▮".repeat(curArmor) + "▯".repeat(missingArmor);
+
+                ctx.font = 'bold 24px "VT323", monospace';
+                ctx.fillStyle = '#ff9900';
+                ctx.shadowColor = '#ff9900';
+                ctx.fillText(armorText, 20, 105);
+
+                if (curArmor < maxArmor && player.armorRechargeDuration > 0) {
+                    const textW = ctx.measureText(armorText).width;
+                    const barX = 20 + textW + 12;
+                    const barY = 92;
+                    const barW = 70;
+                    const barH = 8;
+                    const prog = Math.min(1, Math.max(0, player.armorRechargeTimer / player.armorRechargeDuration));
+
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                    ctx.fillRect(barX, barY, barW, barH);
+                    ctx.fillStyle = '#ff9900';
+                    ctx.fillRect(barX, barY, barW * prog, barH);
+                }
+            }
             ctx.restore();
         }
 
@@ -339,16 +434,9 @@
             let alpha = 1;
 
             if (director.phaseChanged) {
-                const elapsed = director.phaseTimer || 0;
-                
                 const pulse = Math.sin(Date.now() / 200) * 0.1;
                 scale = 1.15 + pulse;
                 alpha = 0.7 + Math.abs(Math.sin(Date.now() / 400) * 0.3);
-
-                if (elapsed > 5000) {
-                    director.phaseChanged = false;
-                }
-                director.phaseTimer = elapsed + 16;
             }
 
             ctx.translate(virtualW / 2, virtualH - 40);
@@ -369,12 +457,11 @@
         }
 
         this._drawHackHud(ctx, virtualW, virtualH);
+        this._drawUltimateHud(ctx, virtualW, virtualH);
         this._drawXpBar(ctx, virtualW);
         this._drawActiveBuffs(ctx, virtualW, virtualH);
         this._drawNotifications(ctx, virtualW, virtualH);
 
-        if (uiScale !== 1) {
-            ctx.restore();
-        }
+        ctx.restore();
     }
 }

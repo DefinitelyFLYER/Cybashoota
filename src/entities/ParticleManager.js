@@ -187,7 +187,7 @@ export default class ParticleManager {
             const drawX = p.x - player.pos.x + center.x;
             const drawY = p.y - player.pos.y + center.y;
 
-            ctx.globalAlpha = p.life;
+            ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
             ctx.fillStyle = p.color;
 
             if (p.type === 'glitch' || p.type === 'glitchTick') {

@@ -6,9 +6,14 @@ export function getFormattedStats(player) {
         return "+0%";
     };
 
+    const maxArmor = typeof player.getMaxArmor === 'function' ? player.getMaxArmor() : player.stats.defense;
+    const armorDisplay = maxArmor > 0 ? `${player.armorCharges ?? maxArmor}/${maxArmor}` : 0;
+    const settingScale = Number(player.game?.settings?.gameplay?.aimAssistStrength ?? 1.0);
+    const effectiveAimAssist = Math.round((player.stats.aimAssist || 0) * settingScale * 100);
+
     return [
         { label: "MAX HP", val: player.stats.maxHp },
-        { label: "DEFENSE", val: player.stats.defense },
+        { label: "DEFENSE", val: armorDisplay },
         { label: "DODGE CHANCE", val: (player.stats.dodgeChance * 100).toFixed(0) + "%" },
         { label: "DAMAGE", val: player.getStat('damage').toFixed(1) },
         { label: "FIRE RATE", val: (1000 / player.getStat('fireRate')).toFixed(1) + "/s" + " (" + getBonus(1000 / player.getStat('fireRate'), 1000 / player.baseStats.fireRate) + ")" },
@@ -17,6 +22,7 @@ export function getFormattedStats(player) {
         { label: "PROJ. COUNT", val: player.stats.projectileCount },
         { label: "PENETRATION", val: player.stats.penetration },
         { label: "RICOCHET", val: player.stats.ricochetCount },
+        { label: "AIM ASSIST", val: effectiveAimAssist + "%" },
         { label: "CRIT CHANCE", val: (player.stats.critChance * 100).toFixed(0) + "%" },
         { label: "CRIT MULTI", val: player.getStat('critMultiplier').toFixed(1) + "x" },
         { label: "MOVE SPEED", val: getBonus(player.getStat('moveSpeed'), player.baseStats.moveSpeed) },
