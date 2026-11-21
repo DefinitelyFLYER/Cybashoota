@@ -245,6 +245,7 @@ export const MENU_DEFINITIONS = {
     PAUSE_MENU: [
         { id: 'continue', text: 'CONTINUE', action: 'resumeGame', style: 'default' },
         { id: 'augments', text: 'AUGMENTS', action: 'openAugmentsMenu', args: ['pause'], style: 'default' },
+        { id: 'codex', text: 'CODEX', action: 'openSynergyCodex', args: ['pause'], style: 'default' },
         { id: 'settings', text: 'SETTINGS', action: 'openSettingsMenu', args: ['pause'], style: 'default' },
         { id: 'restart', text: 'RESTART', action: 'reloadGame', style: 'default' }
     ],

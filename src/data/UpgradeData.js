@@ -522,5 +522,277 @@ export const UPGRADES = [
             const augMgr = game?.getModule('augments');
             if (augMgr) augMgr.autoRecyclerUnlocked = true;
         }
+    },
+
+    // --- Scaling Rarity Cards ---
+    {
+        id: 'rapid_fire_rare',
+        name: 'Turbo Overclock',
+        description: 'Increases fire rate by 35%.',
+        rarity: 'Rare',
+        tags: ['weapon', 'speed'],
+        weight: 45,
+        onApply: (player) => { player.multipliers.fireRate += 0.35; }
+    },
+    {
+        id: 'rapid_fire_epic',
+        name: 'Hyper-Cycle Core',
+        description: 'Increases fire rate by 55%.',
+        rarity: 'Epic',
+        tags: ['weapon', 'speed'],
+        weight: 20,
+        onApply: (player) => { player.multipliers.fireRate += 0.55; }
+    },
+    {
+        id: 'damage_boost_rare',
+        name: 'Plasma Infuser',
+        description: '+3 Damage to all projectiles.',
+        rarity: 'Rare',
+        tags: ['weapon', 'damage'],
+        weight: 45,
+        onApply: (player) => { player.stats.damage += 3; }
+    },
+    {
+        id: 'damage_boost_legendary',
+        name: 'Antimatter Core',
+        description: '+5 Damage to all projectiles and +25% Bullet Speed.',
+        rarity: 'Legendary',
+        tags: ['weapon', 'damage'],
+        weight: 8,
+        onApply: (player) => {
+            player.stats.damage += 5;
+            player.multipliers.bulletSpeed += 0.25;
+        }
+    },
+    {
+        id: 'multishot_common',
+        name: 'Twin Barrel',
+        description: '+1 Projectile.',
+        rarity: 'Common',
+        tags: ['weapon', 'projectile'],
+        weight: 70,
+        maxStack: 4,
+        onApply: (player) => {
+            player.stats.projectileCount += 1;
+            player.stats.projectileSpread += 2;
+        }
+    },
+    {
+        id: 'multishot_legendary',
+        name: 'Barrage Array',
+        description: '+4 Projectiles (+5° spread).',
+        rarity: 'Legendary',
+        tags: ['weapon', 'projectile'],
+        weight: 6,
+        maxStack: 2,
+        onApply: (player) => {
+            player.stats.projectileCount += 4;
+            player.stats.projectileSpread += 5;
+        }
+    },
+    {
+        id: 'crit_mastery_epic',
+        name: 'Precision Optics',
+        description: '+25% Critical Hit Chance and +35% Crit Damage.',
+        rarity: 'Epic',
+        tags: ['weapon', 'crit'],
+        weight: 22,
+        maxStack: 3,
+        onApply: (player) => {
+            player.stats.critChance += 0.25;
+            player.multipliers.critMultiplier += 0.35;
+        }
+    },
+    {
+        id: 'crit_overdrive_legendary',
+        name: 'Apex Targeting',
+        description: '+30% Critical Hit Chance and +100% Crit Damage.',
+        rarity: 'Legendary',
+        tags: ['weapon', 'crit'],
+        weight: 7,
+        unique: true,
+        onApply: (player) => {
+            player.stats.critChance += 0.30;
+            player.multipliers.critMultiplier += 1.0;
+        }
+    },
+    {
+        id: 'bullet_speed_common',
+        name: 'Accelerator Rails',
+        description: '+25% Bullet Speed.',
+        rarity: 'Common',
+        tags: ['weapon', 'speed'],
+        weight: 75,
+        onApply: (player) => { player.multipliers.bulletSpeed += 0.25; }
+    },
+    {
+        id: 'bullet_speed_rare',
+        name: 'Hyper-Velocity Barrel',
+        description: '+45% Bullet Speed and +15% Fire Rate.',
+        rarity: 'Rare',
+        tags: ['weapon', 'speed'],
+        weight: 40,
+        onApply: (player) => {
+            player.multipliers.bulletSpeed += 0.45;
+            player.multipliers.fireRate += 0.15;
+        }
+    },
+    {
+        id: 'lucky_dice_rare',
+        name: 'Probability Matrix',
+        description: '+25% Luck.',
+        rarity: 'Rare',
+        tags: ['utility', 'luck'],
+        weight: 40,
+        onApply: (player) => { player.multipliers.luck += 0.25; }
+    },
+    {
+        id: 'xp_boost_epic',
+        name: 'Neural Archive',
+        description: '+50% XP Gain from all sources.',
+        rarity: 'Epic',
+        tags: ['utility', 'xp'],
+        weight: 20,
+        onApply: (player) => { player.multipliers.xpMultiplier += 0.50; }
+    },
+    {
+        id: 'field_medkit_common',
+        name: 'Med-Gel Injector',
+        description: 'Heals +3 HP and +10% Move Speed.',
+        rarity: 'Common',
+        tags: ['defense', 'healing'],
+        weight: 75,
+        onApply: (player) => {
+            player.stats.hp = Math.min(player.stats.maxHp, player.stats.hp + 3);
+            player.multipliers.moveSpeed += 0.10;
+        }
+    },
+    {
+        id: 'armor_regen_rare',
+        name: 'Reactive Plating',
+        description: '+2 Max HP and Titan Shell recharges 25% faster.',
+        rarity: 'Rare',
+        tags: ['defense'],
+        weight: 40,
+        maxStack: 3,
+        onApply: (player) => {
+            player.stats.maxHp += 2;
+            player.armorRechargeDuration = Math.max(4000, Math.round(player.armorRechargeDuration * 0.75));
+        }
+    },
+
+    // --- New Mechanic Cards ---
+    {
+        id: 'explosive_rounds_epic',
+        name: 'Volatile Shells',
+        description: '25% chance per hit to trigger an explosive blast (60% AoE damage).',
+        rarity: 'Epic',
+        tags: ['weapon', 'aoe'],
+        weight: 20,
+        maxStack: 3,
+        onApply: (player) => { player.stats.explosiveChance += 0.25; }
+    },
+    {
+        id: 'shrapnel_core_legendary',
+        name: 'Shrapnel Core',
+        description: 'Enemies explode on death for 4 AoE damage, and +20% Explosive Round chance.',
+        rarity: 'Legendary',
+        tags: ['weapon', 'aoe'],
+        weight: 7,
+        maxStack: 2,
+        onApply: (player) => {
+            player.stats.deathBlastDamage += 4;
+            player.stats.explosiveChance += 0.20;
+        }
+    },
+    {
+        id: 'life_steal_rare',
+        name: 'Nano-Siphon',
+        description: '4% chance on enemy kill to restore +1 HP (or speed up Armor recharge).',
+        rarity: 'Rare',
+        tags: ['defense', 'healing'],
+        weight: 35,
+        maxStack: 3,
+        onApply: (player) => { player.stats.lifeStealChance += 0.04; }
+    },
+    {
+        id: 'life_steal_epic',
+        name: 'Vampiric Protocol',
+        description: '8% chance on enemy kill to restore +1 HP (or speed up Armor recharge).',
+        rarity: 'Epic',
+        tags: ['defense', 'healing'],
+        weight: 18,
+        maxStack: 2,
+        onApply: (player) => { player.stats.lifeStealChance += 0.08; }
+    },
+    {
+        id: 'execute_rare',
+        name: 'Hunter Protocol',
+        description: 'Deal +35% damage to enemies below 45% HP.',
+        rarity: 'Rare',
+        tags: ['weapon', 'damage'],
+        weight: 35,
+        maxStack: 2,
+        onApply: (player) => { player.stats.executeBonus += 0.35; }
+    },
+    {
+        id: 'execute_epic',
+        name: 'Executioner Chip',
+        description: 'Deal +70% damage to enemies below 45% HP.',
+        rarity: 'Epic',
+        tags: ['weapon', 'damage'],
+        weight: 18,
+        unique: true,
+        onApply: (player) => { player.stats.executeBonus += 0.70; }
+    },
+    {
+        id: 'super_shot_epic',
+        name: 'Overcharge Capacitor',
+        description: 'Every 5th shot fires a larger piercing Super-Shot (+2 Pierce, 2.5x Damage).',
+        rarity: 'Epic',
+        tags: ['weapon', 'projectile'],
+        weight: 18,
+        unique: true,
+        onApply: (player) => {
+            if (!player.stats.superShotInterval || player.stats.superShotInterval > 5) {
+                player.stats.superShotInterval = 5;
+            }
+        }
+    },
+    {
+        id: 'super_shot_legendary',
+        name: 'Singularity Cannon',
+        description: 'Every 3rd shot fires a Super-Shot (+2 Pierce, 3.5x Damage).',
+        rarity: 'Legendary',
+        tags: ['weapon', 'projectile'],
+        weight: 6,
+        unique: true,
+        onApply: (player) => {
+            player.stats.superShotInterval = 3;
+            player.stats.superShotDmgMulti = Math.max(player.stats.superShotDmgMulti || 2.5, 3.5);
+        }
+    },
+    {
+        id: 'hack_cooldown_rare',
+        name: 'Quick-Boot Daemon',
+        description: 'Reduces active Hack cooldowns by 15%.',
+        rarity: 'Rare',
+        tags: ['utility', 'hack'],
+        weight: 35,
+        maxStack: 3,
+        onApply: (player) => { player.stats.hackCooldownMulti *= 0.85; }
+    },
+    {
+        id: 'scrap_hunter_rare',
+        name: 'Salvage Scanner',
+        description: 'Doubles Cyber-Scrap drop chance from enemies and reduces Hack cooldowns by 10%.',
+        rarity: 'Rare',
+        tags: ['utility', 'augments'],
+        weight: 32,
+        maxStack: 2,
+        onApply: (player) => {
+            player.stats.scrapDropMulti *= 2.0;
+            player.stats.hackCooldownMulti *= 0.90;
+        }
     }
 ];

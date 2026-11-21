@@ -4,6 +4,7 @@ import { UPGRADES } from '../data/UpgradeData.js';
 import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
 import { DRONE_TYPES } from '../data/DroneTypes.js';
 import { HACK_DATA } from '../data/HackData.js';
+import { ENEMY_TYPES, ENEMY_CODEX_IDS } from '../data/EnemyTypes.js';
 
 export default class CodexManager {
     constructor() {
@@ -14,8 +15,10 @@ export default class CodexManager {
             playerCards: new Set(),
             droneCards: new Set(),
             drones: new Set(),
-            hacks: new Set()
+            hacks: new Set(),
+            enemies: new Set()
         };
+        this.enemyKills = {};
         this._load();
     }
 
@@ -45,6 +48,14 @@ export default class CodexManager {
                     this.discovered[key] = new Set(parsed[key]);
                 }
             }
+            if (parsed.enemyKills && typeof parsed.enemyKills === 'object') {
+                for (const [enemyId, count] of Object.entries(parsed.enemyKills)) {
+                    const num = Number(count);
+                    if (Number.isFinite(num) && num > 0) {
+                        this.enemyKills[enemyId] = Math.floor(num);
+                    }
+                }
+            }
         } catch {
             // ignore storage errors
         }
@@ -56,6 +67,7 @@ export default class CodexManager {
             for (const [key, set] of Object.entries(this.discovered)) {
                 payload[key] = [...set];
             }
+            payload.enemyKills = this.enemyKills;
             localStorage.setItem(this.storageKey, JSON.stringify(payload));
         } catch {
             // ignore storage errors
@@ -77,6 +89,40 @@ export default class CodexManager {
             if (synMgr && synMgr.isDiscovered(id)) return true;
         }
         return this.discovered[category].has(id);
+    }
+
+    getEnemyThresholds(enemyId) {
+        const cfg = ENEMY_TYPES[enemyId];
+        return cfg && cfg.codexTier === 'elite' ? [1, 50, 150] : [1, 100, 250];
+    }
+
+    getEnemyKills(enemyId) {
+        return this.enemyKills[enemyId] || 0;
+    }
+
+    getEnemyTier(enemyId) {
+        const kills = this.getEnemyKills(enemyId);
+        const [t1, t2, t3] = this.getEnemyThresholds(enemyId);
+        if (kills >= t3) return 3;
+        if (kills >= t2) return 2;
+        if (kills >= t1) return 1;
+        return 0;
+    }
+
+    getNextEnemyThreshold(enemyId) {
+        const kills = this.getEnemyKills(enemyId);
+        const [t1, t2, t3] = this.getEnemyThresholds(enemyId);
+        if (kills < t1) return t1;
+        if (kills < t2) return t2;
+        if (kills < t3) return t3;
+        return null;
+    }
+
+    recordEnemyKill(enemyId) {
+        if (!enemyId || !ENEMY_CODEX_IDS.includes(enemyId)) return;
+        this.enemyKills[enemyId] = (this.enemyKills[enemyId] || 0) + 1;
+        this.discovered.enemies.add(enemyId);
+        this._save();
     }
 
     getCounts() {
@@ -101,6 +147,10 @@ export default class CodexManager {
                 found: Object.keys(DRONE_TYPES).filter(id => this.isDiscovered('drones', id)).length +
                     Object.keys(HACK_DATA).filter(id => this.isDiscovered('hacks', id)).length,
                 total: Object.keys(DRONE_TYPES).length + Object.keys(HACK_DATA).length
+            },
+            enemies: {
+                found: ENEMY_CODEX_IDS.filter(id => this.getEnemyTier(id) >= 1).length,
+                total: ENEMY_CODEX_IDS.length
             }
         };
     }

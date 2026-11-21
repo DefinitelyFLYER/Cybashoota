@@ -1,6 +1,18 @@
-export const CURRENT_VERSION = 'v0.4.0';
+export const CURRENT_VERSION = 'v0.5.0';
 
 const CHANGELOG = [
+    {
+        version: 'v0.5.0',
+        title: 'NEW THREATS!',
+        date: '21-11-2026',
+        notes: [
+            'Added 6 new enemy types: EMP, Dasher, Glitched, Virus, Splitter & Shield Bearer.',
+            'Added Enemies Bestiary to the Codex (3-tier kill progression).',
+            'Added 24 new player cards and cool new mechanics.',
+            'Added 18 new Synergies.',
+            'Fixed minor UI bugs.'
+        ]
+    },
     {
         version: 'v0.4.0',
         title: 'SYNERGIES & OVERLOAD!',

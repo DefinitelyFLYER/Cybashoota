@@ -255,6 +255,21 @@
         ctx.restore();
     }
 
+    _drawEmpDisruptionHud(ctx, virtualW, virtualH) {
+        const player = this.game.getModule('player');
+        if (!player || (player.empDisruptedTimer || 0) <= 0) return;
+
+        ctx.save();
+        ctx.fillStyle = '#00e5ff';
+        ctx.font = 'bold 20px "VT323", monospace';
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#00e5ff';
+        const secs = (player.empDisruptedTimer / 1000).toFixed(1);
+        ctx.fillText(`⚡ EMP DISRUPTED: DRONES & HACKS OFFLINE (${secs}s)`, virtualW / 2, 34);
+        ctx.restore();
+    }
+
     _drawSynergyHud(ctx, virtualW) {
         const synergyMgr = this.game.getModule('synergies');
         if (!synergyMgr || typeof synergyMgr.getActiveSynergyList !== 'function') return;
@@ -489,6 +504,7 @@
 
         this._drawHackHud(ctx, virtualW, virtualH);
         this._drawUltimateHud(ctx, virtualW, virtualH);
+        this._drawEmpDisruptionHud(ctx, virtualW, virtualH);
         this._drawSynergyHud(ctx, virtualW);
         this._drawXpBar(ctx, virtualW);
         this._drawActiveBuffs(ctx, virtualW, virtualH);

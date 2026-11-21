@@ -74,7 +74,8 @@ export default class SynergyManager {
             typeCounts: augmentMgr ? augmentMgr.getActiveTypes() : {},
             drones: droneMgr?.drones || [],
             hacks: hackMgr?.unlockedHacks || [],
-            inventory: upgradeMgr?.inventory || {}
+            inventory: upgradeMgr?.inventory || {},
+            droneInventory: upgradeMgr?.droneUpgradeInventory || {}
         };
     }
 

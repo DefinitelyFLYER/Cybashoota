@@ -7,6 +7,7 @@ import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
 import { DRONE_TYPES } from '../data/DroneTypes.js';
 import { HACK_DATA } from '../data/HackData.js';
 import { SYNERGIES } from '../data/SynergyData.js';
+import { ENEMY_TYPES, ENEMY_CODEX_IDS } from '../data/EnemyTypes.js';
 
 export default class MenuManager {
     constructor() {
@@ -18,6 +19,7 @@ export default class MenuManager {
         this.settingsTab = 'performance';
         this.settingsOrigin = null;
         this.augmentsOrigin = null;
+        this.codexMode = false;
         this.augmentsTab = 'augments';
         this.codexTab = 'synergies';
         this.selectedAugmentItem = null;
@@ -513,6 +515,7 @@ export default class MenuManager {
     openAugmentsMenu(origin = 'pause') {
         this.game.augmentsOpen = true;
         this.augmentsOrigin = origin;
+        this.codexMode = false;
         this.augmentsTab = 'augments';
         this.codexTab = 'synergies';
         this.selectedAugmentItem = null;
@@ -523,9 +526,10 @@ export default class MenuManager {
         }
     }
 
-    openSynergyCodex() {
+    openSynergyCodex(origin = 'menu') {
         this.game.augmentsOpen = true;
-        this.augmentsOrigin = 'menu';
+        this.augmentsOrigin = origin;
+        this.codexMode = true;
         this.augmentsTab = 'synergies';
         this.codexTab = 'synergies';
         this.selectedAugmentItem = null;
@@ -541,6 +545,7 @@ export default class MenuManager {
         this.augmentsButtons = [];
         this.selectedAugmentItem = null;
         this.augmentsOrigin = null;
+        this.codexMode = false;
         if (origin === 'gameplay') {
             this.game.resumeGame();
         }
@@ -1298,7 +1303,7 @@ export default class MenuManager {
 
         this.drawPanel(ctx, 0, 0, w, h, '', 'overlay', 0.65);
 
-        const isMenuCodex = this.augmentsOrigin === 'menu';
+        const isMenuCodex = this.codexMode;
 
         ctx.save();
         ctx.fillStyle = this.styleConfig.colors.title;
@@ -1331,14 +1336,16 @@ export default class MenuManager {
                 augments: { found: 0, total: AUGMENTS.length },
                 playerCards: { found: 0, total: UPGRADES.filter(u => !u.unlockHackId).length },
                 droneCards: { found: 0, total: DRONE_UPGRADES.length },
-                dronesAndHacks: { found: 0, total: Object.keys(DRONE_TYPES).length + Object.keys(HACK_DATA).length }
+                dronesAndHacks: { found: 0, total: Object.keys(DRONE_TYPES).length + Object.keys(HACK_DATA).length },
+                enemies: { found: 0, total: ENEMY_CODEX_IDS.length }
             };
             const codexTabs = [
                 { id: 'synergies', label: `SYNERGIES (${counts.synergies.found}/${counts.synergies.total})` },
                 { id: 'augments', label: `AUGMENTS (${counts.augments.found}/${counts.augments.total})` },
                 { id: 'playerCards', label: `PLAYER CARDS (${counts.playerCards.found}/${counts.playerCards.total})` },
                 { id: 'droneCards', label: `DRONE CARDS (${counts.droneCards.found}/${counts.droneCards.total})` },
-                { id: 'dronesAndHacks', label: `DRONES & HACKS (${counts.dronesAndHacks.found}/${counts.dronesAndHacks.total})` }
+                { id: 'dronesAndHacks', label: `DRONES & HACKS (${counts.dronesAndHacks.found}/${counts.dronesAndHacks.total})` },
+                { id: 'enemies', label: `ENEMIES (${counts.enemies.found}/${counts.enemies.total})` }
             ];
             const tabGap = 10;
             const tabW = Math.floor((mainW - tabGap * (codexTabs.length - 1)) / codexTabs.length);
@@ -1468,13 +1475,23 @@ export default class MenuManager {
         // Optional compact utility buttons in header: Auto-Recycler Filter & Full Mk.III Scrap->XP
         if (augmentMgr.autoRecyclerUnlocked) {
             const pref = augmentMgr.preferredSet;
-            const filterLabel = pref ? `AUTO-RECYCLE: KEEP ${pref}` : 'AUTO-RECYCLE: OFF';
-            const fW = 210;
+            const filterLabel = pref ? `AUTO-RECYCLE: ${pref}` : 'AUTO-RECYCLE: OFF';
+            ctx.save();
+            ctx.font = 'bold 17px "VT323", monospace';
+            const fW = Math.max(150, Math.ceil(ctx.measureText(filterLabel).width) + 22);
+            ctx.restore();
             const fH = 26;
             const fX = leftColX + leftColW - fW;
             const fY = innerY - 6;
             const fHover = pointer && this._isHovered(pointer, fX, fY, fW, fH);
-            this.drawButton(ctx, fX, fY, fW, fH, filterLabel, fHover, pref ? 'selectedTab' : 'tab');
+            this.drawButton(ctx, fX, fY, fW, fH, '', fHover, pref ? 'selectedTab' : 'tab');
+            ctx.save();
+            ctx.fillStyle = fHover || pref ? '#ffffff' : '#88c8d0';
+            ctx.font = 'bold 17px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(filterLabel, fX + fW / 2, fY + fH / 2 + 1);
+            ctx.restore();
             this.augmentsButtons.push({
                 x: fX,
                 y: fY,
@@ -1490,7 +1507,11 @@ export default class MenuManager {
 
         if (isFullMk3 && player) {
             const xpPerScrap = Math.max(10, Math.round(player.xpNextLevel * 0.2));
-            const xpBtnW = 210;
+            const xpLabel = `1 SCRAP -> +${xpPerScrap} XP`;
+            ctx.save();
+            ctx.font = 'bold 17px "VT323", monospace';
+            const xpBtnW = Math.max(160, Math.ceil(ctx.measureText(xpLabel).width) + 22);
+            ctx.restore();
             const xpBtnH = 26;
             const xpBtnX = rightColX + 165;
             const xpBtnY = innerY - 6;
@@ -1502,10 +1523,17 @@ export default class MenuManager {
                 xpBtnY,
                 xpBtnW,
                 xpBtnH,
-                `1 SCRAP -> +${xpPerScrap} XP`,
+                '',
                 xpHover,
                 canExchange ? 'selectedTab' : 'toggle'
             );
+            ctx.save();
+            ctx.fillStyle = canExchange ? '#ffffff' : '#777777';
+            ctx.font = 'bold 17px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(xpLabel, xpBtnX + xpBtnW / 2, xpBtnY + xpBtnH / 2 + 1);
+            ctx.restore();
             if (canExchange) {
                 this.augmentsButtons.push({
                     x: xpBtnX,
@@ -2530,26 +2558,38 @@ export default class MenuManager {
         } else if (this.codexTab === 'playerCards') {
             title = 'PLAYER UPGRADE CARDS CODEX';
             const rarityColors = { Common: '#00ffcc', Rare: '#00bcff', Epic: '#bc00ff', Legendary: '#ffcc00' };
-            entries = UPGRADES.filter(u => !u.unlockHackId).map(u => ({
-                id: u.id,
-                category: 'playerCards',
-                name: u.name,
-                tag: (u.rarity || 'Common').toUpperCase(),
-                subtitle: `PLAYER UPGRADE CARD • ${(u.rarity || 'Common').toUpperCase()}`,
-                color: rarityColors[u.rarity] || '#00ffcc',
-                description: u.description
-            }));
+            const rarityOrder = { Common: 0, Rare: 1, Epic: 2, Legendary: 3 };
+            entries = UPGRADES.filter(u => !u.unlockHackId)
+                .slice()
+                .sort((a, b) => (rarityOrder[a.rarity] ?? 99) - (rarityOrder[b.rarity] ?? 99))
+                .map(u => ({
+                    id: u.id,
+                    category: 'playerCards',
+                    name: u.name,
+                    tag: (u.rarity || 'Common').toUpperCase(),
+                    subtitle: `PLAYER UPGRADE CARD • ${(u.rarity || 'Common').toUpperCase()}`,
+                    color: rarityColors[u.rarity] || '#00ffcc',
+                    description: u.description
+                }));
         } else if (this.codexTab === 'droneCards') {
             title = 'DRONE UPGRADE CARDS CODEX';
-            entries = DRONE_UPGRADES.map(u => ({
-                id: u.id,
-                category: 'droneCards',
-                name: u.name,
-                tag: (u.targetBehaviors || ['ALL']).join('/'),
-                subtitle: `DRONE UPGRADE CARD • TARGET: ${(u.targetBehaviors || ['ALL']).join(' & ')}`,
-                color: '#ff55ff',
-                description: u.description
-            }));
+            const rarityColors = { Common: '#00ffcc', Rare: '#00bcff', Epic: '#bc00ff', Legendary: '#ffcc00' };
+            const rarityOrder = { Common: 0, Rare: 1, Epic: 2, Legendary: 3 };
+            entries = DRONE_UPGRADES.slice()
+                .sort((a, b) => (rarityOrder[a.rarity] ?? 99) - (rarityOrder[b.rarity] ?? 99))
+                .map(u => {
+                    const rarity = u.rarity || 'Common';
+                    const targets = (u.targetBehaviors || ['ALL']).join(' & ');
+                    return {
+                        id: u.id,
+                        category: 'droneCards',
+                        name: u.name,
+                        tag: `${rarity.toUpperCase()} • ${(u.targetBehaviors || ['ALL']).join('/')}`,
+                        subtitle: `DRONE UPGRADE CARD • ${rarity.toUpperCase()} • TARGET: ${targets}`,
+                        color: rarityColors[rarity] || '#00ffcc',
+                        description: u.description
+                    };
+                });
         } else if (this.codexTab === 'dronesAndHacks') {
             title = 'DRONES & HACKS CODEX';
             const droneEntries = Object.values(DRONE_TYPES).map(d => ({
@@ -2574,9 +2614,35 @@ export default class MenuManager {
                 };
             });
             entries = [...droneEntries, ...hackEntries];
+        } else if (this.codexTab === 'enemies') {
+            title = 'ENEMIES BESTIARY CODEX';
+            entries = ENEMY_CODEX_IDS.map(id => {
+                const cfg = ENEMY_TYPES[id];
+                const kills = codexMgr ? codexMgr.getEnemyKills(id) : 0;
+                const tier = codexMgr ? codexMgr.getEnemyTier(id) : 0;
+                const nextThreshold = codexMgr ? codexMgr.getNextEnemyThreshold(id) : 1;
+                return {
+                    id,
+                    category: 'enemies',
+                    isEnemy: true,
+                    enemyConfig: cfg,
+                    codexTier: cfg.codexTier || 'common',
+                    kills,
+                    tier,
+                    nextThreshold,
+                    name: cfg.codexName || id,
+                    tag: tier >= 3 ? 'TIER 3/3 (MAX)' : `TIER ${tier}/3`,
+                    subtitle: `KILLS: ${kills}${nextThreshold ? ` • NEXT TIER AT ${nextThreshold}` : ' • MAX INTEL UNLOCKED'}`,
+                    color: cfg.color || '#ff5555',
+                    description: cfg.codexDescription || '',
+                    statsText: this._formatEnemyCodexStats(cfg)
+                };
+            });
         }
 
-        const discoveredCount = entries.filter(e => codexMgr && codexMgr.isDiscovered(e.category, e.id)).length;
+        const discoveredCount = entries.filter(e =>
+            e.isEnemy ? e.tier >= 1 : (codexMgr && codexMgr.isDiscovered(e.category, e.id))
+        ).length;
 
         ctx.save();
         ctx.fillStyle = '#00ffcc';
@@ -2610,7 +2676,9 @@ export default class MenuManager {
 
             if (cy + cardH < gridTopY || cy > gridTopY + gridH) return;
 
-            const isDiscovered = codexMgr ? codexMgr.isDiscovered(entry.category, entry.id) : false;
+            const isDiscovered = entry.isEnemy
+                ? entry.tier >= 1
+                : (codexMgr ? codexMgr.isDiscovered(entry.category, entry.id) : false);
             const isSelected = this.selectedAugmentItem &&
                 this.selectedAugmentItem.source === 'codexEntry' &&
                 this.selectedAugmentItem.key === `${entry.category}:${entry.id}`;
@@ -2627,14 +2695,25 @@ export default class MenuManager {
             ctx.strokeRect(cx, cy, cardW, cardH);
 
             if (isDiscovered) {
+                const textMaxW = entry.isEnemy ? cardW - 60 : cardW - 20;
                 ctx.fillStyle = entry.color;
                 ctx.font = 'bold 15px "VT323", monospace';
                 ctx.textAlign = 'left';
-                ctx.fillText(`[${entry.tag}]`, cx + 10, cy + 22);
+                ctx.fillText(`[${entry.tag}]`, cx + 10, cy + 22, textMaxW);
 
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 19px "VT323", monospace';
-                ctx.fillText(entry.name.toUpperCase(), cx + 10, cy + 48);
+                ctx.fillText(entry.name.toUpperCase(), cx + 10, cy + 48, textMaxW);
+
+                if (entry.isEnemy) {
+                    ctx.fillStyle = '#88c8d0';
+                    ctx.font = '15px "VT323", monospace';
+                    const killLabel = entry.nextThreshold
+                        ? `KILLS: ${entry.kills}/${entry.nextThreshold}`
+                        : `KILLS: ${entry.kills}`;
+                    ctx.fillText(killLabel, cx + 10, cy + 70, textMaxW);
+                    this._drawEnemyCodexIcon(ctx, entry.enemyConfig, cx + cardW - 28, cy + 41, 15);
+                }
             } else {
                 ctx.fillStyle = '#556668';
                 ctx.font = 'bold 15px "VT323", monospace';
@@ -2644,6 +2723,12 @@ export default class MenuManager {
                 ctx.fillStyle = '#778c8f';
                 ctx.font = 'bold 20px "VT323", monospace';
                 ctx.fillText('???', cx + 10, cy + 48);
+
+                if (entry.isEnemy) {
+                    ctx.fillStyle = '#4e5f61';
+                    ctx.font = '15px "VT323", monospace';
+                    ctx.fillText('KILLS: 0/1', cx + 10, cy + 70);
+                }
             }
             ctx.restore();
 
@@ -2698,7 +2783,57 @@ export default class MenuManager {
 
             ctx.fillStyle = '#778c8f';
             ctx.font = '19px "VT323", monospace';
-            ctx.fillText('Obtain or equip this item during a run to unlock its details in the Codex.', innerX + 18, inspY + 72);
+            const hint = sel.data.isEnemy
+                ? 'Eliminate 1 of this enemy type during a run to unlock Tier 1 (Name & Visual).'
+                : 'Obtain or equip this item during a run to unlock its details in the Codex.';
+            ctx.fillText(hint, innerX + 18, inspY + 72);
+        } else if (sel.data.isEnemy) {
+            const e = sel.data;
+            this._drawEnemyCodexIcon(ctx, e.enemyConfig, innerX + 42, inspY + inspectorH / 2, 22);
+            const textX = innerX + 82;
+            const textMaxW = innerW - 100;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${e.name.toUpperCase()}  [${e.codexTier.toUpperCase()} • ${e.tag}]`, textX, inspY + 28, textMaxW);
+
+            ctx.fillStyle = e.color;
+            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.fillText(e.subtitle, textX, inspY + 50, textMaxW);
+
+            if (e.tier < 2) {
+                ctx.fillStyle = '#778c8f';
+                ctx.font = '19px "VT323", monospace';
+                ctx.fillText(
+                    `TIER 2 LOCKED — Eliminate ${e.nextThreshold - e.kills} more to unlock behavior description.`,
+                    textX,
+                    inspY + 80,
+                    textMaxW
+                );
+            } else {
+                ctx.fillStyle = '#d0e8ec';
+                ctx.font = '18px "VT323", monospace';
+                const descLines = wrapCardText(e.description, textMaxW).slice(0, 2);
+                descLines.forEach((line, lIdx) => {
+                    ctx.fillText(line, textX, inspY + 74 + lIdx * 18, textMaxW);
+                });
+
+                if (e.tier < 3) {
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.font = '17px "VT323", monospace';
+                    ctx.fillText(
+                        `TIER 3 LOCKED — Eliminate ${e.nextThreshold - e.kills} more to unlock detailed stats.`,
+                        textX,
+                        inspY + 110,
+                        textMaxW
+                    );
+                } else {
+                    ctx.fillStyle = '#00ffcc';
+                    ctx.font = 'bold 17px "VT323", monospace';
+                    ctx.fillText(e.statsText, textX, inspY + 110, textMaxW);
+                }
+            }
         } else {
             const e = sel.data;
             ctx.fillStyle = '#ffffff';
@@ -2950,26 +3085,38 @@ export default class MenuManager {
         } else if (this.codexTab === 'playerCards') {
             title = 'PLAYER UPGRADE CARDS CODEX';
             const rarityColors = { Common: '#00ffcc', Rare: '#00bcff', Epic: '#bc00ff', Legendary: '#ffcc00' };
-            entries = UPGRADES.filter(u => !u.unlockHackId).map(u => ({
-                id: u.id,
-                category: 'playerCards',
-                name: u.name,
-                tag: (u.rarity || 'Common').toUpperCase(),
-                subtitle: `PLAYER UPGRADE CARD • ${(u.rarity || 'Common').toUpperCase()}`,
-                color: rarityColors[u.rarity] || '#00ffcc',
-                description: u.description
-            }));
+            const rarityOrder = { Common: 0, Rare: 1, Epic: 2, Legendary: 3 };
+            entries = UPGRADES.filter(u => !u.unlockHackId)
+                .slice()
+                .sort((a, b) => (rarityOrder[a.rarity] ?? 99) - (rarityOrder[b.rarity] ?? 99))
+                .map(u => ({
+                    id: u.id,
+                    category: 'playerCards',
+                    name: u.name,
+                    tag: (u.rarity || 'Common').toUpperCase(),
+                    subtitle: `PLAYER UPGRADE CARD • ${(u.rarity || 'Common').toUpperCase()}`,
+                    color: rarityColors[u.rarity] || '#00ffcc',
+                    description: u.description
+                }));
         } else if (this.codexTab === 'droneCards') {
             title = 'DRONE UPGRADE CARDS CODEX';
-            entries = DRONE_UPGRADES.map(u => ({
-                id: u.id,
-                category: 'droneCards',
-                name: u.name,
-                tag: (u.targetBehaviors || ['ALL']).join('/'),
-                subtitle: `DRONE UPGRADE CARD • TARGET: ${(u.targetBehaviors || ['ALL']).join(' & ')}`,
-                color: '#ff55ff',
-                description: u.description
-            }));
+            const rarityColors = { Common: '#00ffcc', Rare: '#00bcff', Epic: '#bc00ff', Legendary: '#ffcc00' };
+            const rarityOrder = { Common: 0, Rare: 1, Epic: 2, Legendary: 3 };
+            entries = DRONE_UPGRADES.slice()
+                .sort((a, b) => (rarityOrder[a.rarity] ?? 99) - (rarityOrder[b.rarity] ?? 99))
+                .map(u => {
+                    const rarity = u.rarity || 'Common';
+                    const targets = (u.targetBehaviors || ['ALL']).join(' & ');
+                    return {
+                        id: u.id,
+                        category: 'droneCards',
+                        name: u.name,
+                        tag: `${rarity.toUpperCase()} • ${(u.targetBehaviors || ['ALL']).join('/')}`,
+                        subtitle: `DRONE UPGRADE CARD • ${rarity.toUpperCase()} • TARGET: ${targets}`,
+                        color: rarityColors[rarity] || '#00ffcc',
+                        description: u.description
+                    };
+                });
         } else if (this.codexTab === 'dronesAndHacks') {
             title = 'DRONES & HACKS CODEX';
             const droneEntries = Object.values(DRONE_TYPES).map(d => ({
@@ -2994,9 +3141,35 @@ export default class MenuManager {
                 };
             });
             entries = [...droneEntries, ...hackEntries];
+        } else if (this.codexTab === 'enemies') {
+            title = 'ENEMIES BESTIARY CODEX';
+            entries = ENEMY_CODEX_IDS.map(id => {
+                const cfg = ENEMY_TYPES[id];
+                const kills = codexMgr ? codexMgr.getEnemyKills(id) : 0;
+                const tier = codexMgr ? codexMgr.getEnemyTier(id) : 0;
+                const nextThreshold = codexMgr ? codexMgr.getNextEnemyThreshold(id) : 1;
+                return {
+                    id,
+                    category: 'enemies',
+                    isEnemy: true,
+                    enemyConfig: cfg,
+                    codexTier: cfg.codexTier || 'common',
+                    kills,
+                    tier,
+                    nextThreshold,
+                    name: cfg.codexName || id,
+                    tag: tier >= 3 ? 'TIER 3/3 (MAX)' : `TIER ${tier}/3`,
+                    subtitle: `KILLS: ${kills}${nextThreshold ? ` • NEXT TIER AT ${nextThreshold}` : ' • MAX INTEL UNLOCKED'}`,
+                    color: cfg.color || '#ff5555',
+                    description: cfg.codexDescription || '',
+                    statsText: this._formatEnemyCodexStats(cfg)
+                };
+            });
         }
 
-        const discoveredCount = entries.filter(e => codexMgr && codexMgr.isDiscovered(e.category, e.id)).length;
+        const discoveredCount = entries.filter(e =>
+            e.isEnemy ? e.tier >= 1 : (codexMgr && codexMgr.isDiscovered(e.category, e.id))
+        ).length;
 
         ctx.save();
         ctx.fillStyle = '#00ffcc';
@@ -3030,7 +3203,9 @@ export default class MenuManager {
 
             if (cy + cardH < gridTopY || cy > gridTopY + gridH) return;
 
-            const isDiscovered = codexMgr ? codexMgr.isDiscovered(entry.category, entry.id) : false;
+            const isDiscovered = entry.isEnemy
+                ? entry.tier >= 1
+                : (codexMgr ? codexMgr.isDiscovered(entry.category, entry.id) : false);
             const isSelected = this.selectedAugmentItem &&
                 this.selectedAugmentItem.source === 'codexEntry' &&
                 this.selectedAugmentItem.key === `${entry.category}:${entry.id}`;
@@ -3047,14 +3222,25 @@ export default class MenuManager {
             ctx.strokeRect(cx, cy, cardW, cardH);
 
             if (isDiscovered) {
+                const textMaxW = entry.isEnemy ? cardW - 60 : cardW - 20;
                 ctx.fillStyle = entry.color;
                 ctx.font = 'bold 15px "VT323", monospace';
                 ctx.textAlign = 'left';
-                ctx.fillText(`[${entry.tag}]`, cx + 10, cy + 22);
+                ctx.fillText(`[${entry.tag}]`, cx + 10, cy + 22, textMaxW);
 
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 19px "VT323", monospace';
-                ctx.fillText(entry.name.toUpperCase(), cx + 10, cy + 48);
+                ctx.fillText(entry.name.toUpperCase(), cx + 10, cy + 48, textMaxW);
+
+                if (entry.isEnemy) {
+                    ctx.fillStyle = '#88c8d0';
+                    ctx.font = '15px "VT323", monospace';
+                    const killLabel = entry.nextThreshold
+                        ? `KILLS: ${entry.kills}/${entry.nextThreshold}`
+                        : `KILLS: ${entry.kills}`;
+                    ctx.fillText(killLabel, cx + 10, cy + 70, textMaxW);
+                    this._drawEnemyCodexIcon(ctx, entry.enemyConfig, cx + cardW - 28, cy + 41, 15);
+                }
             } else {
                 ctx.fillStyle = '#556668';
                 ctx.font = 'bold 15px "VT323", monospace';
@@ -3064,6 +3250,12 @@ export default class MenuManager {
                 ctx.fillStyle = '#778c8f';
                 ctx.font = 'bold 20px "VT323", monospace';
                 ctx.fillText('???', cx + 10, cy + 48);
+
+                if (entry.isEnemy) {
+                    ctx.fillStyle = '#4e5f61';
+                    ctx.font = '15px "VT323", monospace';
+                    ctx.fillText('KILLS: 0/1', cx + 10, cy + 70);
+                }
             }
             ctx.restore();
 
@@ -3118,7 +3310,57 @@ export default class MenuManager {
 
             ctx.fillStyle = '#778c8f';
             ctx.font = '19px "VT323", monospace';
-            ctx.fillText('Obtain or equip this item during a run to unlock its details in the Codex.', innerX + 18, inspY + 72);
+            const hint = sel.data.isEnemy
+                ? 'Eliminate 1 of this enemy type during a run to unlock Tier 1 (Name & Visual).'
+                : 'Obtain or equip this item during a run to unlock its details in the Codex.';
+            ctx.fillText(hint, innerX + 18, inspY + 72);
+        } else if (sel.data.isEnemy) {
+            const e = sel.data;
+            this._drawEnemyCodexIcon(ctx, e.enemyConfig, innerX + 42, inspY + inspectorH / 2, 22);
+            const textX = innerX + 82;
+            const textMaxW = innerW - 100;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px "VT323", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${e.name.toUpperCase()}  [${e.codexTier.toUpperCase()} • ${e.tag}]`, textX, inspY + 28, textMaxW);
+
+            ctx.fillStyle = e.color;
+            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.fillText(e.subtitle, textX, inspY + 50, textMaxW);
+
+            if (e.tier < 2) {
+                ctx.fillStyle = '#778c8f';
+                ctx.font = '19px "VT323", monospace';
+                ctx.fillText(
+                    `TIER 2 LOCKED — Eliminate ${e.nextThreshold - e.kills} more to unlock behavior description.`,
+                    textX,
+                    inspY + 80,
+                    textMaxW
+                );
+            } else {
+                ctx.fillStyle = '#d0e8ec';
+                ctx.font = '18px "VT323", monospace';
+                const descLines = wrapCardText(e.description, textMaxW).slice(0, 2);
+                descLines.forEach((line, lIdx) => {
+                    ctx.fillText(line, textX, inspY + 74 + lIdx * 18, textMaxW);
+                });
+
+                if (e.tier < 3) {
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.font = '17px "VT323", monospace';
+                    ctx.fillText(
+                        `TIER 3 LOCKED — Eliminate ${e.nextThreshold - e.kills} more to unlock detailed stats.`,
+                        textX,
+                        inspY + 110,
+                        textMaxW
+                    );
+                } else {
+                    ctx.fillStyle = '#00ffcc';
+                    ctx.font = 'bold 17px "VT323", monospace';
+                    ctx.fillText(e.statsText, textX, inspY + 110, textMaxW);
+                }
+            }
         } else {
             const e = sel.data;
             ctx.fillStyle = '#ffffff';
@@ -3261,6 +3503,115 @@ export default class MenuManager {
                 }
             });
         });
+
+        ctx.restore();
+    }
+
+    _formatEnemyCodexStats(cfg) {
+        if (!cfg) return '';
+        const parts = [
+            `HP: ${cfg.hp}`,
+            `SPD: ${cfg.speed}`,
+            `SIZE: ${cfg.size}`,
+            `SCORE: ${cfg.scoreValue}`
+        ];
+        if (cfg.isSuicidal) parts.push('SUICIDAL');
+        if (cfg.ranged) parts.push(`RANGED (${(cfg.ranged.fireRate / 1000).toFixed(1)}s CD, SPD ${cfg.ranged.projectileSpeed})`);
+        if (cfg.emp) parts.push(`EMP (${cfg.emp.radius}px, ${(cfg.emp.disableDuration / 1000).toFixed(1)}s JAM, ${(cfg.emp.cooldown / 1000).toFixed(1)}s CD)`);
+        if (cfg.dasher) parts.push(`DASH (SPD ${cfg.dasher.dashSpeed}, ${(cfg.dasher.cooldown / 1000).toFixed(1)}s CD)`);
+        if (cfg.virus) parts.push(`VIRUS (${Math.round(cfg.virus.glitchChance * 100)}% GLITCH, ${Math.round(cfg.virus.rangedMutationChance * 100)}% RANGED, ${Math.round(cfg.virus.virusCloneChance * 100)}% CLONE)`);
+        if (cfg.splitCount) parts.push(`SPLITS: ${cfg.splitCount} SHARDS (2 HP, 0.22 SPD)`);
+        if (cfg.shieldAura) parts.push(`AURA (${cfg.shieldAura.radius}px, -${Math.round(cfg.shieldAura.damageReduction * 100)}% DMG)`);
+        if (cfg.isVirusGlitched) parts.push('RANDOMIZED STATS');
+        return parts.join('  |  ');
+    }
+
+    _drawEnemyCodexIcon(ctx, cfg, cx, cy, radius) {
+        if (!cfg) return;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.strokeStyle = cfg.color || '#ffffff';
+        ctx.fillStyle = `${cfg.color || '#ffffff'}33`;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = cfg.color || '#ffffff';
+
+        const drawShape = (shape, r) => {
+            ctx.beginPath();
+            if (shape === 'CIRCLE') {
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+            } else if (shape === 'SQUARE') {
+                ctx.rect(-r * 0.85, -r * 0.85, r * 1.7, r * 1.7);
+            } else if (shape === 'TRIANGLE') {
+                for (let i = 0; i < 3; i++) {
+                    const a = -Math.PI / 2 + (i * Math.PI * 2) / 3;
+                    const px = Math.cos(a) * r;
+                    const py = Math.sin(a) * r;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+            } else if (shape === 'HEXAGON') {
+                for (let i = 0; i < 6; i++) {
+                    const a = (i * Math.PI) / 3;
+                    const px = Math.cos(a) * r;
+                    const py = Math.sin(a) * r;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+            } else {
+                // RHOMBUS
+                ctx.moveTo(0, -r);
+                ctx.lineTo(r * 0.85, 0);
+                ctx.lineTo(0, r);
+                ctx.lineTo(-r * 0.85, 0);
+                ctx.closePath();
+            }
+            ctx.fill();
+            ctx.stroke();
+        };
+
+        if (cfg.specialType === 'GLITCHED') {
+            ctx.save();
+            ctx.translate(-2, 0);
+            ctx.strokeStyle = '#ff00ff';
+            drawShape(cfg.type, radius);
+            ctx.restore();
+            ctx.save();
+            ctx.translate(2, 0);
+            ctx.strokeStyle = '#00ffcc';
+            drawShape(cfg.type, radius);
+            ctx.restore();
+        } else {
+            drawShape(cfg.type, radius);
+        }
+
+        if (cfg.specialType === 'EMP') {
+            ctx.beginPath();
+            ctx.setLineDash([3, 3]);
+            ctx.arc(0, 0, radius + 4, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        } else if (cfg.specialType === 'SHIELD_BEARER') {
+            ctx.beginPath();
+            ctx.strokeStyle = '#66aaff';
+            ctx.arc(0, 0, radius + 4, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (cfg.specialType === 'VIRUS') {
+            ctx.beginPath();
+            ctx.fillStyle = '#b4ff00';
+            ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (cfg.specialType === 'SPLITTER') {
+            ctx.beginPath();
+            ctx.strokeStyle = '#ffcc55';
+            ctx.moveTo(-radius * 0.5, 0);
+            ctx.lineTo(radius * 0.5, 0);
+            ctx.moveTo(0, -radius * 0.5);
+            ctx.lineTo(0, radius * 0.5);
+            ctx.stroke();
+        }
 
         ctx.restore();
     }

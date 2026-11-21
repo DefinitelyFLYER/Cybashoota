@@ -172,30 +172,32 @@ export default class UpgradeManager {
             return upgrade;
         });
 
+        return this._pickWeightedItems(pool, count, luck);
+    }
+
+    _pickWeightedItems(pool, count, luck = 1) {
+        const available = [...pool];
         const selected = [];
+        const getWeight = (item) => {
+            let w = item.weight || 100;
+            if (item.rarity === 'Rare') w *= luck;
+            if (item.rarity === 'Epic') w *= (luck * 0.5);
+            if (item.rarity === 'Legendary') w *= (luck * 0.1);
+            return w;
+        };
+
         for (let i = 0; i < count; i++) {
-            if (pool.length === 0) break;
+            if (available.length === 0) break;
 
             let totalWeight = 0;
-            pool.forEach(u => {
-                let w = u.weight || 100;
-                if (u.rarity === 'Rare') w *= luck;
-                if (u.rarity === 'Epic') w *= (luck * 0.5);
-                if (u.rarity === 'Legendary') w *= (luck * 0.1);
-                totalWeight += w;
-            });
+            available.forEach(item => { totalWeight += getWeight(item); });
 
             let random = Math.random() * totalWeight;
-            for (let j = 0; j < pool.length; j++) {
-                let w = pool[j].weight || 100;
-                if (pool[j].rarity === 'Rare') w *= luck;
-                if (pool[j].rarity === 'Epic') w *= (luck * 0.5);
-                if (pool[j].rarity === 'Legendary') w *= (luck * 0.1);
-                
-                random -= w;
+            for (let j = 0; j < available.length; j++) {
+                random -= getWeight(available[j]);
                 if (random <= 0) {
-                    selected.push(pool[j]);
-                    pool.splice(j, 1);
+                    selected.push(available[j]);
+                    available.splice(j, 1);
                     break;
                 }
             }
@@ -236,8 +238,8 @@ export default class UpgradeManager {
         }
         
         const remainingCount = count - selected.length;
-        const shuffledUpgrades = availableUpgrades.sort(() => 0.5 - Math.random());
-        selected.push(...shuffledUpgrades.slice(0, remainingCount));
+        const luck = player.stats.luck || 1;
+        selected.push(...this._pickWeightedItems(availableUpgrades, remainingCount, luck));
 
         return selected.sort(() => 0.5 - Math.random());
     }
@@ -483,7 +485,7 @@ export default class UpgradeManager {
         ctx.save();
         this._drawCardFrame(ctx, x, y, cardW, cardH, isSelected, borderColor);
         this._drawCardIcon(ctx, item, x, y, cardW);
-        this._drawCardText(ctx, item, x, y, cardW);
+        this._drawCardText(ctx, item, x, y, cardW, cardH);
         this._drawCardFooter(ctx, item, x, y, cardW, cardH, mainColor); 
         ctx.restore();
     }
@@ -515,20 +517,58 @@ export default class UpgradeManager {
         }
     }
 
-    _drawCardText(ctx, item, x, y, cardW) {
+    _drawCardText(ctx, item, x, y, cardW, cardH = 320) {
         const fonts = this._getMenuFonts();
-        ctx.fillStyle = '#fff'; ctx.font = fonts.cardTitle || fonts.cardName; ctx.textAlign = 'center';
-        ctx.fillText(item.name.toUpperCase(), x + cardW / 2, y + 140);
-        ctx.font = fonts.cardDescription; ctx.fillStyle = '#aaa';
-        this._wrapText(ctx, item.description, x + 20, y + 180, cardW - 40, 16);
+        const centerX = x + cardW / 2;
+        const maxTitleW = cardW - 24;
+        const baseTitleFont = fonts.cardTitle || fonts.cardName || 'bold 24px "VT323", monospace';
+        const titleFit = this._fitTextLines(ctx, (item.name || '').toUpperCase(), baseTitleFont, maxTitleW, 2, 16);
+        const titleLineH = Math.max(16, Math.round(titleFit.size * 0.92));
+        const titleStartY = titleFit.lines.length > 1 ? y + 126 : y + 140;
+
+        ctx.fillStyle = '#fff';
+        ctx.font = titleFit.font;
+        ctx.textAlign = 'center';
+        titleFit.lines.forEach((line, i) => {
+            ctx.fillText(line, centerX, titleStartY + i * titleLineH, maxTitleW);
+        });
+
+        const titleBottomY = titleStartY + Math.max(0, titleFit.lines.length - 1) * titleLineH;
+        const descStartY = Math.max(y + 174, titleBottomY + 26);
+        const descMaxY = item.requirementText ? (y + cardH - 60) : (y + cardH - 36);
+        const maxDescW = cardW - 32;
+        const baseDescFont = fonts.cardDescription || '20px "VT323", monospace';
+        const baseDescSize = this._getFontSize(baseDescFont, 20);
+
+        let chosenDescFont = baseDescFont;
+        let chosenLineH = 16;
+        let chosenLines = [];
+        for (let size = baseDescSize; size >= 13; size -= 1) {
+            chosenDescFont = this._scaleFont(baseDescFont, size);
+            ctx.font = chosenDescFont;
+            chosenLineH = Math.max(12, Math.round(size * 0.85));
+            chosenLines = this._wrapLines(ctx, item.description || '', maxDescW);
+            const endY = descStartY + Math.max(0, chosenLines.length - 1) * chosenLineH;
+            const allFitW = chosenLines.every(line => ctx.measureText(line).width <= maxDescW);
+            if ((endY <= descMaxY && allFitW) || size === 13) {
+                break;
+            }
+        }
+
+        ctx.font = chosenDescFont;
+        ctx.fillStyle = '#aaa';
+        chosenLines.forEach((line, i) => {
+            ctx.fillText(line, centerX, descStartY + i * chosenLineH, cardW - 24);
+        });
     }
 
     _drawCardFooter(ctx, item, x, y, cardW, cardH, mainColor) {
         const fonts = this._getMenuFonts();
+        const maxFooterW = cardW - 24;
         if (item.requirementText) {
             ctx.save(); ctx.font = fonts.cardRequirement; ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
             ctx.shadowBlur = 5; ctx.shadowColor = '#ffcc00';
-            ctx.fillText(item.requirementText.toUpperCase(), x + cardW / 2, y + cardH - 45);
+            ctx.fillText(item.requirementText.toUpperCase(), x + cardW / 2, y + cardH - 45, maxFooterW);
             ctx.restore();
         }
         
@@ -540,7 +580,9 @@ export default class UpgradeManager {
         ctx.shadowColor = mainColor;
         
         let label = 'SYSTEM MODULE';
-        if (item.rarity) {
+        if (item.rarity && item.targetBehaviors) {
+            label = `${item.rarity.toUpperCase()} • ${item.targetBehaviors.join(' & ').toUpperCase()}`;
+        } else if (item.rarity) {
             label = item.rarity.toUpperCase();
         } else if (item.behavior) {
             label = `TYPE: ${item.behavior.toUpperCase()}`;
@@ -548,7 +590,7 @@ export default class UpgradeManager {
             label = `TYPE: ${item.targetBehaviors.join(' & ').toUpperCase()}`;
         }
 
-        ctx.fillText(label, x + cardW / 2, y + cardH - 20);
+        ctx.fillText(label, x + cardW / 2, y + cardH - 20, maxFooterW);
         ctx.restore();
     }
 
@@ -608,18 +650,56 @@ export default class UpgradeManager {
         }
     }
 
-    _wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-        const words = text.split(' ');
-        let line = '';
-        for(let n = 0; n < words.length; n++) {
-            let testLine = line + words[n] + ' ';
-            let metrics = ctx.measureText(testLine);
-            if (metrics.width > maxWidth && n > 0) {
-                ctx.fillText(line, x + maxWidth/2, y);
-                line = words[n] + ' ';
-                y += lineHeight;
-            } else { line = testLine; }
+    _getFontSize(fontStr, fallback = 20) {
+        const match = /(\d+(?:\.\d+)?)px/.exec(fontStr || '');
+        return match ? parseFloat(match[1]) : fallback;
+    }
+
+    _scaleFont(fontStr, targetSize) {
+        if (!fontStr) return `${targetSize}px "VT323", monospace`;
+        return /(\d+(?:\.\d+)?)px/.test(fontStr)
+            ? fontStr.replace(/(\d+(?:\.\d+)?)px/, `${targetSize}px`)
+            : fontStr;
+    }
+
+    _wrapLines(ctx, text, maxWidth) {
+        const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+        if (words.length === 0) return [''];
+        const lines = [];
+        let line = words[0];
+        for (let i = 1; i < words.length; i++) {
+            const testLine = `${line} ${words[i]}`;
+            if (ctx.measureText(testLine).width > maxWidth) {
+                lines.push(line);
+                line = words[i];
+            } else {
+                line = testLine;
+            }
         }
-        ctx.fillText(line, x + maxWidth/2, y);
+        lines.push(line);
+        return lines;
+    }
+
+    _fitTextLines(ctx, text, baseFont, maxWidth, maxLines = 2, minSize = 14) {
+        const baseSize = this._getFontSize(baseFont, 24);
+        for (let size = baseSize; size >= minSize; size -= 2) {
+            const font = this._scaleFont(baseFont, size);
+            ctx.font = font;
+            const lines = this._wrapLines(ctx, text, maxWidth);
+            const allFitWidth = lines.every(line => ctx.measureText(line).width <= maxWidth);
+            if (lines.length <= maxLines && allFitWidth) {
+                return { font, size, lines };
+            }
+        }
+        const fallbackFont = this._scaleFont(baseFont, minSize);
+        ctx.font = fallbackFont;
+        return { font: fallbackFont, size: minSize, lines: this._wrapLines(ctx, text, maxWidth) };
+    }
+
+    _wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+        const lines = this._wrapLines(ctx, text, maxWidth);
+        lines.forEach((line, idx) => {
+            ctx.fillText(line, x + maxWidth / 2, y + idx * lineHeight, maxWidth);
+        });
     }
 }

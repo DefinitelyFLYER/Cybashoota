@@ -8,6 +8,9 @@ export default class Player {
         this.invulnerable = 0;
         this.ghostActive = false;
         this.ghostTimer = 0;
+        this.overloadBarrageTimer = 0;
+        this.empDisruptedTimer = 0;
+        this.empDisruptedTimer = 0;
         this.level = 1;
         this.xp = 0;
         this.xpNextLevel = 100;
@@ -50,7 +53,15 @@ export default class Player {
             upgradeOptions: 3,
             rerolls: 3,
             maxDrones: 1,
-            maxHackSlots: 1
+            maxHackSlots: 1,
+            explosiveChance: 0,
+            deathBlastDamage: 0,
+            lifeStealChance: 0,
+            executeBonus: 0,
+            superShotInterval: 0,
+            superShotDmgMulti: 2.5,
+            hackCooldownMulti: 1.0,
+            scrapDropMulti: 1.0
         };
 
         this.armorCharges = 0;
@@ -106,8 +117,11 @@ export default class Player {
         }
 
         if (this.baseStats[name] !== undefined) {
-            const mult = Math.max(0.1, this.multipliers[name]);
-            if (name === 'fireRate') return this.baseStats[name] / mult;
+            let mult = Math.max(0.1, this.multipliers[name]);
+            if (name === 'fireRate') {
+                if (this.overloadBarrageTimer > 0) mult += 0.6;
+                return this.baseStats[name] / mult;
+            }
             return this.baseStats[name] * mult;
         }
         return this.stats[name];
@@ -129,6 +143,9 @@ export default class Player {
         this.invulnerable = 0;
         this.ghostActive = false;
         this.ghostTimer = 0;
+        this.overloadBarrageTimer = 0;
+        this.empDisruptedTimer = 0;
+        this.empDisruptedTimer = 0;
         this.level = 1;
         this.xp = 0;
         this.xpNextLevel = 100;
@@ -157,7 +174,15 @@ export default class Player {
             upgradeOptions: 3,
             rerolls: 3,
             maxDrones: 1,
-            maxHackSlots: 1
+            maxHackSlots: 1,
+            explosiveChance: 0,
+            deathBlastDamage: 0,
+            lifeStealChance: 0,
+            executeBonus: 0,
+            superShotInterval: 0,
+            superShotDmgMulti: 2.5,
+            hackCooldownMulti: 1.0,
+            scrapDropMulti: 1.0
         };
 
         this.armorCharges = 0;
@@ -255,7 +280,12 @@ export default class Player {
                 particles.emit(this.pos.x, this.pos.y, '#ff9900', 14);
             }
             const synergyMgr = this.game?.getModule('synergies');
-            if (synergyMgr) synergyMgr.onArmorBroken(this);
+            if (synergyMgr) {
+                synergyMgr.onArmorBroken(this);
+                if (synergyMgr.hasSynergy('titan_thorns')) {
+                    this.triggerShockwave({ maxRadius: 180, duration: 500, damage: 8, color: '#4488ff' });
+                }
+            }
             if (augmentMgr) augmentMgr.onPlayerDamagedOrDodged(false);
             return;
         }
@@ -264,6 +294,10 @@ export default class Player {
         const finalDamage = Math.max(1, amount);
         
         this.stats.hp -= finalDamage;
+        const synergyMgr = this.game?.getModule('synergies');
+        if (synergyMgr && synergyMgr.hasSynergy('titan_thorns')) {
+            this.triggerShockwave({ maxRadius: 180, duration: 500, damage: 8, color: '#4488ff' });
+        }
         
         this.invulnerable = 1500;
         if (augmentMgr) augmentMgr.onPlayerDamagedOrDodged(false);
@@ -382,12 +416,19 @@ export default class Player {
     }
 
     _updateGhostState(deltaTime) {
+        if (this.empDisruptedTimer > 0) {
+            this.empDisruptedTimer = Math.max(0, this.empDisruptedTimer - deltaTime);
+        }
         if (!this.ghostActive) return;
 
+        if (this.overloadBarrageTimer > 0) {
+            this.overloadBarrageTimer = Math.max(0, this.overloadBarrageTimer - deltaTime);
+        }
         this.ghostTimer -= deltaTime;
         if (this.ghostTimer <= 0) {
             this.ghostActive = false;
             this.ghostTimer = 0;
+        this.overloadBarrageTimer = 0;
         }
     }
 

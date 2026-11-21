@@ -469,6 +469,333 @@ export const SYNERGIES = [
                 check: ({ typeCounts }) => (typeCounts.NETRUNNER || 0) >= 2
             }
         ]
+    },
+    {
+        id: 'cluster_munitions',
+        name: 'Cluster Munitions',
+        color: '#ff8800',
+        description: 'Volatile Shells explosions deal +60% AoE damage and gain +35px blast radius.',
+        requirements: [
+            {
+                label: 'Volatile Shells or Shrapnel Core',
+                revealedInHint: true,
+                check: ({ inventory }) => (inventory.explosive_rounds_epic || 0) > 0 || (inventory.shrapnel_core_legendary || 0) > 0
+            },
+            {
+                label: 'Multishot Protocol or Barrage Array',
+                revealedInHint: false,
+                check: ({ inventory }) => (inventory.multishot || 0) > 0 || (inventory.multishot_legendary || 0) > 0
+            }
+        ]
+    },
+    {
+        id: 'singularity_overcharge',
+        name: 'Singularity Overcharge',
+        color: '#ffcc00',
+        description: 'Super-Shots fire 1 shot sooner and are guaranteed Critical Hits.',
+        requirements: [
+            {
+                label: 'Overcharge Capacitor or Singularity Cannon',
+                revealedInHint: true,
+                check: ({ inventory }) => (inventory.super_shot_epic || 0) > 0 || (inventory.super_shot_legendary || 0) > 0
+            },
+            {
+                label: '2+ STRIKER Augments',
+                revealedInHint: false,
+                check: ({ typeCounts }) => (typeCounts.STRIKER || 0) >= 2
+            }
+        ]
+    },
+    {
+        id: 'blood_tax',
+        name: 'Blood Tax',
+        color: '#ff3366',
+        description: 'Life-Steal procs have a 35% chance to also drop +1 Cyber-Scrap, and Harvester pulses 2x faster.',
+        requirements: [
+            {
+                label: 'Nano-Siphon or Vampiric Protocol',
+                revealedInHint: true,
+                check: ({ inventory }) => (inventory.life_steal_rare || 0) > 0 || (inventory.life_steal_epic || 0) > 0
+            },
+            {
+                label: 'Harvester Drone',
+                revealedInHint: false,
+                check: ({ drones }) => drones.some(d => d.id === 'HARVESTER_DRONE')
+            }
+        ]
+    },
+    {
+        id: 'grim_reaper',
+        name: 'Grim Reaper',
+        color: '#ff2244',
+        description: 'Execute threshold rises to 60% HP, and Sniper Drone deals +50% damage to targets below 60% HP.',
+        requirements: [
+            {
+                label: 'Hunter Protocol or Executioner Chip',
+                revealedInHint: true,
+                check: ({ inventory }) => (inventory.execute_rare || 0) > 0 || (inventory.execute_epic || 0) > 0
+            },
+            {
+                label: 'Sniper Drone',
+                revealedInHint: false,
+                check: ({ drones }) => drones.some(d => d.id === 'SNIPER_DRONE')
+            }
+        ]
+    },
+    {
+        id: 'pyro_ricochet',
+        name: 'Pyro Ricochet',
+        color: '#ffaa00',
+        description: 'Bouncing projectiles trigger a guaranteed explosive blast on their final bounce.',
+        requirements: [
+            {
+                label: 'Ricochet Module or Ricochet Mastery',
+                revealedInHint: true,
+                check: ({ inventory }) => (inventory.ricochet_logic || 0) > 0 || (inventory.advanced_ricochet_module || 0) > 0
+            },
+            {
+                label: 'Volatile Shells',
+                revealedInHint: false,
+                check: ({ inventory }) => (inventory.explosive_rounds_epic || 0) > 0
+            }
+        ]
+    },
+    {
+        id: 'scrap_alchemist',
+        name: 'Scrap Alchemist',
+        color: '#00ffcc',
+        description: 'Activating Data Siphon immediately grants +2 Cyber-Scrap.',
+        requirements: [
+            {
+                label: 'Data Siphon Hack',
+                revealedInHint: true,
+                check: ({ hacks }) => hacks.includes('DATA_SIPHON')
+            },
+            {
+                label: 'Salvage Scanner',
+                revealedInHint: false,
+                check: ({ inventory }) => (inventory.scrap_hunter_rare || 0) > 0
+            }
+        ]
+    },
+    {
+        id: 'decoys_from_hell',
+        name: 'Phantom Decoys',
+        color: '#ff55ff',
+        description: 'Holo-Decoy pulse deals 2x damage and grants +20% Crit Chance while active.',
+        requirements: [
+            {
+                label: 'Holo-Decoy Hack',
+                revealedInHint: true,
+                check: ({ hacks }) => hacks.includes('HOLO_DECOY')
+            },
+            {
+                label: '2+ GHOST Augments',
+                revealedInHint: false,
+                check: ({ typeCounts }) => (typeCounts.GHOST || 0) >= 2
+            }
+        ]
+    },
+    {
+        id: 'tesla_saw',
+        name: 'Plasma Sawblade',
+        color: '#00e5ff',
+        description: 'Cyber-Saw strikes deal +3 bonus damage and release a mini lightning arc (3 DMG) to a nearby enemy.',
+        requirements: [
+            {
+                label: 'Arc Drone',
+                revealedInHint: true,
+                check: ({ drones }) => drones.some(d => d.id === 'ARC_DRONE')
+            },
+            {
+                label: 'Cyber-Saw Drone',
+                revealedInHint: false,
+                check: ({ drones }) => drones.some(d => d.id === 'SAW_DRONE')
+            }
+        ]
+    },
+    {
+        id: 'aegis_sniper',
+        name: 'Counter-Battery',
+        color: '#44aaff',
+        description: 'Aegis Drone intercepts empower Sniper Drone with +40% Fire Rate & +2 Damage.',
+        requirements: [
+            {
+                label: 'Aegis Drone',
+                revealedInHint: true,
+                check: ({ drones }) => drones.some(d => d.id === 'SHIELD_DEFENDER')
+            },
+            {
+                label: 'Sniper Drone',
+                revealedInHint: false,
+                check: ({ drones }) => drones.some(d => d.id === 'SNIPER_DRONE')
+            }
+        ]
+    },
+    {
+        id: 'saw_assault',
+        name: 'Lead Grinder',
+        color: '#ff6600',
+        description: 'Assault Drone fires 25% faster and Cyber-Saw gains +35% Dash Speed.',
+        requirements: [
+            {
+                label: 'Assault Drone',
+                revealedInHint: true,
+                check: ({ drones }) => drones.some(d => d.id === 'BASIC_SHOOTER')
+            },
+            {
+                label: 'Cyber-Saw Drone',
+                revealedInHint: false,
+                check: ({ drones }) => drones.some(d => d.id === 'SAW_DRONE')
+            }
+        ]
+    },
+    {
+        id: 'emp_harvester',
+        name: 'Magnetized Surge',
+        color: '#00ff88',
+        description: 'Harvester Drone gains +60% Pickup Range and Arc Drone gains +3 Lightning Damage.',
+        requirements: [
+            {
+                label: 'Arc Drone',
+                revealedInHint: true,
+                check: ({ drones }) => drones.some(d => d.id === 'ARC_DRONE')
+            },
+            {
+                label: 'Harvester Drone',
+                revealedInHint: false,
+                check: ({ drones }) => drones.some(d => d.id === 'HARVESTER_DRONE')
+            }
+        ]
+    },
+    {
+        id: 'rail_piercer',
+        name: 'Hyper-Railgun',
+        color: '#00ffff',
+        description: 'Piercing projectiles gain +25% damage for each enemy already pierced (up to +100%).',
+        requirements: [
+            {
+                label: 'Piercing Rounds or Railgun Protocol',
+                revealedInHint: true,
+                check: ({ inventory }) => (inventory.penetration_module || 0) > 0 || (inventory.heavy_railgun || 0) > 0
+            },
+            {
+                label: 'Hyper-Velocity Barrel',
+                revealedInHint: false,
+                check: ({ inventory }) => (inventory.bullet_speed_rare || 0) > 0
+            }
+        ]
+    },
+    {
+        id: 'titan_thorns',
+        name: 'Reactive Thorns',
+        color: '#4488ff',
+        description: 'Taking a hit (or losing an Armor Shield) unleashes a 180px shockwave dealing 8 damage.',
+        requirements: [
+            {
+                label: 'Titan Shell or Reactive Plating',
+                revealedInHint: true,
+                check: ({ inventory }) => (inventory.armor || 0) > 0 || (inventory.armor_regen_rare || 0) > 0
+            },
+            {
+                label: '2+ TITAN Augments',
+                revealedInHint: false,
+                check: ({ typeCounts }) => (typeCounts.TITAN || 0) >= 2
+            }
+        ]
+    },
+    {
+        id: 'overload_barrage',
+        name: 'Overload Barrage',
+        color: '#ff0055',
+        description: 'Activating Overload deals 2x blast damage and grants +60% Fire Rate & +1 Penetration for 4s.',
+        requirements: [
+            {
+                label: 'Overload Hack',
+                revealedInHint: true,
+                check: ({ hacks }) => hacks.includes('OVERLOAD')
+            },
+            {
+                label: 'Turbo Overclock or Hyper-Cycle Core',
+                revealedInHint: false,
+                check: ({ inventory }) => (inventory.rapid_fire_rare || 0) > 0 || (inventory.rapid_fire_epic || 0) > 0
+            }
+        ]
+    },
+    {
+        id: 'jammer_execute',
+        name: 'Signal Execution',
+        color: '#bc00ff',
+        description: 'While Signal Jammer is active, Execute bonus applies to all enemies regardless of HP.',
+        requirements: [
+            {
+                label: 'Signal Jammer Hack',
+                revealedInHint: true,
+                check: ({ hacks }) => hacks.includes('SIGNAL_JAMMER')
+            },
+            {
+                label: 'Hunter Protocol or Executioner Chip',
+                revealedInHint: false,
+                check: ({ inventory }) => (inventory.execute_rare || 0) > 0 || (inventory.execute_epic || 0) > 0
+            }
+        ]
+    },
+    {
+        id: 'crit_overload',
+        name: 'Critical Overload',
+        color: '#ffff00',
+        description: 'Critical hits shave 0.25s off your active Hack cooldown.',
+        requirements: [
+            {
+                label: 'Precision Optics or Apex Targeting',
+                revealedInHint: true,
+                check: ({ inventory }) => (inventory.crit_mastery_epic || 0) > 0 || (inventory.crit_overdrive_legendary || 0) > 0
+            },
+            {
+                label: 'Quick-Boot Daemon',
+                revealedInHint: false,
+                check: ({ inventory }) => (inventory.hack_cooldown_rare || 0) > 0
+            }
+        ]
+    },
+    {
+        id: 'glass_vampire',
+        name: 'Crimson Glass',
+        color: '#ff0044',
+        description: 'Deals +30% projectile damage and doubles your Life-Steal trigger chance.',
+        requirements: [
+            {
+                label: 'Glass Cannon',
+                revealedInHint: true,
+                check: ({ inventory }) => (inventory.glass_cannon || 0) > 0
+            },
+            {
+                label: 'Nano-Siphon or Vampiric Protocol',
+                revealedInHint: false,
+                check: ({ inventory }) => (inventory.life_steal_rare || 0) > 0 || (inventory.life_steal_epic || 0) > 0
+            }
+        ]
+    },
+    {
+        id: 'swarm_protocol',
+        name: 'Swarm Protocol',
+        color: '#00ffcc',
+        description: 'All Drones gain +25% Action/Fire Rate and +2 Combat Damage.',
+        requirements: [
+            {
+                label: '3+ Active Drones',
+                revealedInHint: true,
+                check: ({ drones }) => drones.length >= 3
+            },
+            {
+                label: 'Core Overclock, Combat AI, or Swarm Singularity',
+                revealedInHint: false,
+                check: ({ droneInventory }) =>
+                    (droneInventory.drone_global_dmg || 0) > 0 ||
+                    (droneInventory.drone_global_combat_ai || 0) > 0 ||
+                    (droneInventory.drone_global_apex || 0) > 0
+            }
+        ]
     }
 ];
 

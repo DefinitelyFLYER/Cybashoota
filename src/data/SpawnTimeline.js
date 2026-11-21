@@ -61,7 +61,7 @@ export const SPAWN_TIMELINE = [
     {
         name: "Triangles... everywhere.",
         start: 120, end: 180,
-        types: ["TRIANGLE"],
+        types: ["TRIANGLE", "DASHER"],
         rate: 150,
         hpMultiplier: 1, speedMultiplier: 0.8,
         xpDrop: { value: 10, color: '#ffff00' } 
@@ -69,7 +69,7 @@ export const SPAWN_TIMELINE = [
     {
         name: "Data Breach: Chaos outbreak",
         start: 180, end: 200,
-        types: ["SQUARE", "CIRCLE"],
+        types: ["SQUARE", "CIRCLE", "GLITCHED", "VIRUS"],
         rate: 500,
         hpMultiplier: 1.2, speedMultiplier: 1.2,
         xpDrop: { value: 20, color: '#ffff1d' }
@@ -77,7 +77,7 @@ export const SPAWN_TIMELINE = [
     {
         name: "The Elite arrives",
         start: 200, end: 220,
-        types: ["RHOMBUS", "HEXAGON"],
+        types: ["RHOMBUS", "HEXAGON", "SHIELD_BEARER"],
         rate: 5000,
         hpMultiplier: 2, speedMultiplier: 1.1,
         xpDrop: { value: 50, color: '#ffff8c' }
@@ -85,7 +85,7 @@ export const SPAWN_TIMELINE = [
     {
         name: "The real Elite arrives..",
         start: 220, end: 300,
-        types: ["SQUARE", "RHOMBUS", "HEXAGON"],
+        types: ["SQUARE", "RHOMBUS", "HEXAGON", "DASHER", "SPLITTER", "EMP"],
         rate: 1500,
         hpMultiplier: 2.2, speedMultiplier: 1.5,
         xpDrop: { value: 50, color: '#ffff8c' }
@@ -93,7 +93,7 @@ export const SPAWN_TIMELINE = [
     {
         name: "Easy enough?",
         start: 300, end: 360,
-        types: ["TRIANGLE", "SQUARE"],
+        types: ["TRIANGLE", "SQUARE", "DASHER", "GLITCHED"],
         rate: 350,
         hpMultiplier: 2.8, speedMultiplier: 1.8,
         xpDrop: { value: 30, color: '#ffff41' }
@@ -101,7 +101,7 @@ export const SPAWN_TIMELINE = [
     {
         name: "What is this..",
         start: 360, end: 480,
-        types: ["TRIANGLE", "SQUARE", "CIRCLE", "HEXAGON", "RHOMBUS"],
+        types: ["TRIANGLE", "SQUARE", "CIRCLE", "HEXAGON", "RHOMBUS", "SPLITTER", "SHIELD_BEARER", "VIRUS"],
         rate: 600,
         hpMultiplier: 3.8, speedMultiplier: 2,
         xpDrop: { value: 100, color: '#ffffab' }
@@ -109,7 +109,7 @@ export const SPAWN_TIMELINE = [
     {
         name: "Critical Overload",
         start: 480, end: 600,
-        types: ["RHOMBUS", "HEXAGON", "SENTRY"],
+        types: ["RHOMBUS", "HEXAGON", "SENTRY", "EMP", "SHIELD_BEARER", "DASHER"],
         rate: 800,
         hpMultiplier: 5.5, speedMultiplier: 2.3,
         xpDrop: { value: 150, color: '#ffffff' }
@@ -117,7 +117,7 @@ export const SPAWN_TIMELINE = [
     {
         name: "You can't win",
         start: 600, end: 900,
-        types: ["TRIANGLE", "SQUARE", "CIRCLE", "RHOMBUS", "HEXAGON", "SENTRY"],
+        types: ["TRIANGLE", "SQUARE", "CIRCLE", "RHOMBUS", "HEXAGON", "SENTRY", "EMP", "DASHER", "GLITCHED", "VIRUS", "SPLITTER", "SHIELD_BEARER"],
         rate: 400,
         hpMultiplier: 7, speedMultiplier: 2.3,
         xpDrop: { value: 1000, color: '#ff8400' }

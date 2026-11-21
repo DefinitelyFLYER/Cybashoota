@@ -3,6 +3,7 @@ export default class ProjectileManager {
         this.projectiles = [];
         this.enemyProjectiles = [];
         this.lastFireTime = 0;
+        this._burstCounter = 0;
         
         this.mouseX = 0;
         this.mouseY = 0;
@@ -32,6 +33,7 @@ export default class ProjectileManager {
         this.projectiles = [];
         this.enemyProjectiles = [];
         this.lastFireTime = 0;
+        this._burstCounter = 0;
         this.isMouseDown = false;
         this.gamepadAimX = 0;
         this.gamepadAimY = 0;
@@ -323,6 +325,18 @@ export default class ProjectileManager {
         const bulletSpeed = player.getStat('bulletSpeed');
         const projectileSize = player.getStat('projectileSize');
 
+        const synergyMgr = this.game?.getModule('synergies');
+        const hackMgr = this.game?.getModule('hack');
+        this._burstCounter = (this._burstCounter || 0) + 1;
+        let superInterval = player.stats.superShotInterval || 0;
+        const hasSingularityOvercharge = synergyMgr && synergyMgr.hasSynergy('singularity_overcharge');
+        if (superInterval > 0 && hasSingularityOvercharge) {
+            superInterval = Math.max(2, superInterval - 1);
+        }
+        const isSuperShot = superInterval > 0 && (this._burstCounter % superInterval === 0);
+        const decoyCritBonus = (hackMgr?.activeDecoy && synergyMgr && synergyMgr.hasSynergy('decoys_from_hell')) ? 0.20 : 0;
+        const overloadPierceBonus = (player.overloadBarrageTimer > 0 && synergyMgr && synergyMgr.hasSynergy('overload_barrage')) ? 1 : 0;
+
         for (let i = 0; i < count; i++) {
             let offset = 0;
             if (count > 1) {
@@ -330,25 +344,29 @@ export default class ProjectileManager {
             }
 
             const finalAngle = baseAngle + offset;
-            
-            this.projectiles.push({
+            const proj = {
                 x: center.x,
                 y: center.y,
                 vx: Math.cos(finalAngle) * bulletSpeed,
                 vy: Math.sin(finalAngle) * bulletSpeed,
-                size: 10 * projectileSize,
+                size: 10 * projectileSize * (isSuperShot ? 1.7 : 1),
                 life: 2000,
-                isCrit: Math.random() < player.getStat('critChance'),
+                isCrit: (isSuperShot && hasSingularityOvercharge) || (Math.random() < (player.getStat('critChance') + decoyCritBonus)),
                 bounces: player.getStat('ricochetCount'),
-                penetration: player.getStat('penetration') || 0,
+                penetration: (player.getStat('penetration') || 0) + (isSuperShot ? 2 : 0) + overloadPierceBonus,
                 hitEnemies: new Set(),
                 lastHitEnemy: null
-            });
+            };
+            if (isSuperShot) {
+                proj.isSuperShot = true;
+                proj.color = '#ffcc00';
+                proj.damage = player.getStat('damage') * (player.stats.superShotDmgMulti || 2.5);
+            }
+            this.projectiles.push(proj);
         }
         this.crosshairPulse = 1.0;
 
         // Synergy: Chrono-Mirage (2 phantom turret clones mirror shots while Ghost Protocol is active)
-        const synergyMgr = this.game?.getModule('synergies');
         if (player.ghostActive && synergyMgr && synergyMgr.hasSynergy('chrono_mirage')) {
             const cloneOffsets = [
                 { x: -46, y: -22 },

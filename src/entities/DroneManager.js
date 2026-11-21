@@ -88,29 +88,35 @@ export default class DroneManager {
         const input = this.game.getModule('input');
         if (!player) return;
 
+        const isEmpDisrupted = (player.empDisruptedTimer || 0) > 0;
+
         for (const drone of this.drones) {
-            drone.actionTimer += deltaTime;
+            if (!isEmpDisrupted) {
+                drone.actionTimer += deltaTime;
+            }
 
             let isIntercepting = false;
-            switch (drone.behavior) {
-                case 'RANGED':
-                    this._handleRangedBehavior(drone, deltaTime);
-                    break;
-                case 'INTERCEPTOR':
-                    isIntercepting = this._handleInterceptorBehavior(drone, deltaTime);
-                    break;
-                case 'DEBUFF':
-                    this._handleDebuffBehavior(drone, deltaTime);
-                    break;
-                case 'TESLA':
-                    this._handleTeslaBehavior(drone, deltaTime);
-                    break;
-                case 'SUPPORT':
-                    isIntercepting = this._handleSupportBehavior(drone, deltaTime);
-                    break;
-                case 'MELEE':
-                    isIntercepting = this._handleMeleeBehavior(drone, deltaTime);
-                    break;
+            if (!isEmpDisrupted) {
+                switch (drone.behavior) {
+                    case 'RANGED':
+                        this._handleRangedBehavior(drone, deltaTime);
+                        break;
+                    case 'INTERCEPTOR':
+                        isIntercepting = this._handleInterceptorBehavior(drone, deltaTime);
+                        break;
+                    case 'DEBUFF':
+                        this._handleDebuffBehavior(drone, deltaTime);
+                        break;
+                    case 'TESLA':
+                        this._handleTeslaBehavior(drone, deltaTime);
+                        break;
+                    case 'SUPPORT':
+                        isIntercepting = this._handleSupportBehavior(drone, deltaTime);
+                        break;
+                    case 'MELEE':
+                        isIntercepting = this._handleMeleeBehavior(drone, deltaTime);
+                        break;
+                }
             }
 
             if (!isIntercepting) {
@@ -552,6 +558,24 @@ export default class DroneManager {
                     e.currentHp -= dealt;
                     hitAny = true;
                     if (particles) particles.emit(e.x, e.y, '#ff2244', 4);
+                    if (synergyMgr && synergyMgr.hasSynergy('tesla_saw')) {
+                        let arcTarget = null;
+                        let bestArcD = 180 * 180;
+                        for (const other of enemyMgr.enemies) {
+                            if (other === e || other.currentHp <= 0) continue;
+                            const dSq = (other.x - e.x) ** 2 + (other.y - e.y) ** 2;
+                            if (dSq < bestArcD) {
+                                bestArcD = dSq;
+                                arcTarget = other;
+                            }
+                        }
+                        if (arcTarget) {
+                            arcTarget.currentHp -= 3;
+                            if (synergyMgr.addLightningArc) {
+                                synergyMgr.addLightningArc(e.x, e.y, arcTarget.x, arcTarget.y, '#00e5ff');
+                            }
+                        }
+                    }
                     if (hasBloodGrinder) {
                         drone.sawHitCount = (drone.sawHitCount || 0) + 1;
                         if (drone.sawHitCount >= 25) {
@@ -618,6 +642,7 @@ export default class DroneManager {
         const hasTeslaCoil = isAssault && synergyMgr && synergyMgr.hasSynergy('tesla_coil');
         const hasIonBarrage = isAssault && synergyMgr && synergyMgr.hasSynergy('ion_barrage');
         const hasSpotterCrit = isSniper && synergyMgr && synergyMgr.hasSynergy('spotter_beam') && Boolean(hackMgr?.activeDecoy);
+        const sniperExecuteBonus = (isSniper && synergyMgr && synergyMgr.hasSynergy('grim_reaper') && target.maxHp > 0 && (target.currentHp / target.maxHp) <= 0.60) ? 1.5 : 1.0;
 
         const shotCount = hasBulletChoir ? 3 : 1;
         const spreadRad = 12 * (Math.PI / 180);
@@ -640,7 +665,7 @@ export default class DroneManager {
                 penetration: 0,
                 chainLightning: chainRoll,
                 color: chainRoll > 0 ? '#00bcff' : drone.color,
-                damage: dmg,
+                damage: dmg * sniperExecuteBonus,
                 hitEnemies: new Set(),
                 lastHitEnemy: null
             });
@@ -672,6 +697,12 @@ export default class DroneManager {
             case 'damage':
             case 'collisionDamage': {
                 let dmgBonus = (globalMods.damageBonus || 0) + (specificMods.damageBonus || 0) + setDmgBonus;
+                if (synergyMgr) {
+                    if (synergyMgr.hasSynergy('swarm_protocol')) dmgBonus += 2;
+                    if (drone.id === 'SAW_DRONE' && synergyMgr.hasSynergy('tesla_saw')) dmgBonus += 3;
+                    if (drone.id === 'SNIPER_DRONE' && synergyMgr.hasSynergy('aegis_sniper')) dmgBonus += 2;
+                    if (drone.id === 'ARC_DRONE' && synergyMgr.hasSynergy('emp_harvester')) dmgBonus += 3;
+                }
                 return baseVal + dmgBonus;
             }
                 
@@ -682,11 +713,17 @@ export default class DroneManager {
 
             case 'range': {
                 let rangeMulti = specificMods.rangeMulti || 1;
+                if (drone.id === 'HARVESTER_DRONE' && synergyMgr && synergyMgr.hasSynergy('emp_harvester')) {
+                    rangeMulti *= 1.6;
+                }
                 return baseVal * rangeMulti;
             }
 
             case 'speedMulti': {
-                const baseSpeedMulti = (globalMods.speedMulti || 1) + ((specificMods.speedMulti || 1) - 1);
+                let baseSpeedMulti = (globalMods.speedMulti || 1) + ((specificMods.speedMulti || 1) - 1);
+                if (drone.id === 'SAW_DRONE' && synergyMgr && synergyMgr.hasSynergy('saw_assault')) {
+                    baseSpeedMulti *= 1.35;
+                }
                 return baseSpeedMulti * (1 / setRateMulti);
             }
                 
@@ -694,12 +731,24 @@ export default class DroneManager {
             case 'cooldown':
             case 'actionRate': {
                 let timeMulti = (specificMods[`${statName}Multi`] || 1) * setRateMulti;
-                if (drone.id === 'ARC_DRONE' && synergyMgr && synergyMgr.hasSynergy('ion_barrage')) {
-                    timeMulti *= 0.7;
-                }
-                if (drone.id === 'SNIPER_DRONE' && synergyMgr && synergyMgr.hasSynergy('spotter_beam')) {
-                    const hackMgr = this.game.getModule('hack');
-                    if (hackMgr?.activeDecoy) timeMulti *= 0.5;
+                if (synergyMgr) {
+                    if (synergyMgr.hasSynergy('swarm_protocol')) timeMulti *= 0.8;
+                    if (drone.id === 'ARC_DRONE' && synergyMgr.hasSynergy('ion_barrage')) {
+                        timeMulti *= 0.7;
+                    }
+                    if (drone.id === 'SNIPER_DRONE' && synergyMgr.hasSynergy('aegis_sniper')) {
+                        timeMulti *= 0.71;
+                    }
+                    if (drone.id === 'BASIC_SHOOTER' && synergyMgr.hasSynergy('saw_assault')) {
+                        timeMulti *= 0.8;
+                    }
+                    if (drone.id === 'HARVESTER_DRONE' && synergyMgr.hasSynergy('blood_tax')) {
+                        timeMulti *= 0.5;
+                    }
+                    if (drone.id === 'SNIPER_DRONE' && synergyMgr.hasSynergy('spotter_beam')) {
+                        const hackMgr = this.game.getModule('hack');
+                        if (hackMgr?.activeDecoy) timeMulti *= 0.5;
+                    }
                 }
                 return baseVal * timeMulti;
             }

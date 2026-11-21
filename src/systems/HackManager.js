@@ -12,15 +12,20 @@ export default class HackManager {
                     const enemyManager = game.getModule('enemies');
                     if (!enemyManager || !enemyManager.enemies) return false;
 
-                    for (const enemy of enemyManager.enemies) {
-                        enemy.currentHp = Math.max(0, (enemy.currentHp || 0) - 5);
-                        enemy.speedModifier = 0.3;
-                        enemy.hackDebuffTimer = 4000;
-                    }
-
                     const synergyMgr = game.getModule('synergies');
                     const player = game.getModule('player');
                     const particles = game.getModule('particles');
+                    const hasOverloadBarrage = synergyMgr && synergyMgr.hasSynergy('overload_barrage');
+                    const overloadDmg = hasOverloadBarrage ? 10 : 5;
+
+                    for (const enemy of enemyManager.enemies) {
+                        enemy.currentHp = Math.max(0, (enemy.currentHp || 0) - overloadDmg);
+                        enemy.speedModifier = 0.3;
+                        enemy.hackDebuffTimer = 4000;
+                    }
+                    if (hasOverloadBarrage && player) {
+                        player.overloadBarrageTimer = 4000;
+                    }
 
                     // Synergy: EMP Singularity (pull enemies toward cursor & detonate 12 DMG nova)
                     if (synergyMgr && synergyMgr.hasSynergy('emp_singularity') && player) {
@@ -155,6 +160,9 @@ export default class HackManager {
                     const particles = game.getModule('particles');
 
                     const hasNanoHarvest = synergyMgr && synergyMgr.hasSynergy('nano_harvest');
+                    if (synergyMgr && synergyMgr.hasSynergy('scrap_alchemist') && augmentMgr) {
+                        augmentMgr.scrap += 2;
+                    }
 
                     if (expMgr && expMgr.orbs) {
                         for (const orb of expMgr.orbs) {
@@ -394,7 +402,8 @@ export default class HackManager {
             const enemyMgr = this.game?.getModule('enemies');
             const particles = this.game?.getModule('particles');
             const radius = HACK_DATA.HOLO_DECOY.explosionRadius;
-            const dmg = hasMirageDetonator ? 30 : HACK_DATA.HOLO_DECOY.explosionDamage;
+            const hasDecoySynergy = synergyMgr && synergyMgr.hasSynergy('decoys_from_hell');
+            const dmg = (hasMirageDetonator ? 30 : HACK_DATA.HOLO_DECOY.explosionDamage) * (hasDecoySynergy ? 2 : 1);
 
             if (enemyMgr && enemyMgr.enemies) {
                 for (const e of enemyMgr.enemies) {
@@ -448,6 +457,10 @@ export default class HackManager {
     }
 
     executeHack() {
+        const player = this.game?.getModule('player');
+        if (player && (player.empDisruptedTimer || 0) > 0) {
+            return false;
+        }
         if (this.cooldownTimer > 0 || !this.activeHack) {
             return false;
         }
@@ -471,6 +484,9 @@ export default class HackManager {
         if (synergyMgr && synergyMgr.hasSynergy('ghostwire')) {
             cdMulti *= 0.75;
             synergyMgr.triggerGhostwire();
+        }
+        if (player && player.stats.hackCooldownMulti !== undefined) {
+            cdMulti *= Math.max(0.25, player.stats.hackCooldownMulti);
         }
         this.cooldownTimer = this.cooldownDuration * cdMulti;
         if (augmentMgr) {

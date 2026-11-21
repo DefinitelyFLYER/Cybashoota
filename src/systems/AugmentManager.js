@@ -170,6 +170,7 @@ export default class AugmentManager {
 
         const player = this.game?.getModule('player');
         const luck = player ? player.getStat('luck') : 1.0;
+        const scrapDropMulti = player ? (player.stats.scrapDropMulti || 1.0) : 1.0;
 
         let baseChance = 0;
         if (enemy.type === 'RHOMBUS') {
@@ -180,7 +181,7 @@ export default class AugmentManager {
             baseChance = 0.025;
         } else {
             // 0.5% base chance for basic enemies to drop +1 Cyber-Scrap
-            if (Math.random() < 0.005 * luck) {
+            if (Math.random() < 0.005 * luck * scrapDropMulti) {
                 this.spawnScrapDrop(x, y, 1);
             }
             return;
@@ -1212,7 +1213,7 @@ export default class AugmentManager {
         if (this.ultimateCooldownTimer > 0 || this.ultimateActiveTimer > 0) return false;
 
         const player = this.game?.getModule('player');
-        if (!player) return false;
+        if (!player || (player.empDisruptedTimer || 0) > 0) return false;
 
         const typeKey = this.activeFourPieceType;
         const setDef = AUGMENT_SET_BONUSES[typeKey]?.fourPiece?.active;
