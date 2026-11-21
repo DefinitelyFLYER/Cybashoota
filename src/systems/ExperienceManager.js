@@ -51,6 +51,8 @@ export default class ExperienceManager {
 
             if (distPx < pickupRangePx) {
                 player.addXp(orb.value);
+                const audio = this.game?.getModule('audio');
+                if (audio) audio.play('xp');
                 this.orbs.splice(i, 1);
             }
         }

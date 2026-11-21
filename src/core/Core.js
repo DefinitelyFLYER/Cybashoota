@@ -40,7 +40,10 @@ export default class Game {
                 scale: 1
             },
             audio: {
-                // work in progress
+                muted: false,
+                masterVolume: 0.7,
+                sfxVolume: 0.8,
+                musicVolume: 0.45
             },
             controls: {
                 moveUp: 'KeyW',
@@ -202,6 +205,11 @@ export default class Game {
                     this.isPaused = false;
                 }
             }
+        }
+
+        const audio = this.getModule('audio');
+        if (audio && typeof audio.updateAudioState === 'function') {
+            audio.updateAudioState(deltaTime);
         }
 
         const upgrades = this.getModule('upgrades');

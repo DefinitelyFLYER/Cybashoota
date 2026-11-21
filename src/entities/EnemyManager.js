@@ -383,16 +383,20 @@ export default class EnemyManager {
         let damage = p.damage !== undefined ? p.damage : (playerMod ? playerMod.getStat('damage') : 1);
 
         const synergyMgr = this.game.getModule('synergies');
+        const audio = this.game.getModule('audio');
         if (p.isCrit) {
             damage *= (playerMod ? playerMod.getStat('critMultiplier') : 2);
             const particles = this.game.getModule('particles');
             if (particles) particles.emit(p.x, p.y, '#ffffff', 5);
+            if (audio) audio.play('crit');
             if (synergyMgr && synergyMgr.hasSynergy('crit_overload')) {
                 const hackMgr = this.game.getModule('hack');
                 if (hackMgr && hackMgr.cooldownTimer > 0) {
                     hackMgr.cooldownTimer = Math.max(0, hackMgr.cooldownTimer - 250);
                 }
             }
+        } else if (audio) {
+            audio.play('hit');
         }
 
         if (e.isTagged && e.tagMultiplier) {
@@ -609,6 +613,8 @@ export default class EnemyManager {
 
         const codex = this.game.getModule('codex');
         if (codex && e.codexId) codex.recordEnemyKill(e.codexId);
+        const audio = this.game.getModule('audio');
+        if (audio) audio.play('kill');
         const playerMod = this.game.getModule('player');
         if (playerMod) {
             const synergyMgr = this.game.getModule('synergies');
@@ -764,6 +770,8 @@ export default class EnemyManager {
                 const distToPlayer = Math.hypot(player.pos.x - e.x, player.pos.y - e.y);
                 if (distToPlayer <= e.emp.radius && !player.ghostActive) {
                     player.empDisruptedTimer = Math.max(player.empDisruptedTimer || 0, e.emp.disableDuration);
+                    const audio = this.game.getModule('audio');
+                    if (audio) audio.play('emp');
                     const ui = this.game.getModule('ui');
                     if (ui && ui.showNotification) {
                         ui.showNotification('EMP PULSE: DRONES & HACKS DISRUPTED!', '#00e5ff');

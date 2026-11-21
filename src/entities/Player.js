@@ -266,6 +266,8 @@ export default class Player {
             if (this.ghostActive && synergyMgr && synergyMgr.hasSynergy('chrono_mirage')) {
                 this.ghostTimer += 1500;
             }
+            const audio = this.game?.getModule('audio');
+            if (audio) audio.play('dodge');
             if (augmentMgr) augmentMgr.onPlayerDamagedOrDodged(true);
             return;
         }
@@ -279,6 +281,8 @@ export default class Player {
             if (particles) {
                 particles.emit(this.pos.x, this.pos.y, '#ff9900', 14);
             }
+            const audio = this.game?.getModule('audio');
+            if (audio) audio.play('armorBlock');
             const synergyMgr = this.game?.getModule('synergies');
             if (synergyMgr) {
                 synergyMgr.onArmorBroken(this);
@@ -294,6 +298,8 @@ export default class Player {
         const finalDamage = Math.max(1, amount);
         
         this.stats.hp -= finalDamage;
+        const audio = this.game?.getModule('audio');
+        if (audio) audio.play('playerHit');
         const synergyMgr = this.game?.getModule('synergies');
         if (synergyMgr && synergyMgr.hasSynergy('titan_thorns')) {
             this.triggerShockwave({ maxRadius: 180, duration: 500, damage: 8, color: '#4488ff' });
@@ -330,6 +336,8 @@ export default class Player {
 
         const upgrades = this.game.getModule('upgrades');
         if (upgrades) {
+            const audio = this.game?.getModule('audio');
+            if (audio) audio.play('levelUp');
             const reachedLevel = this.level;
             setTimeout(() => {
                 if (this.game && (this.game.isGameOver || this.game.gameState !== 'PLAYING')) return;

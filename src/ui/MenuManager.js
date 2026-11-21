@@ -165,11 +165,11 @@ export default class MenuManager {
         this.game = game;
 
         window.addEventListener('mousemove', this._handleMouseMove.bind(this));
-        window.addEventListener('mousedown', () => {
+        window.addEventListener('mousedown', (e) => {
             if (!this._isOverlayActive()) return;
-            this.isMouseDown = true;
-            if (!this.isWaitingForKey) {
-                this._handleClick();
+            if (e.button === 0) this.isMouseDown = true;
+            if (!this.isWaitingForKey && (e.button === 0 || e.button === 2)) {
+                this._handleClick(e.button);
             }
         });
         window.addEventListener('mouseup', () => {
@@ -353,7 +353,7 @@ export default class MenuManager {
         return false;
     }
 
-    _handleClick() {
+    _handleClick(mouseButton = 0) {
         const buttons = this.game.settingsOpen
             ? this.settingsButtons
             : this.game.augmentsOpen
@@ -365,6 +365,16 @@ export default class MenuManager {
                         : this.game.isPaused
                             ? this.pauseButtons
                             : [];
+
+        if (mouseButton === 2) {
+            for (const btn of buttons) {
+                if (typeof btn.rightAction === 'function' && this._isHovered(this.mousePos, btn.x, btn.y, btn.w, btn.h)) {
+                    btn.rightAction();
+                    return;
+                }
+            }
+            return;
+        }
 
         this._checkInput(this.mousePos, buttons);
     }
@@ -686,6 +696,8 @@ export default class MenuManager {
             spacing: 30,
             pointer: this.mousePos
         });
+
+        this._drawNowPlaying(ctx, w - 28, h - 24, 'right', this.buttons);
     }
 
     _drawChangelogPanel(ctx) {
@@ -1292,6 +1304,46 @@ export default class MenuManager {
             spacing: btnSpacing,
             pointer: this._getPointer()
         });
+
+        this._drawNowPlaying(ctx, w - 28, h - 24, 'right', this.pauseButtons);
+    }
+
+    _drawNowPlaying(ctx, x, y, align = 'right', buttonList = null) {
+        const audio = this.game?.getModule('audio');
+        if (!audio || typeof audio.getCurrentTrackName !== 'function') return;
+        const trackName = audio.getCurrentTrackName();
+        if (!trackName) return;
+
+        const label = `NOW PLAYING: ${trackName.toUpperCase()}`;
+        ctx.save();
+        ctx.font = 'bold 20px "VT323", monospace';
+        const textW = ctx.measureText(label).width;
+        const bx = align === 'right' ? (x - textW) : (align === 'center' ? (x - textW / 2) : x);
+        const by = y - 14;
+        const bh = 28;
+        const pointer = this._getPointer() || this.mousePos;
+        const isHovered = pointer && this._isHovered(pointer, bx, by, textW, bh);
+
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = trackName === 'MUTED'
+            ? (isHovered ? '#a0b4b8' : '#778c8f')
+            : (isHovered ? '#ffffff' : '#00ffcc');
+        ctx.shadowBlur = trackName === 'MUTED' ? 0 : (isHovered ? 14 : 8);
+        ctx.shadowColor = '#00ffcc';
+        ctx.fillText(label, x, y);
+        ctx.restore();
+
+        if (Array.isArray(buttonList)) {
+            buttonList.push({
+                x: bx,
+                y: by,
+                w: textW,
+                h: bh,
+                action: () => audio.nextTrack(),
+                rightAction: () => audio.prevTrack()
+            });
+        }
     }
 
     _drawAugmentsMenu(ctx) {

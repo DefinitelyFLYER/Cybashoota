@@ -10,7 +10,7 @@ export const MENU_DEFINITIONS = {
             { id: 'gameplay', text: 'Gameplay', action: 'setSettingsTab', args: ['gameplay'], style: 'tab' },
             { id: 'ui', text: 'UI', action: 'setSettingsTab', args: ['ui'], style: 'tab' },
             { id: 'controls', text: 'Controls', action: 'setSettingsTab', args: ['controls'], style: 'tab' },
-            { id: 'audio', text: 'Audio (WIP)', action: 'setSettingsTab', args: ['audio'], style: 'tab' }
+            { id: 'audio', text: 'Audio', action: 'setSettingsTab', args: ['audio'], style: 'tab' }
         ],
         body: {
             performance: [
@@ -228,9 +228,37 @@ export const MENU_DEFINITIONS = {
             ],
             audio: [
                 {
-                    id: 'audio_placeholder',
-                    type: 'label',
-                    label: 'Audio settings are work in progress.'
+                    id: 'audio_muted',
+                    type: 'toggle',
+                    label: 'Mute All Audio',
+                    path: ['audio', 'muted']
+                },
+                {
+                    id: 'audio_master',
+                    type: 'slider',
+                    label: 'Master Volume',
+                    path: ['audio', 'masterVolume'],
+                    min: 0,
+                    max: 1,
+                    step: 0.05
+                },
+                {
+                    id: 'audio_sfx',
+                    type: 'slider',
+                    label: 'SFX Volume',
+                    path: ['audio', 'sfxVolume'],
+                    min: 0,
+                    max: 1,
+                    step: 0.05
+                },
+                {
+                    id: 'audio_music',
+                    type: 'slider',
+                    label: 'Music Volume',
+                    path: ['audio', 'musicVolume'],
+                    min: 0,
+                    max: 1,
+                    step: 0.05
                 }
             ]
         },

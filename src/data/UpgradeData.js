@@ -640,11 +640,11 @@ export const UPGRADES = [
     {
         id: 'lucky_dice_rare',
         name: 'Probability Matrix',
-        description: '+25% Luck.',
+        description: '+50% Luck (Better upgrades & drops).',
         rarity: 'Rare',
         tags: ['utility', 'luck'],
         weight: 40,
-        onApply: (player) => { player.multipliers.luck += 0.25; }
+        onApply: (player) => { player.multipliers.luck += 0.50; }
     },
     {
         id: 'xp_boost_epic',

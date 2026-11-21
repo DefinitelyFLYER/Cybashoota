@@ -11,6 +11,7 @@ import Player from './entities/Player.js';
 import ProjectileManager from './entities/ProjectileManager.js';
 
 // systems
+import AudioManager from './systems/AudioManager.js';
 import AugmentManager from './systems/AugmentManager.js';
 import CodexManager from './systems/CodexManager.js';
 import ExperienceManager from './systems/ExperienceManager.js';
@@ -47,5 +48,6 @@ game.addModule('player', player);
 game.addModule('augments', new AugmentManager());
 game.addModule('synergies', new SynergyManager());
 game.addModule('codex', new CodexManager());
+game.addModule('audio', new AudioManager());
 
 game.start();

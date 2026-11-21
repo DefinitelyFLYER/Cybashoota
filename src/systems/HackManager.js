@@ -4,6 +4,7 @@ export default class HackManager {
     constructor() {
         this.signalJammerTimeout = null;
         this.activeDecoy = null;
+        this.overloadFlashTimer = 0;
         this.HACK_TYPES = {
             [HACK_DATA.OVERLOAD.id]: {
                 id: HACK_DATA.OVERLOAD.id,
@@ -18,10 +19,19 @@ export default class HackManager {
                     const hasOverloadBarrage = synergyMgr && synergyMgr.hasSynergy('overload_barrage');
                     const overloadDmg = hasOverloadBarrage ? 10 : 5;
 
+                    let fxCount = 0;
                     for (const enemy of enemyManager.enemies) {
                         enemy.currentHp = Math.max(0, (enemy.currentHp || 0) - overloadDmg);
                         enemy.speedModifier = 0.3;
                         enemy.hackDebuffTimer = 4000;
+                        if (particles && fxCount < 30) {
+                            particles.emit(enemy.x, enemy.y, '#ff0055', 6);
+                            fxCount++;
+                        }
+                    }
+                    this.overloadFlashTimer = 380;
+                    if (player && typeof player.triggerShockwave === 'function') {
+                        player.triggerShockwave({ maxRadius: 950, duration: 550, damage: 0, color: '#ff0055' });
                     }
                     if (hasOverloadBarrage && player) {
                         player.overloadBarrageTimer = 4000;
@@ -345,6 +355,9 @@ export default class HackManager {
             }
         }
 
+        if (this.overloadFlashTimer > 0) {
+            this.overloadFlashTimer = Math.max(0, this.overloadFlashTimer - deltaTime);
+        }
         if (this.cooldownTimer > 0) {
             this.cooldownTimer -= deltaTime;
             if (this.cooldownTimer <= 0) {
@@ -425,6 +438,18 @@ export default class HackManager {
     }
 
     draw(ctx) {
+        if (this.overloadFlashTimer > 0 && this.game?.canvas) {
+            const alpha = Math.min(0.42, (this.overloadFlashTimer / 380) * 0.42);
+            const w = this.game.canvas.width;
+            const h = this.game.canvas.height;
+            ctx.save();
+            ctx.fillStyle = `rgba(255, 0, 85, ${alpha * 0.55})`;
+            ctx.fillRect(0, 0, w, h);
+            ctx.strokeStyle = `rgba(0, 255, 204, ${alpha * 1.4})`;
+            ctx.lineWidth = 6;
+            ctx.strokeRect(3, 3, w - 6, h - 6);
+            ctx.restore();
+        }
         if (!this.activeDecoy) return;
         const player = this.game?.getModule('player');
         if (!player) return;
@@ -489,6 +514,8 @@ export default class HackManager {
             cdMulti *= Math.max(0.25, player.stats.hackCooldownMulti);
         }
         this.cooldownTimer = this.cooldownDuration * cdMulti;
+        const audio = this.game?.getModule('audio');
+        if (audio) audio.play(this.activeHack === 'OVERLOAD' ? 'overload' : 'hack');
         if (augmentMgr) {
             augmentMgr.onHackExecuted();
         }

@@ -101,6 +101,10 @@ export default class SynergyManager {
                 if (notify && ui && ui.showNotification) {
                     ui.showNotification(`SYNERGY ACTIVE: ${syn.name.toUpperCase()}!`, syn.color);
                 }
+                if (notify) {
+                    const audio = this.game.getModule('audio');
+                    if (audio) audio.play('synergy');
+                }
                 if (notify && particles && player) {
                     particles.emit(player.pos.x, player.pos.y, syn.color, 22);
                 }

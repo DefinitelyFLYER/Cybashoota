@@ -365,6 +365,8 @@ export default class ProjectileManager {
             this.projectiles.push(proj);
         }
         this.crosshairPulse = 1.0;
+        const audio = this.game?.getModule('audio');
+        if (audio) audio.play('shoot', { superShot: isSuperShot });
 
         // Synergy: Chrono-Mirage (2 phantom turret clones mirror shots while Ghost Protocol is active)
         if (player.ghostActive && synergyMgr && synergyMgr.hasSynergy('chrono_mirage')) {

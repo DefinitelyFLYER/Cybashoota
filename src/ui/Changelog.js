@@ -1,6 +1,17 @@
-export const CURRENT_VERSION = 'v0.5.0';
+export const CURRENT_VERSION = 'v0.6.0';
 
 const CHANGELOG = [
+    {
+        version: 'v0.6.0',
+        title: 'SOUNDTRACK & SFX!',
+        date: '21-11-2026',
+        notes: [
+            'Added a procedural soundtrack with 8 tracks.',
+            'Added procedural SFX for combat, upgrades, hacks and UI.',
+            'Added audio settings and a now playing track switcher in menus.',
+            'Added a screen effect for the Overload hack and fixed a duplicate card.'
+        ]
+    },
     {
         version: 'v0.5.0',
         title: 'NEW THREATS!',

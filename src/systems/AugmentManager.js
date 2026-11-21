@@ -367,6 +367,8 @@ export default class AugmentManager {
         this.scrap -= this.forgeSlotCost;
 
         const storageIndex = this.addToStorage({ ...crafted, tier: 1 });
+        const audio = this.game?.getModule('audio');
+        if (audio) audio.play('forgeCraft');
         const ui = this.game?.getModule('ui');
         const typeColor = AUGMENT_TYPES[crafted.type]?.color || '#ff9900';
         if (ui && ui.showNotification) {
