@@ -37,7 +37,8 @@ export default class Game {
                 cursorSkin: 'classic'
             },
             ui: {
-                scale: 1
+                scale: 1,
+                smallTextScale: 1
             },
             audio: {
                 muted: false,

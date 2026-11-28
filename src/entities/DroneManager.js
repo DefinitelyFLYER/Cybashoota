@@ -650,9 +650,27 @@ export default class DroneManager {
         const bounces = hasBulletChoir ? (player.getStat('ricochetCount') || 0) : 0;
         const critChance = hasBulletChoir ? (player.getStat('critChance') || 0) : 0;
 
+        const upgrades = this.game.getModule('upgrades');
+        const independentTargets = isAssault && Boolean(upgrades?.droneMods?.RANGED?.independentTargeting) && shotCount > 1;
+        let targetAngles = null;
+        if (independentTargets) {
+            const enemyMgr = this.game.getModule('enemies');
+            const rangePx = this._getStat(drone, 'range', player) * (this.game.UNIT_SIZE || 100);
+            const inRange = (enemyMgr?.enemies || [])
+                .filter(e => e.currentHp > 0 && Math.hypot(e.x - drone.x, e.y - drone.y) <= rangePx)
+                .sort((a, b) => Math.hypot(a.x - drone.x, a.y - drone.y) - Math.hypot(b.x - drone.x, b.y - drone.y));
+            if (inRange.length > 0) {
+                targetAngles = [];
+                for (let i = 0; i < shotCount; i++) {
+                    const t = inRange[i % inRange.length];
+                    targetAngles.push(Math.atan2(t.y - drone.y, t.x - drone.x));
+                }
+            }
+        }
+
         for (let i = 0; i < shotCount; i++) {
             const offset = shotCount > 1 ? (i - (shotCount - 1) / 2) * spreadRad : 0;
-            const finalAngle = angle + offset;
+            const finalAngle = targetAngles ? targetAngles[i] : (angle + offset);
             const chainRoll = hasTeslaCoil ? 2 : (hasIonBarrage && Math.random() < 0.30 ? 2 : 0);
             projMgr.projectiles.push({
                 x: drone.x,

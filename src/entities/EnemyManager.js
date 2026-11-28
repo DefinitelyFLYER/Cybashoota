@@ -256,9 +256,14 @@ export default class EnemyManager {
             return;
         }
 
-        // Virus wanders instead of chasing the player directly
+        // Virus wanders instead of chasing the player directly (tethered within 5.5 units)
         if (e.specialType === 'VIRUS') {
             if (e.wanderAngle === undefined) e.wanderAngle = Math.random() * Math.PI * 2;
+            if (distP > 5.5 * unitSize && distP > 1) {
+                const toPlayer = Math.atan2(dyP, dxP);
+                const diff = Math.atan2(Math.sin(toPlayer - e.wanderAngle), Math.cos(toPlayer - e.wanderAngle));
+                e.wanderAngle += diff * Math.min(1, 0.004 * deltaTime);
+            }
             const moveX = Math.cos(e.wanderAngle) * e.speed + sep.x + soft.x;
             const moveY = Math.sin(e.wanderAngle) * e.speed + sep.y + soft.y;
             e.x += moveX * scaledDt;
@@ -268,6 +273,17 @@ export default class EnemyManager {
 
         if (!isAttackingAndStopping && distP > 1) {
             let currentSpeed = e.speed;
+            // Virus + Shield Aura empowers nearby allies with +20% speed
+            for (const other of this.enemies) {
+                if (other !== e && other.currentHp > 0 && other.virus && other.shieldAura) {
+                    const auraR = other.shieldAura.radius * unitSize;
+                    const dSq = (other.x - e.x) ** 2 + (other.y - e.y) ** 2;
+                    if (dSq <= auraR * auraR) {
+                        currentSpeed *= 1.2;
+                        break;
+                    }
+                }
+            }
             
             if (isOutsideView && e.turboCooldown <= 0) {
                 if (isDeepInFog && Math.random() < 0.5) {
@@ -534,11 +550,11 @@ export default class EnemyManager {
             damage *= 1.35;
         }
 
-        // Shield Bearer protective aura reduces damage to nearby non-Shield-Bearer enemies
-        if (e.specialType !== 'SHIELD_BEARER') {
+        // Shield Bearer / Glitched Shield Aura reduces damage to nearby non-aura enemies
+        if (!e.shieldAura) {
             const unitSize = this.game.UNIT_SIZE || 100;
             for (const other of this.enemies) {
-                if (other.specialType === 'SHIELD_BEARER' && other.currentHp > 0 && other.shieldAura) {
+                if (other !== e && other.currentHp > 0 && other.shieldAura) {
                     const auraR = other.shieldAura.radius * unitSize;
                     const dSq = (other.x - e.x) ** 2 + (other.y - e.y) ** 2;
                     if (dSq <= auraR * auraR) {
@@ -883,7 +899,7 @@ export default class EnemyManager {
             const spdMult = director?.currentPhase?.speedMultiplier || 1;
             for (let s = 0; s < e.splitCount; s++) {
                 const angle = (Math.PI * 2 / e.splitCount) * s + Math.random() * 0.4;
-                this.enemies.push({
+                const shard = {
                     ...shardConfig,
                     x: e.x + Math.cos(angle) * 18,
                     y: e.y + Math.sin(angle) * 18,
@@ -893,7 +909,19 @@ export default class EnemyManager {
                     kbX: Math.cos(angle) * 0.35,
                     kbY: Math.sin(angle) * 0.35,
                     glitchPhase: GLITCH_PHASES.NORMAL
-                });
+                };
+                if (e.virus) {
+                    shard.color = '#b4ff00';
+                    shard.virus = {
+                        fireRate: 1800,
+                        range: 3.5,
+                        projectileSpeed: 0.6,
+                        glitchChance: 0.4,
+                        rangedMutationChance: 0.15,
+                        virusCloneChance: 0.01
+                    };
+                }
+                this.enemies.push(shard);
             }
         }
 
@@ -928,6 +956,7 @@ export default class EnemyManager {
 
         const spawned = {
             ...baseConfig,
+            isBoss: false, // Timeline-spawned boss types behave as regular enemies without boss bar/arena
             codexId: typeKey,
             x: worldX,
             y: worldY,
@@ -936,6 +965,10 @@ export default class EnemyManager {
             speed: baseConfig.speed * activePhase.speedMultiplier,
             glitchPhase: GLITCH_PHASES.NORMAL
         };
+        if (spawned.bossConfig) {
+            spawned.skillTimer = 1800 + Math.random() * 1200;
+            spawned.skillIndex = Math.floor(Math.random() * 3);
+        }
 
         if (spawned.isVirusGlitched) {
             this._applyVirusGlitch(spawned, false);
@@ -944,34 +977,107 @@ export default class EnemyManager {
         this.enemies.push(spawned);
     }
 
-    _applyVirusGlitch(e, allowRangedMutation = true) {
+    _applyVirusGlitch(e, fromVirus = false) {
+        if (e.specialType === 'MINI_SHARD') return;
         e.isVirusGlitched = true;
-        // Randomize 1 or 2 stats
-        const statRolls = Math.random() < 0.5 ? 1 : 2;
-        const pool = ['speed', 'hp', 'size'];
-        for (let r = 0; r < statRolls; r++) {
-            const pickIdx = Math.floor(Math.random() * pool.length);
-            const stat = pool.splice(pickIdx, 1)[0];
-            if (stat === 'speed') {
-                e.speed *= (0.65 + Math.random() * 1.05);
-            } else if (stat === 'hp') {
-                const mult = 0.7 + Math.random() * 0.9;
-                e.maxHp = Math.max(1, Math.ceil(e.maxHp * mult));
-                e.currentHp = Math.max(1, Math.min(e.maxHp, Math.ceil(e.currentHp * mult)));
-            } else if (stat === 'size') {
-                e.size = Math.max(16, Math.round(e.size * (0.75 + Math.random() * 0.6)));
+
+        const minM = fromVirus ? 0.50 : 0.65;
+        const maxM = fromVirus ? 2.20 : 1.65;
+        const randRange = (lo, hi) => lo + Math.random() * (hi - lo);
+        const randMult = () => randRange(minM, maxM);
+
+        // Randomize all base stats
+        e.speed = Math.max(0.03, e.speed * randMult());
+        const hpMult = randRange(fromVirus ? 0.6 : 0.7, fromVirus ? 2.0 : 1.6);
+        e.maxHp = Math.max(1, Math.ceil(e.maxHp * hpMult));
+        e.currentHp = Math.max(1, Math.min(e.maxHp, Math.ceil(e.currentHp * hpMult)));
+        e.size = Math.max(16, Math.min(90, Math.round(e.size * randRange(0.7, fromVirus ? 1.5 : 1.35))));
+
+        // Roll behavior count (normal GLITCHED: 75% 1, 20% 2, 5% 3; Virus-glitched: 25% 1, 40% 2, 25% 3, 10% 4)
+        const r = Math.random();
+        const behaviorCount = fromVirus
+            ? (r < 0.25 ? 1 : (r < 0.65 ? 2 : (r < 0.90 ? 3 : 4)))
+            : (r < 0.75 ? 1 : (r < 0.95 ? 2 : 3));
+
+        const pool = ['ranged', 'dasher', 'emp', 'shieldAura'];
+        if (!e.bossConfig) {
+            pool.push('splitCount', 'virus');
+        }
+
+        for (let i = 0; i < behaviorCount && pool.length > 0; i++) {
+            const pick = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+            if (pick === 'ranged' && !e.ranged) {
+                e.ranged = {
+                    fireRate: Math.round(2200 / randMult()),
+                    projectileSpeed: 0.45 * randRange(0.75, fromVirus ? 1.6 : 1.35),
+                    projectileSize: 12,
+                    range: 5 * randRange(0.8, 1.3),
+                    stopToShoot: false,
+                    color: fromVirus ? '#b4ff00' : '#00ffcc'
+                };
+            } else if (pick === 'dasher' && !e.dasher) {
+                e.dasher = {
+                    triggerRange: 3.8 * randRange(0.8, 1.35),
+                    chargeDuration: Math.round(650 / randMult()),
+                    dashDuration: Math.round(450 * randRange(0.75, 1.35)),
+                    dashSpeed: 0.72 * randMult(),
+                    cooldown: Math.round(2600 / randMult())
+                };
+            } else if (pick === 'emp' && !e.emp) {
+                e.emp = {
+                    cooldown: Math.round(6000 / randMult()),
+                    chargeDuration: 1500,
+                    radius: 3.2 * randRange(0.75, 1.3),
+                    disableDuration: Math.round(3000 * randRange(0.7, 1.35))
+                };
+            } else if (pick === 'shieldAura' && !e.shieldAura) {
+                e.shieldAura = {
+                    radius: 1.9 * randRange(0.75, 1.35),
+                    damageReduction: Math.min(0.65, Math.max(0.2, 0.45 * randRange(0.7, 1.35)))
+                };
+            } else if (pick === 'splitCount' && !e.splitCount) {
+                e.splitCount = fromVirus
+                    ? Math.floor(randRange(2, 5.99))
+                    : Math.floor(randRange(2, 4.99));
+            } else if (pick === 'virus' && !e.virus) {
+                e.virus = {
+                    fireRate: Math.round(1300 / randMult()),
+                    range: 4.2 * randRange(0.8, 1.35),
+                    projectileSpeed: 0.65 * randRange(0.75, 1.5),
+                    glitchChance: fromVirus ? 0.55 : 0.40,
+                    rangedMutationChance: 0.25,
+                    virusCloneChance: 0.02
+                };
             }
         }
 
-        // Rare chance for melee enemies infected by a Virus to gain ranged shots
-        if (allowRangedMutation && !e.ranged && Math.random() < 0.18) {
+        // Randomize any pre-existing behaviors on this enemy as well
+        if (e.ranged) {
             e.ranged = {
-                fireRate: 2600,
-                projectileSpeed: 0.45,
-                projectileSize: 12,
-                range: 5,
-                stopToShoot: false,
-                color: '#b4ff00'
+                ...e.ranged,
+                fireRate: Math.max(350, Math.round(e.ranged.fireRate / randMult())),
+                projectileSpeed: Math.max(0.2, e.ranged.projectileSpeed * randRange(0.75, 1.5))
+            };
+        }
+        if (e.dasher) {
+            e.dasher = {
+                ...e.dasher,
+                dashSpeed: Math.max(0.3, e.dasher.dashSpeed * randMult()),
+                chargeDuration: Math.max(250, Math.round(e.dasher.chargeDuration / randMult())),
+                cooldown: Math.max(700, Math.round(e.dasher.cooldown / randMult()))
+            };
+        }
+        if (e.emp) {
+            e.emp = {
+                ...e.emp,
+                cooldown: Math.max(1800, Math.round(e.emp.cooldown / randMult()))
+            };
+        }
+        if (e.virus) {
+            e.virus = {
+                ...e.virus,
+                fireRate: Math.max(350, Math.round(e.virus.fireRate / randMult())),
+                projectileSpeed: Math.max(0.25, e.virus.projectileSpeed * randRange(0.75, 1.5))
             };
         }
     }
@@ -1123,40 +1229,52 @@ export default class EnemyManager {
     }
 
     _handleSpecialEnemyBehavior(e, player, deltaTime) {
-        if (e.isBoss) {
+        if (e.bossConfig) {
             this._updateBossBehavior(e, player, deltaTime);
             return;
         }
-        // 1. EMP Disrupter
+        // 1. EMP Disrupter (Virus + EMP infects enemies instead of jamming player)
         if (e.emp) {
             const empRadiusPx = e.emp.radius * (this.game.UNIT_SIZE || 100);
             if (e.empTimer === undefined) e.empTimer = Math.random() * 2000;
             e.empTimer += deltaTime;
             if (e.empTimer >= e.emp.cooldown) {
                 e.empTimer = 0;
+                const isVirusEmp = Boolean(e.virus);
                 this.empWaves.push({
                     x: e.x,
                     y: e.y,
                     radius: 10,
                     maxRadius: empRadiusPx,
                     life: 450,
-                    maxLife: 450
+                    maxLife: 450,
+                    isVirusEmp,
+                    isGlitched: Boolean(e.isVirusGlitched)
                 });
 
-                const distToPlayer = Math.hypot(player.pos.x - e.x, player.pos.y - e.y);
-                if (distToPlayer <= empRadiusPx && !player.ghostActive) {
-                    player.empDisruptedTimer = Math.max(player.empDisruptedTimer || 0, e.emp.disableDuration);
-                    const audio = this.game.getModule('audio');
-                    if (audio) audio.play('emp');
-                    const ui = this.game.getModule('ui');
-                    if (ui && ui.showNotification) {
-                        ui.showNotification('EMP PULSE: DRONES & HACKS DISRUPTED!', '#00e5ff');
+                if (isVirusEmp) {
+                    for (const other of this.enemies) {
+                        if (other === e || other.currentHp <= 0 || other.isVirusGlitched) continue;
+                        if (Math.hypot(other.x - e.x, other.y - e.y) <= empRadiusPx) {
+                            this._applyVirusGlitch(other, true);
+                        }
+                    }
+                } else {
+                    const distToPlayer = Math.hypot(player.pos.x - e.x, player.pos.y - e.y);
+                    if (distToPlayer <= empRadiusPx && !player.ghostActive) {
+                        player.empDisruptedTimer = Math.max(player.empDisruptedTimer || 0, e.emp.disableDuration);
+                        const audio = this.game.getModule('audio');
+                        if (audio) audio.play('emp');
+                        const ui = this.game.getModule('ui');
+                        if (ui && ui.showNotification) {
+                            ui.showNotification('EMP PULSE: DRONES & HACKS DISRUPTED!', '#00e5ff');
+                        }
                     }
                 }
             }
         }
 
-        // 2. Dasher
+        // 2. Dasher (Virus + Dasher dashes through enemies to infect them)
         if (e.dasher) {
             if (e.dashCooldown === undefined) e.dashCooldown = 800;
             if (e.dashState === 'charging') {
@@ -1164,19 +1282,48 @@ export default class EnemyManager {
                 if (e.dashTimer <= 0) {
                     e.dashState = 'dashing';
                     e.dashTimer = e.dasher.dashDuration;
+                    e.dashInfectedSet = new Set([e]);
                 }
             } else if (e.dashState === 'dashing') {
                 e.dashTimer -= deltaTime;
+                if (e.virus && e.dashInfectedSet) {
+                    for (const other of this.enemies) {
+                        if (other.currentHp <= 0 || e.dashInfectedSet.has(other)) continue;
+                        if (Math.hypot(other.x - e.x, other.y - e.y) <= (e.size + other.size) * 0.55) {
+                            e.dashInfectedSet.add(other);
+                            if (!other.isVirusGlitched) this._applyVirusGlitch(other, true);
+                        }
+                    }
+                }
                 if (e.dashTimer <= 0) {
                     e.dashState = 'idle';
                     e.dashCooldown = e.dasher.cooldown;
+                    e.dashInfectedSet = null;
                 }
             } else {
                 if (e.dashCooldown > 0) e.dashCooldown -= deltaTime;
-                const dx = player.pos.x - e.x;
-                const dy = player.pos.y - e.y;
-                const dist = Math.hypot(dx, dy);
                 const triggerPx = e.dasher.triggerRange * (this.game.UNIT_SIZE || 100);
+                let targetX = player.pos.x;
+                let targetY = player.pos.y;
+                if (e.virus) {
+                    let bestEnemy = null;
+                    let bestD = triggerPx;
+                    for (const other of this.enemies) {
+                        if (other === e || other.currentHp <= 0 || other.isVirusGlitched) continue;
+                        const d = Math.hypot(other.x - e.x, other.y - e.y);
+                        if (d > 25 && d < bestD) {
+                            bestD = d;
+                            bestEnemy = other;
+                        }
+                    }
+                    if (bestEnemy) {
+                        targetX = bestEnemy.x;
+                        targetY = bestEnemy.y;
+                    }
+                }
+                const dx = targetX - e.x;
+                const dy = targetY - e.y;
+                const dist = Math.hypot(dx, dy);
                 if (e.dashCooldown <= 0 && dist > 30 && dist <= triggerPx) {
                     e.dashState = 'charging';
                     e.dashTimer = e.dasher.chargeDuration;
@@ -1186,7 +1333,7 @@ export default class EnemyManager {
             }
         }
 
-        // 3. Virus (wanders & shoots other enemies)
+        // 3. Virus (wanders & shoots other enemies, including other Viruses)
         if (e.virus) {
             e.wanderTimer = (e.wanderTimer || 0) + deltaTime;
             if (e.wanderTimer >= 1600) {
@@ -1199,7 +1346,7 @@ export default class EnemyManager {
                 let target = null;
                 let minDist = e.virus.range * (this.game.UNIT_SIZE || 100);
                 for (const other of this.enemies) {
-                    if (other === e || other.currentHp <= 0 || other.specialType === 'VIRUS') continue;
+                    if (other === e || other.currentHp <= 0) continue;
                     const d = Math.hypot(other.x - e.x, other.y - e.y);
                     if (d < minDist) {
                         minDist = d;
@@ -1208,17 +1355,19 @@ export default class EnemyManager {
                 }
                 if (target && minDist > 0) {
                     e.virusShootTimer = 0;
-                    const vx = ((target.x - e.x) / minDist) * e.virus.projectileSpeed;
-                    const vy = ((target.y - e.y) / minDist) * e.virus.projectileSpeed;
-                    this.virusProjectiles.push({
-                        x: e.x,
-                        y: e.y,
-                        vx,
-                        vy,
-                        life: 1600,
-                        source: e,
-                        virusConfig: e.virus
-                    });
+                    const baseAngle = Math.atan2(target.y - e.y, target.x - e.x);
+                    const angles = e.ranged ? [baseAngle - 0.25, baseAngle, baseAngle + 0.25] : [baseAngle];
+                    for (const a of angles) {
+                        this.virusProjectiles.push({
+                            x: e.x,
+                            y: e.y,
+                            vx: Math.cos(a) * e.virus.projectileSpeed,
+                            vy: Math.sin(a) * e.virus.projectileSpeed,
+                            life: 1600,
+                            source: e,
+                            virusConfig: e.virus
+                        });
+                    }
                 }
             }
         }
@@ -1244,15 +1393,16 @@ export default class EnemyManager {
 
     _updateVirusProjectiles(deltaTime) {
         const particles = this.game.getModule('particles');
+        const unitScale = this.game.getUnitScale ? this.game.getUnitScale() : 1;
         for (let i = this.virusProjectiles.length - 1; i >= 0; i--) {
             const vp = this.virusProjectiles[i];
-            vp.x += vp.vx * deltaTime;
-            vp.y += vp.vy * deltaTime;
+            vp.x += vp.vx * unitScale * deltaTime;
+            vp.y += vp.vy * unitScale * deltaTime;
             vp.life -= deltaTime;
 
             let hit = false;
             for (const other of this.enemies) {
-                if (other === vp.source || other.currentHp <= 0 || other.specialType === 'VIRUS') continue;
+                if (other === vp.source || other.currentHp <= 0) continue;
                 const d = Math.hypot(other.x - vp.x, other.y - vp.y);
                 if (d <= other.size * 0.55 + 6) {
                     hit = true;
@@ -1325,7 +1475,7 @@ export default class EnemyManager {
 
         // Draw Boss telegraphs & off-screen indicator
         for (const e of this.enemies) {
-            if (!e.isBoss) continue;
+            if (!e.bossConfig) continue;
             const drawX = e.x - player.pos.x + this.game.center.x;
             const drawY = e.y - player.pos.y + this.game.center.y;
 
@@ -1384,10 +1534,10 @@ export default class EnemyManager {
                 ctx.restore();
             }
 
-            // Off-screen boss arrow
+            // Off-screen boss arrow (milestone bosses only)
             const w = this.game.canvas.width;
             const h = this.game.canvas.height;
-            if (drawX < 0 || drawX > w || drawY < 0 || drawY > h) {
+            if (e.isBoss && (drawX < 0 || drawX > w || drawY < 0 || drawY > h)) {
                 const ang = Math.atan2(drawY - this.game.center.y, drawX - this.game.center.x);
                 const pad = 34;
                 const ax = Math.max(pad, Math.min(w - pad, drawX));
@@ -1406,20 +1556,37 @@ export default class EnemyManager {
             }
         }
 
-        // Draw Shield Bearer protective auras underneath enemies
+        // Draw Shield Bearer / Glitched protective auras underneath enemies
         for (const e of this.enemies) {
-            if (e.specialType === 'SHIELD_BEARER' && e.shieldAura) {
+            if (e.shieldAura) {
                 const drawX = e.x - player.pos.x + this.game.center.x;
                 const drawY = e.y - player.pos.y + this.game.center.y;
+                const auraR = e.shieldAura.radius * (this.game.UNIT_SIZE || 100);
+                const isGlitchAura = Boolean(e.isVirusGlitched || e.virus);
                 ctx.save();
-                ctx.strokeStyle = 'rgba(68, 136, 255, 0.35)';
-                ctx.fillStyle = 'rgba(68, 136, 255, 0.06)';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([10, 8]);
-                ctx.beginPath();
-                ctx.arc(drawX, drawY, e.shieldAura.radius * (this.game.UNIT_SIZE || 100), 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
+                if (isGlitchAura) {
+                    const jx = (Math.random() - 0.5) * 4;
+                    const jy = (Math.random() - 0.5) * 4;
+                    ctx.fillStyle = e.virus ? 'rgba(180, 255, 0, 0.08)' : 'rgba(0, 255, 204, 0.07)';
+                    ctx.strokeStyle = e.virus ? 'rgba(180, 255, 0, 0.45)' : 'rgba(0, 255, 204, 0.45)';
+                    ctx.beginPath();
+                    ctx.arc(drawX + jx, drawY + jy, auraR, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.strokeStyle = 'rgba(255, 0, 255, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(drawX - jx, drawY - jy, auraR, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeStyle = 'rgba(68, 136, 255, 0.35)';
+                    ctx.fillStyle = 'rgba(68, 136, 255, 0.06)';
+                    ctx.beginPath();
+                    ctx.arc(drawX, drawY, auraR, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                }
                 ctx.restore();
             }
         }
@@ -1431,11 +1598,24 @@ export default class EnemyManager {
             const alpha = Math.max(0, w.life / w.maxLife);
             ctx.save();
             ctx.globalAlpha = alpha;
-            ctx.strokeStyle = '#00e5ff';
             ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.arc(drawX, drawY, w.radius, 0, Math.PI * 2);
-            ctx.stroke();
+            if (w.isVirusEmp || w.isGlitched) {
+                const jx = (Math.random() - 0.5) * 5;
+                const jy = (Math.random() - 0.5) * 5;
+                ctx.strokeStyle = w.isVirusEmp ? '#b4ff00' : '#00ffcc';
+                ctx.beginPath();
+                ctx.arc(drawX + jx, drawY + jy, w.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = '#ff00ff';
+                ctx.beginPath();
+                ctx.arc(drawX - jx, drawY - jy, w.radius, 0, Math.PI * 2);
+                ctx.stroke();
+            } else {
+                ctx.strokeStyle = '#00e5ff';
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, w.radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
             ctx.restore();
         }
 
@@ -1459,29 +1639,61 @@ export default class EnemyManager {
             const isGlitch1 = e.glitchPhase === GLITCH_PHASES.PRIMARY;
             const isGlitch2 = e.glitchPhase === GLITCH_PHASES.SECONDARY;
 
-            // Dasher telegraph line
+            // Dasher telegraph line (glitched chromatic effect for glitched/virus dashers)
             if (e.dashState === 'charging') {
+                const lineLen = (e.dasher?.triggerRange || 3.6) * (this.game.UNIT_SIZE || 100);
+                const isGlitchFx = Boolean(e.isVirusGlitched || e.virus);
                 ctx.save();
-                ctx.strokeStyle = 'rgba(255, 85, 0, 0.75)';
                 ctx.lineWidth = 3;
                 ctx.setLineDash([10, 8]);
-                ctx.beginPath();
-                ctx.moveTo(drawX, drawY);
-                ctx.lineTo(drawX + e.dashDirX * 360, drawY + e.dashDirY * 360);
-                ctx.stroke();
+                if (isGlitchFx) {
+                    const jx = (Math.random() - 0.5) * 5;
+                    const jy = (Math.random() - 0.5) * 5;
+                    ctx.strokeStyle = e.virus ? 'rgba(180, 255, 0, 0.85)' : 'rgba(0, 255, 204, 0.85)';
+                    ctx.beginPath();
+                    ctx.moveTo(drawX + jx, drawY + jy);
+                    ctx.lineTo(drawX + jx + e.dashDirX * lineLen, drawY + jy + e.dashDirY * lineLen);
+                    ctx.stroke();
+                    ctx.strokeStyle = 'rgba(255, 0, 255, 0.75)';
+                    ctx.beginPath();
+                    ctx.moveTo(drawX - jx, drawY - jy);
+                    ctx.lineTo(drawX - jx + e.dashDirX * lineLen, drawY - jy + e.dashDirY * lineLen);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeStyle = 'rgba(255, 85, 0, 0.75)';
+                    ctx.beginPath();
+                    ctx.moveTo(drawX, drawY);
+                    ctx.lineTo(drawX + e.dashDirX * lineLen, drawY + e.dashDirY * lineLen);
+                    ctx.stroke();
+                }
                 ctx.restore();
             }
 
             // EMP charge telegraph ring
             if (e.emp && e.empTimer >= e.emp.cooldown - e.emp.chargeDuration) {
                 const chargeProg = (e.empTimer - (e.emp.cooldown - e.emp.chargeDuration)) / e.emp.chargeDuration;
+                const empR = e.emp.radius * (this.game.UNIT_SIZE || 100) * chargeProg;
+                const isGlitchEmp = Boolean(e.isVirusGlitched || e.virus);
                 ctx.save();
-                ctx.strokeStyle = `rgba(0, 229, 255, ${0.25 + chargeProg * 0.55})`;
                 ctx.lineWidth = 2;
                 ctx.setLineDash([8, 6]);
-                ctx.beginPath();
-                ctx.arc(drawX, drawY, e.emp.radius * (this.game.UNIT_SIZE || 100) * chargeProg, 0, Math.PI * 2);
-                ctx.stroke();
+                if (isGlitchEmp) {
+                    const jx = (Math.random() - 0.5) * 4;
+                    const jy = (Math.random() - 0.5) * 4;
+                    ctx.strokeStyle = e.virus ? `rgba(180, 255, 0, ${0.3 + chargeProg * 0.55})` : `rgba(0, 255, 204, ${0.3 + chargeProg * 0.55})`;
+                    ctx.beginPath();
+                    ctx.arc(drawX + jx, drawY + jy, empR, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.strokeStyle = `rgba(255, 0, 255, ${0.25 + chargeProg * 0.45})`;
+                    ctx.beginPath();
+                    ctx.arc(drawX - jx, drawY - jy, empR, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeStyle = `rgba(0, 229, 255, ${0.25 + chargeProg * 0.55})`;
+                    ctx.beginPath();
+                    ctx.arc(drawX, drawY, empR, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
                 ctx.restore();
             }
 

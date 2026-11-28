@@ -12,6 +12,9 @@ export default class UpgradeManager {
         this.currentOptions = [];
         this.selectionMode = 'UPGRADES';
         this.selectedCardId = null; 
+        this.pendingConfirm = null;
+        this._confirmYesBounds = null;
+        this._confirmNoBounds = null;
         this.confirmBtnBounds = null;
         this.reRollBtnBounds = null;
         this.cardBounds = [];
@@ -24,7 +27,7 @@ export default class UpgradeManager {
 
         this.droneMods = {
             'ALL': { damageBonus: 0, speedMulti: 1.0 },
-            'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
+            'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0, independentTargeting: false },
             'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
             'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 },
             'TESLA': { actionRateMulti: 1.0, rangeMulti: 1.0, chainBonus: 0, damageBonus: 0 },
@@ -63,6 +66,9 @@ export default class UpgradeManager {
         this.currentOptions = [];
         this.selectionMode = 'UPGRADES';
         this.selectedCardId = null;
+        this.pendingConfirm = null;
+        this._confirmYesBounds = null;
+        this._confirmNoBounds = null;
         this.confirmBtnBounds = null;
         this.reRollBtnBounds = null;
         this.cardBounds = [];
@@ -75,7 +81,7 @@ export default class UpgradeManager {
         this._gamepadActionHeld = false;
         this.droneMods = {
             'ALL': { damageBonus: 0, speedMulti: 1.0 },
-            'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0 },
+            'RANGED': { fireRateMulti: 1.0, rangeMulti: 1.0, damageBonus: 0, independentTargeting: false },
             'INTERCEPTOR': { blockRadiusMulti: 1.0, cooldownMulti: 1.0, speedMulti: 1.0 },
             'DEBUFF': { actionRateMulti: 1.0, rangeMulti: 1.0 },
             'TESLA': { actionRateMulti: 1.0, rangeMulti: 1.0, chainBonus: 0, damageBonus: 0 },
@@ -110,6 +116,24 @@ export default class UpgradeManager {
 
         const actionDown = gamepad.buttons.A || gamepad.buttons.X;
         const actionPressed = actionDown && !this._gamepadActionHeld;
+
+        if (this.pendingConfirm) {
+            if (actionPressed) {
+                if (this._confirmYesBounds && pointerX >= this._confirmYesBounds.x && pointerX <= this._confirmYesBounds.x + this._confirmYesBounds.w &&
+                    pointerY >= this._confirmYesBounds.y && pointerY <= this._confirmYesBounds.y + this._confirmYesBounds.h) {
+                    const id = this.pendingConfirm.selectedId;
+                    this.pendingConfirm = null;
+                    this._executeSelection(id, true);
+                } else if (this._confirmNoBounds && pointerX >= this._confirmNoBounds.x && pointerX <= this._confirmNoBounds.x + this._confirmNoBounds.w &&
+                    pointerY >= this._confirmNoBounds.y && pointerY <= this._confirmNoBounds.y + this._confirmNoBounds.h) {
+                    this.pendingConfirm = null;
+                }
+            } else if (gamepad.buttons.B) {
+                this.pendingConfirm = null;
+            }
+            this._gamepadActionHeld = actionDown;
+            return;
+        }
 
         if (hoveredCardId) {
             this.selectedCardId = hoveredCardId;
@@ -218,10 +242,15 @@ export default class UpgradeManager {
             .filter(d => !activeDroneIds.includes(d.id));
 
         const activeBehaviors = [...new Set(droneMgr.drones.map(d => d.behavior))];
-        let availableUpgrades = DRONE_UPGRADES.filter(upg => 
-            upg.targetBehaviors.includes('ALL') || 
-            upg.targetBehaviors.some(b => activeBehaviors.includes(b))
-        );
+        const synergyMgr = this.game.getModule('synergies');
+        let availableUpgrades = DRONE_UPGRADES.filter(upg => {
+            const matchesBehavior = upg.targetBehaviors.includes('ALL') ||
+                upg.targetBehaviors.some(b => activeBehaviors.includes(b));
+            if (!matchesBehavior) return false;
+            if (upg.unique && (this.droneUpgradeInventory[upg.id] || 0) > 0) return false;
+            if (typeof upg.requirements === 'function' && !upg.requirements(droneMgr, synergyMgr)) return false;
+            return true;
+        });
 
         let selected = [];
 
@@ -290,6 +319,9 @@ export default class UpgradeManager {
 
         this.selectionMode = mode;
         this.selectedCardId = null;
+        this.pendingConfirm = null;
+        this._confirmYesBounds = null;
+        this._confirmNoBounds = null;
 
         if (mode === 'UPGRADES') {
             const choiceCount = player.stats.upgradeOptions || 3;
@@ -314,6 +346,19 @@ export default class UpgradeManager {
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
+        if (this.pendingConfirm) {
+            const yB = this._confirmYesBounds;
+            const nB = this._confirmNoBounds;
+            if (yB && mouseX >= yB.x && mouseX <= yB.x + yB.w && mouseY >= yB.y && mouseY <= yB.y + yB.h) {
+                const id = this.pendingConfirm.selectedId;
+                this.pendingConfirm = null;
+                this._executeSelection(id, true);
+            } else if (nB && mouseX >= nB.x && mouseX <= nB.x + nB.w && mouseY >= nB.y && mouseY <= nB.y + nB.h) {
+                this.pendingConfirm = null;
+            }
+            return;
+        }
+
         if (this._checkRerollClick(mouseX, mouseY)) return; 
         if (this._checkConfirmClick(mouseX, mouseY)) return;
         this._checkCardClick(mouseX, mouseY);
@@ -321,6 +366,9 @@ export default class UpgradeManager {
 
     _closeSelection() {
         this.isSelectionActive = false;
+        this.pendingConfirm = null;
+        this._confirmYesBounds = null;
+        this._confirmNoBounds = null;
         window.removeEventListener('mousedown', this._clickHandler);
     }
 
@@ -387,9 +435,42 @@ export default class UpgradeManager {
         this.selectedCardId = null;
     }
 
-    _executeSelection(selectedId) {
+    _executeSelection(selectedId, confirmed = false) {
         const droneMgr = this.game.getModule('drones');
         const player = this.game.getModule('player');
+        const hackMgr = this.game.getModule('hack');
+
+        if (!confirmed && selectedId) {
+            if (this.selectionMode === 'DRONES' && DRONE_TYPES[selectedId] && droneMgr && player) {
+                const maxDrones = player.stats.maxDrones || 1;
+                if (droneMgr.drones.length >= maxDrones) {
+                    const oldest = droneMgr.drones[0];
+                    const oldestName = oldest?.name || 'oldest drone';
+                    this.pendingConfirm = {
+                        selectedId,
+                        title: 'OVERWRITE DRONE?',
+                        message: `Drone slots full (${droneMgr.drones.length}/${maxDrones}). Installing ${DRONE_TYPES[selectedId].name} will replace ${oldestName}.`
+                    };
+                    return;
+                }
+            } else if (this.selectionMode === 'UPGRADES' && hackMgr && player) {
+                const upg = UPGRADES.find(u => u.id === selectedId);
+                if (upg && upg.unlockHackId && !hackMgr.unlockedHacks.includes(upg.unlockHackId)) {
+                    const maxHacks = player.stats.maxHackSlots || 1;
+                    if (hackMgr.unlockedHacks.length >= maxHacks) {
+                        const oldestHackId = hackMgr.unlockedHacks[0];
+                        const oldestUpg = UPGRADES.find(u => u.unlockHackId === oldestHackId);
+                        const oldestHackName = oldestUpg ? oldestUpg.name : oldestHackId;
+                        this.pendingConfirm = {
+                            selectedId,
+                            title: 'OVERWRITE HACK?',
+                            message: `Hack slots full (${hackMgr.unlockedHacks.length}/${maxHacks}). Installing ${upg.name} will replace ${oldestHackName}.`
+                        };
+                        return;
+                    }
+                }
+            }
+        }
 
         if (selectedId) {
             if (this.selectionMode === 'UPGRADES') {
@@ -430,6 +511,91 @@ export default class UpgradeManager {
         }
         const bottomY = this._drawCards(ctx, width, height);
         this._drawConfirmButton(ctx, width, bottomY);
+        if (this.pendingConfirm) {
+            this._drawOverwriteConfirmModal(ctx, width, height);
+        }
+    }
+
+    _drawOverwriteConfirmModal(ctx, width, height) {
+        const modal = this.pendingConfirm;
+        if (!modal) return;
+        const menu = this.game.getModule('menu');
+        const pointer = this.game.getModule('input')?.getPointer();
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
+        ctx.fillRect(0, 0, width, height);
+
+        const mw = Math.min(540, width - 40);
+        const mh = 210;
+        const mx = (width - mw) / 2;
+        const my = (height - mh) / 2;
+
+        ctx.fillStyle = 'rgba(10, 14, 24, 0.98)';
+        ctx.fillRect(mx, my, mw, mh);
+        ctx.strokeStyle = '#ff4444';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(mx, my, mw, mh);
+
+        ctx.fillStyle = '#ff5555';
+        ctx.font = 'bold 26px Orbitron, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(modal.title, width / 2, my + 40);
+
+        ctx.fillStyle = '#e0f0f5';
+        ctx.font = '20px "VT323", monospace';
+        const words = (modal.message || '').split(' ');
+        const lines = [];
+        let cur = '';
+        for (const word of words) {
+            const test = cur ? `${cur} ${word}` : word;
+            if (ctx.measureText(test).width > mw - 56 && cur) {
+                lines.push(cur);
+                cur = word;
+            } else {
+                cur = test;
+            }
+        }
+        if (cur) lines.push(cur);
+        lines.slice(0, 3).forEach((line, i) => {
+            ctx.fillText(line, width / 2, my + 82 + i * 24);
+        });
+
+        const btnW = 190;
+        const btnH = 44;
+        const gap = 24;
+        const btnY = my + mh - btnH - 22;
+        const yesX = width / 2 - btnW - gap / 2;
+        const noX = width / 2 + gap / 2;
+
+        this._confirmYesBounds = { x: yesX, y: btnY, w: btnW, h: btnH };
+        this._confirmNoBounds = { x: noX, y: btnY, w: btnW, h: btnH };
+
+        const yesHover = pointer && pointer.x >= yesX && pointer.x <= yesX + btnW && pointer.y >= btnY && pointer.y <= btnY + btnH;
+        const noHover = pointer && pointer.x >= noX && pointer.x <= noX + btnW && pointer.y >= btnY && pointer.y <= btnY + btnH;
+
+        if (menu && menu.drawButton) {
+            menu.drawButton(ctx, yesX, btnY, btnW, btnH, 'OVERWRITE', yesHover, 'danger');
+            menu.drawButton(ctx, noX, btnY, btnW, btnH, 'CANCEL', noHover, 'default');
+        } else {
+            ctx.fillStyle = yesHover ? '#882222' : '#441111';
+            ctx.fillRect(yesX, btnY, btnW, btnH);
+            ctx.strokeStyle = '#ff4444';
+            ctx.strokeRect(yesX, btnY, btnW, btnH);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.fillText('OVERWRITE', yesX + btnW / 2, btnY + btnH / 2);
+
+            ctx.fillStyle = noHover ? '#224444' : '#112222';
+            ctx.fillRect(noX, btnY, btnW, btnH);
+            ctx.strokeStyle = '#00ffcc';
+            ctx.strokeRect(noX, btnY, btnW, btnH);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('CANCEL', noX + btnW / 2, btnY + btnH / 2);
+        }
+
+        ctx.restore();
     }
 
     _drawCards(ctx, width, height) {
@@ -512,8 +678,10 @@ export default class UpgradeManager {
             ctx.drawImage(sprite, px + 6, py + 6, size - 12, size - 12);
         } else {
             const fonts = this._getMenuFonts();
-            ctx.fillStyle = '#333'; ctx.font = fonts.cardIcon; ctx.textAlign = 'center';
-            ctx.fillText('NO_DATA', x + cardW / 2, py + size / 2 + 4);
+            const smallScale = Math.max(1.0, Math.min(2.0, Number(this.game?.settings?.ui?.smallTextScale ?? 1)));
+            const iconSize = Math.round(this._getFontSize(fonts.cardIcon, 10) * smallScale);
+            ctx.fillStyle = '#333'; ctx.font = this._scaleFont(fonts.cardIcon, iconSize); ctx.textAlign = 'center';
+            ctx.fillText('NO_DATA', x + cardW / 2, py + size / 2 + 4, size - 8);
         }
     }
 
@@ -565,16 +733,19 @@ export default class UpgradeManager {
     _drawCardFooter(ctx, item, x, y, cardW, cardH, mainColor) {
         const fonts = this._getMenuFonts();
         const maxFooterW = cardW - 24;
+        const smallScale = Math.max(1.0, Math.min(2.0, Number(this.game?.settings?.ui?.smallTextScale ?? 1)));
         if (item.requirementText) {
-            ctx.save(); ctx.font = fonts.cardRequirement; ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
+            const reqSize = Math.round(this._getFontSize(fonts.cardRequirement, 10) * smallScale);
+            ctx.save(); ctx.font = this._scaleFont(fonts.cardRequirement, reqSize); ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
             ctx.shadowBlur = 5; ctx.shadowColor = '#ffcc00';
             ctx.fillText(item.requirementText.toUpperCase(), x + cardW / 2, y + cardH - 45, maxFooterW);
             ctx.restore();
         }
         
+        const footerSize = Math.round(this._getFontSize(fonts.cardFooter, 16) * Math.min(1.65, smallScale));
         ctx.save(); 
         ctx.fillStyle = mainColor; 
-        ctx.font = fonts.cardFooter; 
+        ctx.font = this._scaleFont(fonts.cardFooter, footerSize); 
         ctx.textAlign = 'center';
         ctx.shadowBlur = 8; 
         ctx.shadowColor = mainColor;

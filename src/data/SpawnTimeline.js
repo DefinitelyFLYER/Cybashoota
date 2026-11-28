@@ -109,7 +109,7 @@ export const SPAWN_TIMELINE = [
     {
         name: "Critical Overload",
         start: 480, end: 600,
-        types: ["RHOMBUS", "HEXAGON", "SENTRY", "EMP", "SHIELD_BEARER", "DASHER"],
+        types: ["RHOMBUS", "HEXAGON", "SENTRY", "EMP", "SHIELD_BEARER", "DASHER", "BOSS_WARDEN"],
         rate: 800,
         hpMultiplier: 5.5, speedMultiplier: 2.3,
         xpDrop: { value: 150, color: '#ffffff' }
@@ -117,7 +117,7 @@ export const SPAWN_TIMELINE = [
     {
         name: "You can't win",
         start: 600, end: 900,
-        types: ["TRIANGLE", "SQUARE", "CIRCLE", "RHOMBUS", "HEXAGON", "SENTRY", "EMP", "DASHER", "GLITCHED", "VIRUS", "SPLITTER", "SHIELD_BEARER"],
+        types: ["TRIANGLE", "SQUARE", "CIRCLE", "RHOMBUS", "HEXAGON", "SENTRY", "EMP", "DASHER", "GLITCHED", "VIRUS", "SPLITTER", "SHIELD_BEARER", "BOSS_WARDEN", "BOSS_PHANTOM", "BOSS_OVERMIND"],
         rate: 400,
         hpMultiplier: 7, speedMultiplier: 2.3,
         xpDrop: { value: 1000, color: '#ff8400' }

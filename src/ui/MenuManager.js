@@ -23,6 +23,7 @@ export default class MenuManager {
         this.augmentsTab = 'augments';
         this.codexTab = 'synergies';
         this.selectedAugmentItem = null;
+        this.pendingConfirmModal = null;
         this.loadoutScrollOffset = 0;
         this.maxLoadoutScrollOffset = 0;
         this._lastStorageClick = { index: -1, time: 0 };
@@ -529,6 +530,7 @@ export default class MenuManager {
         this.augmentsTab = 'augments';
         this.codexTab = 'synergies';
         this.selectedAugmentItem = null;
+        this.pendingConfirmModal = null;
         this.loadoutScrollOffset = 0;
         if (origin === 'gameplay') {
             this.game.isPaused = true;
@@ -543,6 +545,7 @@ export default class MenuManager {
         this.augmentsTab = 'synergies';
         this.codexTab = 'synergies';
         this.selectedAugmentItem = null;
+        this.pendingConfirmModal = null;
         this.loadoutScrollOffset = 0;
     }
 
@@ -554,6 +557,7 @@ export default class MenuManager {
         this.game.augmentsOpen = false;
         this.augmentsButtons = [];
         this.selectedAugmentItem = null;
+        this.pendingConfirmModal = null;
         this.augmentsOrigin = null;
         this.codexMode = false;
         if (origin === 'gameplay') {
@@ -979,6 +983,26 @@ export default class MenuManager {
                 ctx.fillStyle = '#bbbbbb';
                 ctx.textAlign = 'left';
                 ctx.fillText('Works only from in-game settings.', optionX, trackY + sliderHeight + 24);
+                ctx.restore();
+            }
+
+            if (item.showSmallTextPreview) {
+                const px = trackX + sliderWidth + 24;
+                const py = trackY + 6;
+                ctx.save();
+                ctx.font = `${Math.round(17 * Math.max(1, Number(value) || 1))}px "VT323", monospace`;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#00ffcc';
+                const slotSample = '[HEAD] ';
+                ctx.fillText(slotSample, px, py);
+                const w1 = ctx.measureText(slotSample).width;
+                ctx.fillStyle = '#ff0055';
+                const typeSample = 'STRIKER • Mk.II  ';
+                ctx.fillText(typeSample, px + w1, py);
+                const w2 = ctx.measureText(typeSample).width;
+                ctx.fillStyle = '#88c8d0';
+                ctx.fillText('[2-PC]', px + w1 + w2, py);
                 ctx.restore();
             }
 
@@ -1527,7 +1551,9 @@ export default class MenuManager {
         // Optional compact utility buttons in header: Auto-Recycler Filter & Full Mk.III Scrap->XP
         if (augmentMgr.autoRecyclerUnlocked) {
             const pref = augmentMgr.preferredSet;
-            const filterLabel = pref ? `AUTO-RECYCLE: ${pref}` : 'AUTO-RECYCLE: OFF';
+            const filterLabel = pref === 'ALL'
+                ? 'AUTO-RECYCLE: ALL'
+                : (pref ? `AUTO-RECYCLE: ${pref}` : 'AUTO-RECYCLE: OFF');
             ctx.save();
             ctx.font = 'bold 17px "VT323", monospace';
             const fW = Math.max(150, Math.ceil(ctx.measureText(filterLabel).width) + 22);
@@ -1550,7 +1576,7 @@ export default class MenuManager {
                 w: fW,
                 h: fH,
                 action: () => {
-                    const order = [null, ...Object.keys(AUGMENT_TYPES)];
+                    const order = [null, ...Object.keys(AUGMENT_TYPES), 'ALL'];
                     const idx = order.indexOf(augmentMgr.preferredSet);
                     augmentMgr.preferredSet = order[(idx + 1) % order.length];
                 }
@@ -1558,8 +1584,10 @@ export default class MenuManager {
         }
 
         if (isFullMk3 && player) {
-            const xpPerScrap = Math.max(10, Math.round(player.xpNextLevel * 0.2));
-            const xpLabel = `1 SCRAP -> +${xpPerScrap} XP`;
+            const xpPerScrap = augmentMgr.getScrapXpValue(1);
+            const xpLabel = nearForge
+                ? `1 SCRAP -> +${xpPerScrap} XP`
+                : `1 SCRAP -> +${xpPerScrap} XP (FORGE)`;
             ctx.save();
             ctx.font = 'bold 17px "VT323", monospace';
             const xpBtnW = Math.max(160, Math.ceil(ctx.measureText(xpLabel).width) + 22);
@@ -1567,7 +1595,7 @@ export default class MenuManager {
             const xpBtnH = 26;
             const xpBtnX = rightColX + 165;
             const xpBtnY = innerY - 6;
-            const canExchange = augmentMgr.scrap >= 1;
+            const canExchange = nearForge && augmentMgr.scrap >= 1;
             const xpHover = canExchange && pointer && this._isHovered(pointer, xpBtnX, xpBtnY, xpBtnW, xpBtnH);
             this.drawButton(
                 ctx,
@@ -1641,9 +1669,12 @@ export default class MenuManager {
             ctx.strokeRect(cardX, cardY, equipCardW, equipCardH);
 
             // Slot tag
+            const smallScale = Math.max(1.0, Math.min(2.0, Number(this.game?.settings?.ui?.smallTextScale ?? 1)));
+            const smallFont = (basePx, bold = true) => `${bold ? 'bold ' : ''}${Math.round(basePx * smallScale)}px "VT323", monospace`;
+
             ctx.shadowBlur = 0;
             ctx.fillStyle = '#00ffcc';
-            ctx.font = 'bold 18px "VT323", monospace';
+            ctx.font = smallFont(18, true);
             ctx.textAlign = 'left';
             ctx.fillText(`[${slotKey.toUpperCase()}]`, cardX + 10, cardY + 22);
 
@@ -1660,19 +1691,21 @@ export default class MenuManager {
                 ctx.fillStyle = (equipped.tier || 1) > 1 ? '#ffcc00' : '#ffffff';
                 ctx.font = 'bold 21px "VT323", monospace';
                 ctx.textAlign = 'left';
-                ctx.fillText(`${equipped.name.toUpperCase()} (${tierLabel})`, cardX + 10, cardY + 46);
+                const eqNameY = cardY + 32 + Math.round(14 * smallScale);
+                ctx.fillText(`${equipped.name.toUpperCase()} (${tierLabel})`, cardX + 10, eqNameY, equipCardW - 20);
 
                 ctx.fillStyle = '#b8d0d4';
-                ctx.font = '17px "VT323", monospace';
+                ctx.font = smallFont(17, false);
                 const descLines = wrapCardText(equipped.description, equipCardW - 20).slice(0, 3);
+                const lineStep = Math.round(18 * Math.min(1.35, smallScale));
                 descLines.forEach((line, lineIdx) => {
-                    ctx.fillText(line, cardX + 10, cardY + 68 + lineIdx * 18);
+                    ctx.fillText(line, cardX + 10, eqNameY + 22 + lineIdx * lineStep, equipCardW - 20);
                 });
             } else {
                 ctx.fillStyle = '#4a6668';
-                ctx.font = '18px "VT323", monospace';
+                ctx.font = smallFont(18, false);
                 ctx.textAlign = 'center';
-                ctx.fillText('EMPTY SLOT', cardX + equipCardW / 2, cardY + equipCardH / 2 + 6);
+                ctx.fillText('EMPTY SLOT', cardX + equipCardW / 2, cardY + equipCardH / 2 + 6, equipCardW - 16);
             }
             ctx.restore();
 
@@ -1716,12 +1749,15 @@ export default class MenuManager {
                 ctx.fillRect(cellX + 2, setBarY + 2, typeCellW - 4, setBarH - 4);
             }
 
-            const twoTier = count >= 2 ? augmentMgr.getTwoPieceTier(tKey) : 0;
-            const tierTag = twoTier >= 2 ? ` [${augmentMgr.getTierLabel(twoTier)}]` : '';
+            const displayTier = count >= 4
+                ? augmentMgr.getFourPieceTier(tKey)
+                : (count >= 2 ? augmentMgr.getTwoPieceTier(tKey) : 0);
+            const tierTag = displayTier >= 2 ? ` [${augmentMgr.getTierLabel(displayTier)}]` : '';
+            const smallScale = Math.max(1.0, Math.min(2.0, Number(this.game?.settings?.ui?.smallTextScale ?? 1)));
             ctx.fillStyle = count >= 2 ? tInfo.color : (count > 0 ? '#d0e8ec' : '#556668');
-            ctx.font = 'bold 17px "VT323", monospace';
+            ctx.font = `bold ${Math.round(17 * Math.min(1.5, smallScale))}px "VT323", monospace`;
             ctx.textAlign = 'center';
-            ctx.fillText(`${tInfo.name.toUpperCase()}: ${count}/4${tierTag}`, cellX + typeCellW / 2, setBarY + 27);
+            ctx.fillText(`${tInfo.name.toUpperCase()}: ${count}/4${tierTag}`, cellX + typeCellW / 2, setBarY + 27, typeCellW - 8);
 
             this.augmentsButtons.push({
                 x: cellX,
@@ -1776,8 +1812,11 @@ export default class MenuManager {
                 const eqMatch = augmentMgr.getEquippedAugment(item.slot);
                 const isDuplicate = eqMatch && eqMatch.id === item.id;
 
+                const smallScale = Math.max(1.0, Math.min(2.0, Number(this.game?.settings?.ui?.smallTextScale ?? 1)));
+                const smallFont = (basePx, bold = true) => `${bold ? 'bold ' : ''}${Math.round(basePx * smallScale)}px "VT323", monospace`;
+
                 ctx.fillStyle = isDuplicate ? '#ffcc00' : '#00ffcc';
-                ctx.font = 'bold 16px "VT323", monospace';
+                ctx.font = smallFont(16, true);
                 ctx.textAlign = 'left';
                 ctx.fillText(
                     isDuplicate ? `SLOT: ${item.slot.toUpperCase()} [DUPLICATE]` : `SLOT: ${item.slot.toUpperCase()}`,
@@ -1792,19 +1831,22 @@ export default class MenuManager {
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 19px "VT323", monospace';
                 ctx.textAlign = 'left';
-                ctx.fillText(item.name.toUpperCase(), cardX + 10, cardY + 38);
+                const stNameY = cardY + 26 + Math.round(12 * smallScale);
+                ctx.fillText(item.name.toUpperCase(), cardX + 10, stNameY, storageCardW - 20);
 
                 ctx.fillStyle = '#b8d0d4';
-                ctx.font = '15px "VT323", monospace';
+                ctx.font = smallFont(15, false);
                 const descLines = wrapCardText(item.description, storageCardW - 20).slice(0, 2);
+                const lineStep = Math.round(15 * Math.min(1.35, smallScale));
                 descLines.forEach((line, lineIdx) => {
-                    ctx.fillText(line, cardX + 10, cardY + 56 + lineIdx * 15);
+                    ctx.fillText(line, cardX + 10, stNameY + 18 + lineIdx * lineStep, storageCardW - 20);
                 });
             } else {
+                const smallScale = Math.max(1.0, Math.min(2.0, Number(this.game?.settings?.ui?.smallTextScale ?? 1)));
                 ctx.fillStyle = '#3d5557';
-                ctx.font = '17px "VT323", monospace';
+                ctx.font = `${Math.round(17 * smallScale)}px "VT323", monospace`;
                 ctx.textAlign = 'center';
-                ctx.fillText(`EMPTY [0${idx + 1}]`, cardX + storageCardW / 2, cardY + storageCardH / 2 + 6);
+                ctx.fillText(`EMPTY [0${idx + 1}]`, cardX + storageCardW / 2, cardY + storageCardH / 2 + 6, storageCardW - 16);
             }
             ctx.restore();
 
@@ -1821,7 +1863,21 @@ export default class MenuManager {
 
                         if (isDoubleClick) {
                             const targetSlot = item.slot;
-                            if (augmentMgr.equipFromStorage(idx)) {
+                            const existing = augmentMgr.getEquippedAugment(targetSlot);
+                            const canFuse = existing && existing.id === item.id && (existing.tier || 1) < augmentMgr.maxTier;
+                            if (existing && !canFuse) {
+                                this._lastStorageClick = { index: -1, time: 0 };
+                                this._requestConfirm(
+                                    'OVERWRITE AUGMENT?',
+                                    `Installing ${item.name} will permanently destroy ${existing.name} in [${targetSlot.toUpperCase()}].`,
+                                    'OVERWRITE',
+                                    () => {
+                                        if (augmentMgr.equipFromStorage(idx)) {
+                                            this.selectedAugmentItem = { source: 'equipped', key: targetSlot };
+                                        }
+                                    }
+                                );
+                            } else if (augmentMgr.equipFromStorage(idx)) {
                                 this.selectedAugmentItem = { source: 'equipped', key: targetSlot };
                                 this._lastStorageClick = { index: -1, time: 0 };
                             }
@@ -1863,13 +1919,15 @@ export default class MenuManager {
                     ctx.fillStyle = 'rgba(255, 153, 0, 0.22)';
                     ctx.fillRect(cellX + 2, setBarY + 2, cellW - 4, setBarH - 4);
                 }
+                const smallScale = Math.max(1.0, Math.min(2.0, Number(this.game?.settings?.ui?.smallTextScale ?? 1)));
                 ctx.fillStyle = canForge ? (isHover ? '#ffffff' : '#ff9900') : '#665544';
-                ctx.font = 'bold 17px "VT323", monospace';
+                ctx.font = `bold ${Math.round(17 * Math.min(1.4, smallScale))}px "VT323", monospace`;
                 ctx.textAlign = 'center';
                 ctx.fillText(
                     `FORGE ${fSlot.toUpperCase()} (${augmentMgr.forgeSlotCost})`,
                     cellX + cellW / 2,
-                    setBarY + 27
+                    setBarY + 27,
+                    cellW - 8
                 );
 
                 this.augmentsButtons.push({
@@ -1887,13 +1945,15 @@ export default class MenuManager {
                 });
             });
         } else {
+            const smallScale = Math.max(1.0, Math.min(2.0, Number(this.game?.settings?.ui?.smallTextScale ?? 1)));
             ctx.fillStyle = '#668082';
-            ctx.font = '17px "VT323", monospace';
+            ctx.font = `${Math.round(16 * Math.min(1.5, smallScale))}px "VT323", monospace`;
             ctx.textAlign = 'center';
             ctx.fillText(
                 `CYBER-FORGE OFFLINE — REACH A FORGE TERMINAL IN ARENA TO CRAFT BY SLOT (${augmentMgr.forgeSlotCost} SCRAP)`,
                 rightColX + rightColW / 2,
-                setBarY + 27
+                setBarY + 27,
+                rightColW - 16
             );
         }
         ctx.restore();
@@ -1935,12 +1995,17 @@ export default class MenuManager {
             ctx.fillText(`${tInfo.name.toUpperCase()} SET BONUSES (${count}/4 EQUIPPED)`, innerX + 18, inspY + 26);
 
             if (bonuses) {
+                const twoTierTag = has2Pc ? ` • ${augmentMgr.getTierLabel(augmentMgr.getTwoPieceTier(selectedSetKey))}` : '';
+                const fourTierTag = has4Pc ? ` • ${augmentMgr.getTierLabel(augmentMgr.getFourPieceTier(selectedSetKey))}` : '';
+                const smallScale = Math.max(1.0, Math.min(2.0, Number(this.game?.settings?.ui?.smallTextScale ?? 1)));
+
                 ctx.fillStyle = has2Pc ? '#00ffcc' : '#778c8f';
-                ctx.font = '18px "VT323", monospace';
+                ctx.font = `${Math.round(18 * smallScale)}px "VT323", monospace`;
                 ctx.fillText(
-                    `[2-PC] ${bonuses.twoPiece.name}: ${bonuses.twoPiece.description}`,
+                    `[2-PC${twoTierTag}] ${bonuses.twoPiece.name}: ${bonuses.twoPiece.description}`,
                     innerX + 18,
-                    inspY + 52
+                    inspY + 52,
+                    innerW - 36
                 );
 
                 const activeChosen = has4Pc && augmentMgr.fourPieceChoice === 'active';
@@ -1948,33 +2013,38 @@ export default class MenuManager {
 
                 ctx.fillStyle = activeChosen ? '#00ffcc' : (has4Pc ? '#ffffff' : '#778c8f');
                 ctx.fillText(
-                    `[4-PC ACTIVE${activeChosen ? ' ★' : ''}] ${bonuses.fourPiece.active.name}: ${bonuses.fourPiece.active.description}`,
+                    `[4-PC ACTIVE${fourTierTag}${activeChosen ? ' ★' : ''}] ${bonuses.fourPiece.active.name}: ${bonuses.fourPiece.active.description}`,
                     innerX + 18,
-                    inspY + 78
+                    inspY + 78,
+                    innerW - 36
                 );
 
                 ctx.fillStyle = passiveChosen ? '#00ffcc' : (has4Pc ? '#ffffff' : '#778c8f');
                 ctx.fillText(
-                    `[4-PC PASSIVE${passiveChosen ? ' ★' : ''}] ${bonuses.fourPiece.passive.name}: ${bonuses.fourPiece.passive.description}`,
+                    `[4-PC PASSIVE${fourTierTag}${passiveChosen ? ' ★' : ''}] ${bonuses.fourPiece.passive.name}: ${bonuses.fourPiece.passive.description}`,
                     innerX + 18,
-                    inspY + 102
+                    inspY + 102,
+                    innerW - 36
                 );
             }
         } else if (!selectedAug) {
+            const smallScale = Math.max(1.0, Math.min(2.0, Number(this.game?.settings?.ui?.smallTextScale ?? 1)));
             ctx.fillStyle = '#88c8d0';
-            ctx.font = '20px "VT323", monospace';
+            ctx.font = `${Math.round(20 * Math.min(1.45, smallScale))}px "VT323", monospace`;
             ctx.textAlign = 'center';
             ctx.fillText(
                 'Select an augment or click a Set name above to inspect set bonuses.',
                 innerX + innerW / 2,
-                inspY + 48
+                inspY + 46,
+                innerW - 32
             );
             ctx.fillStyle = '#ff7b00';
-            ctx.font = '18px "VT323", monospace';
+            ctx.font = `${Math.round(18 * Math.min(1.45, smallScale))}px "VT323", monospace`;
             ctx.fillText(
                 'NOTE: Unequipping or overwriting an installed augment permanently destroys it.',
                 innerX + innerW / 2,
-                inspY + 78
+                inspY + 80,
+                innerW - 32
             );
         } else {
             const tInfo = AUGMENT_TYPES[selectedAug.type] || { name: selectedAug.type, color: '#00ffcc' };
@@ -2061,6 +2131,17 @@ export default class MenuManager {
                                 if (augmentMgr.fuseFromStorage(storageIdx)) {
                                     this.selectedAugmentItem = { source: 'equipped', key: targetSlot };
                                 }
+                            } else if (existingInSlot) {
+                                this._requestConfirm(
+                                    'OVERWRITE AUGMENT?',
+                                    `Installing ${selectedAug.name} will permanently destroy ${existingInSlot.name} in [${targetSlot.toUpperCase()}].`,
+                                    'OVERWRITE',
+                                    () => {
+                                        if (augmentMgr.equipFromStorage(storageIdx)) {
+                                            this.selectedAugmentItem = { source: 'equipped', key: targetSlot };
+                                        }
+                                    }
+                                );
                             } else if (augmentMgr.equipFromStorage(storageIdx)) {
                                 this.selectedAugmentItem = { source: 'equipped', key: targetSlot };
                             }
@@ -2101,8 +2182,15 @@ export default class MenuManager {
                     w: btnW,
                     h: btnH,
                     action: () => {
-                        augmentMgr.unequipSlot(slotKey);
-                        this.selectedAugmentItem = null;
+                        this._requestConfirm(
+                            'DESTROY AUGMENT?',
+                            `Unequipping ${selectedAug.name} from [${slotKey.toUpperCase()}] will permanently destroy it.`,
+                            'DESTROY',
+                            () => {
+                                augmentMgr.unequipSlot(slotKey);
+                                this.selectedAugmentItem = null;
+                            }
+                        );
                     }
                 });
             }
@@ -2129,7 +2217,101 @@ export default class MenuManager {
         // 4. 4-Piece Set Bonus Selection Modal (when player completes a 4-piece set)
         if (augmentMgr.pendingFourPieceChoiceType) {
             this._drawFourPieceChoiceModal(ctx, w, h, pointer, augmentMgr, wrapCardText);
+        } else if (this.pendingConfirmModal) {
+            this._drawConfirmModal(ctx, w, h, pointer);
         }
+    }
+
+    _requestConfirm(title, message, confirmLabel, onConfirm) {
+        this.pendingConfirmModal = {
+            title,
+            message,
+            confirmLabel: confirmLabel || 'CONFIRM',
+            onConfirm
+        };
+    }
+
+    _drawConfirmModal(ctx, w, h, pointer) {
+        if (!this.pendingConfirmModal) return;
+        const modal = this.pendingConfirmModal;
+        this.augmentsButtons = [];
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
+        ctx.fillRect(0, 0, w, h);
+
+        const mw = Math.min(540, w - 40);
+        const mh = 210;
+        const mx = (w - mw) / 2;
+        const my = (h - mh) / 2;
+
+        ctx.fillStyle = 'rgba(10, 14, 24, 0.98)';
+        ctx.fillRect(mx, my, mw, mh);
+        ctx.strokeStyle = '#ff4444';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(mx, my, mw, mh);
+
+        ctx.fillStyle = '#ff5555';
+        ctx.font = 'bold 26px Orbitron, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(modal.title, w / 2, my + 40);
+
+        ctx.fillStyle = '#e0f0f5';
+        ctx.font = '20px "VT323", monospace';
+        const words = (modal.message || '').split(' ');
+        const lines = [];
+        let cur = '';
+        for (const word of words) {
+            const test = cur ? `${cur} ${word}` : word;
+            if (ctx.measureText(test).width > mw - 56 && cur) {
+                lines.push(cur);
+                cur = word;
+            } else {
+                cur = test;
+            }
+        }
+        if (cur) lines.push(cur);
+        const startY = my + 82;
+        lines.slice(0, 3).forEach((line, i) => {
+            ctx.fillText(line, w / 2, startY + i * 24);
+        });
+
+        const btnW = 190;
+        const btnH = 44;
+        const gap = 24;
+        const btnY = my + mh - btnH - 22;
+        const confirmX = w / 2 - btnW - gap / 2;
+        const cancelX = w / 2 + gap / 2;
+
+        const confirmHover = pointer && this._isHovered(pointer, confirmX, btnY, btnW, btnH);
+        const cancelHover = pointer && this._isHovered(pointer, cancelX, btnY, btnW, btnH);
+
+        this.drawButton(ctx, confirmX, btnY, btnW, btnH, modal.confirmLabel, confirmHover, 'danger');
+        this.augmentsButtons.push({
+            x: confirmX,
+            y: btnY,
+            w: btnW,
+            h: btnH,
+            action: () => {
+                const cb = modal.onConfirm;
+                this.pendingConfirmModal = null;
+                if (cb) cb();
+            }
+        });
+
+        this.drawButton(ctx, cancelX, btnY, btnW, btnH, 'CANCEL', cancelHover, 'default');
+        this.augmentsButtons.push({
+            x: cancelX,
+            y: btnY,
+            w: btnW,
+            h: btnH,
+            action: () => {
+                this.pendingConfirmModal = null;
+            }
+        });
+
+        ctx.restore();
     }
 
     _drawLoadoutTabContent(ctx, w, h, pointer, player, augmentMgr, innerX, innerY, innerW, topAreaH, inspectorH, wrapCardText) {
@@ -2505,14 +2687,21 @@ export default class MenuManager {
                 w: btnW,
                 h: btnH,
                 action: () => {
-                    if (droneMgr && droneMgr.removeDrone(d.id)) {
-                        augmentMgr.scrap += 2;
-                        const ui = this.game.getModule('ui');
-                        if (ui && ui.showNotification) {
-                            ui.showNotification(`DRONE SCRAPPED: +2 CYBER-SCRAP`, '#ff9900');
+                    this._requestConfirm(
+                        'DESTROY DRONE?',
+                        `Scrapping ${d.name} will permanently destroy it and grant +2 Cyber-Scrap.`,
+                        'DESTROY (+2)',
+                        () => {
+                            if (droneMgr && droneMgr.removeDrone(d.id)) {
+                                augmentMgr.scrap += 2;
+                                const ui = this.game.getModule('ui');
+                                if (ui && ui.showNotification) {
+                                    ui.showNotification(`DRONE SCRAPPED: +2 CYBER-SCRAP`, '#ff9900');
+                                }
+                                this.selectedAugmentItem = null;
+                            }
                         }
-                        this.selectedAugmentItem = null;
-                    }
+                    );
                 }
             });
         } else if (sel.source === 'hack') {
@@ -2544,14 +2733,21 @@ export default class MenuManager {
                 w: btnW,
                 h: btnH,
                 action: () => {
-                    if (hackMgr && hackMgr.removeHack(hData.id)) {
-                        augmentMgr.scrap += 2;
-                        const ui = this.game.getModule('ui');
-                        if (ui && ui.showNotification) {
-                            ui.showNotification(`HACK SCRAPPED: +2 CYBER-SCRAP`, '#ff9900');
+                    this._requestConfirm(
+                        'DESTROY HACK?',
+                        `Scrapping ${hData.name} will permanently destroy it and grant +2 Cyber-Scrap.`,
+                        'DESTROY (+2)',
+                        () => {
+                            if (hackMgr && hackMgr.removeHack(hData.id)) {
+                                augmentMgr.scrap += 2;
+                                const ui = this.game.getModule('ui');
+                                if (ui && ui.showNotification) {
+                                    ui.showNotification(`HACK SCRAPPED: +2 CYBER-SCRAP`, '#ff9900');
+                                }
+                                this.selectedAugmentItem = null;
+                            }
                         }
-                        this.selectedAugmentItem = null;
-                    }
+                    );
                 }
             });
         } else if (sel.source === 'playerCard' || sel.source === 'droneCard') {

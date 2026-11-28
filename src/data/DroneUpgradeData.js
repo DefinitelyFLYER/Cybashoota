@@ -64,6 +64,21 @@ export const DRONE_UPGRADES = [
         targetBehaviors: ['RANGED'],
         onApply: (droneMods) => { droneMods['RANGED'].rangeMulti += 1.0; }
     },
+    {
+        id: 'drone_ranged_independent',
+        name: 'independent_projectiles.exe',
+        rarity: 'Rare',
+        unique: true,
+        description: '[Assault] Improves Assault Drone\'s AI to shoot more targets at once!',
+        requirementText: 'Requires Assault Drone with 2+ projectiles.',
+        targetBehaviors: ['RANGED'],
+        requirements: (droneMgr, synergyMgr) => {
+            const hasAssault = droneMgr?.drones?.some(d => d.id === 'BASIC_SHOOTER');
+            const hasBulletChoir = synergyMgr && synergyMgr.hasSynergy('bullet_choir');
+            return Boolean(hasAssault && hasBulletChoir);
+        },
+        onApply: (droneMods) => { droneMods['RANGED'].independentTargeting = true; }
+    },
 
     // interceptor type drone upgrades
     {

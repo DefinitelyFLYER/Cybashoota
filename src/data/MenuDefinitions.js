@@ -154,6 +154,16 @@ export const MENU_DEFINITIONS = {
                     min: 0.75,
                     max: 1.5,
                     step: 0.05
+                },
+                {
+                    id: 'smallTextScale',
+                    type: 'slider',
+                    label: 'Small Text Scale',
+                    path: ['ui', 'smallTextScale'],
+                    min: 1.0,
+                    max: 1.8,
+                    step: 0.1,
+                    showSmallTextPreview: true
                 }
             ],
             controls: [

@@ -1,6 +1,18 @@
-export const CURRENT_VERSION = 'v0.7.0';
+export const CURRENT_VERSION = 'v0.7.1';
 
 const CHANGELOG = [
+    {
+        version: 'v0.7.1',
+        title: 'VIRUS REWORK & QOL',
+        date: '28-11-2026',
+        notes: [
+            'Reworked Virus & Glitched enemy interactions.',
+            'Added a new Assault Drone card and a new Auto-Recycle option.',
+            'Added confirmation prompts for overwriting or destroying gear.',
+            'Added a Small Text Scale slider and fixed minor UI bugs.',
+            'Adjusted Boss HP, spawn pacing, and Scrap-to-XP balance.'
+        ]
+    },
     {
         version: 'v0.7.0',
         title: 'WE GOT BOSSES NOW!!',

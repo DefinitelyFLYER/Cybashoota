@@ -510,8 +510,8 @@ export default class AugmentManager {
                 const ui = this.game.getModule('ui');
                 const particles = this.game.getModule('particles');
 
-                // Auto-Recycler Protocol: auto-scrap non-preferred sets on pickup
-                if (this.autoRecyclerUnlocked && this.preferredSet && pod.augment.type !== this.preferredSet) {
+                // Auto-Recycler Protocol: auto-scrap non-preferred sets (or ALL) on pickup
+                if (this.autoRecyclerUnlocked && this.preferredSet && (this.preferredSet === 'ALL' || pod.augment.type !== this.preferredSet)) {
                     const scrapGain = this.getScrapValue(pod.augment);
                     const codex = this.game?.getModule('codex');
                     if (codex) codex.discover('augments', pod.augment.id);
@@ -990,13 +990,19 @@ export default class AugmentManager {
         return AUGMENT_SLOT_LIST.every(s => this.slots[s] && (this.slots[s].tier || 1) >= 3);
     }
 
+    getScrapXpValue(amount = 1) {
+        const player = this.game?.getModule('player');
+        if (!player || amount <= 0) return 0;
+        return Math.max(10, Math.round(player.xpNextLevel * 0.17 * amount));
+    }
+
     convertScrapToXp(amount = 1) {
-        if (!this.isFullMk3Build() || this.scrap < amount || amount <= 0) return 0;
+        if (!this.isFullMk3Build() || !this.isPlayerNearForge() || this.scrap < amount || amount <= 0) return 0;
         const player = this.game?.getModule('player');
         if (!player) return 0;
 
         this.scrap -= amount;
-        const xpGain = Math.max(10, Math.round(player.xpNextLevel * 0.2 * amount));
+        const xpGain = this.getScrapXpValue(amount);
         player.addXp(xpGain);
 
         const ui = this.game?.getModule('ui');
