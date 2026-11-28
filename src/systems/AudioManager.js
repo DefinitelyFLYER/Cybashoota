@@ -571,6 +571,14 @@ export default class AudioManager {
                 this._playTone(t, 'triangle', 260, 58, 0.42, 0.15, dest, 600);
                 break;
             }
+            case 'bossAlert': {
+                if (!this._canPlay('bossAlert', 1000)) return;
+                [0, 0.22].forEach((offset) => {
+                    this._playTone(t + offset, 'sawtooth', 180, 340, 0.16, 0.22, dest, 950);
+                    this._playTone(t + offset + 0.08, 'sine', 95, 45, 0.12, 0.22, dest);
+                });
+                break;
+            }
             default:
                 break;
         }

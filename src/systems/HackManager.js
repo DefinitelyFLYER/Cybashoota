@@ -5,6 +5,7 @@ export default class HackManager {
         this.signalJammerTimeout = null;
         this.activeDecoy = null;
         this.overloadFlashTimer = 0;
+        this.zeroCooldown = false;
         this.HACK_TYPES = {
             [HACK_DATA.OVERLOAD.id]: {
                 id: HACK_DATA.OVERLOAD.id,
@@ -31,7 +32,7 @@ export default class HackManager {
                     }
                     this.overloadFlashTimer = 380;
                     if (player && typeof player.triggerShockwave === 'function') {
-                        player.triggerShockwave({ maxRadius: 950, duration: 550, damage: 0, color: '#ff0055' });
+                        player.triggerShockwave({ maxRadius: 9.5 * (game.UNIT_SIZE || 100), duration: 550, damage: 0, color: '#ff0055' });
                     }
                     if (hasOverloadBarrage && player) {
                         player.overloadBarrageTimer = 4000;
@@ -513,7 +514,7 @@ export default class HackManager {
         if (player && player.stats.hackCooldownMulti !== undefined) {
             cdMulti *= Math.max(0.25, player.stats.hackCooldownMulti);
         }
-        this.cooldownTimer = this.cooldownDuration * cdMulti;
+        this.cooldownTimer = this.zeroCooldown ? 0 : (this.cooldownDuration * cdMulti);
         const audio = this.game?.getModule('audio');
         if (audio) audio.play(this.activeHack === 'OVERLOAD' ? 'overload' : 'hack');
         if (augmentMgr) {

@@ -103,7 +103,7 @@ export const ENEMY_TYPES = {
         emp: {
             cooldown: 6000,
             chargeDuration: 1500,
-            radius: 320,
+            radius: 3.2,
             disableDuration: 3500
         }
     },
@@ -121,7 +121,7 @@ export const ENEMY_TYPES = {
         renderType: 'shape',
         isSuicidal: false,
         dasher: {
-            triggerRange: 380,
+            triggerRange: 3.8,
             chargeDuration: 650,
             dashDuration: 450,
             dashSpeed: 0.72,
@@ -158,7 +158,7 @@ export const ENEMY_TYPES = {
         isSuicidal: false,
         virus: {
             fireRate: 1200,
-            range: 420,
+            range: 4.2,
             projectileSpeed: 0.65,
             glitchChance: 0.45,
             rangedMutationChance: 0.18,
@@ -205,10 +205,83 @@ export const ENEMY_TYPES = {
         renderType: 'shape',
         isSuicidal: false,
         shieldAura: {
-            radius: 190,
+            radius: 1.9,
             damageReduction: 0.45
+        }
+    },
+
+    // v0.7.0 Bosses
+    BOSS_WARDEN: {
+        type: 'HEXAGON',
+        specialType: 'BOSS_WARDEN',
+        isBoss: true,
+        codexName: 'Firewall Warden',
+        codexTier: 'boss',
+        codexDescription: 'Siege boss that fires 14-shot bullet novas, charges along red-telegraphed lanes, and deploys Sentry/Shield escorts.',
+        hp: 180,
+        speed: 0.055,
+        size: 76,
+        color: '#ff4400',
+        scoreValue: 1000,
+        renderType: 'shape',
+        isSuicidal: false,
+        bossConfig: {
+            skillCooldown: 3200,
+            novaCount: 14,
+            novaSpeed: 0.42,
+            chargeTime: 900,
+            dashTime: 650,
+            dashSpeed: 0.78
+        }
+    },
+    BOSS_PHANTOM: {
+        type: 'RHOMBUS',
+        specialType: 'BOSS_PHANTOM',
+        isBoss: true,
+        codexName: 'Null-Pointer',
+        codexTier: 'boss',
+        codexDescription: 'Glitch assassin that teleports onto telegraphed markers, spawns ranged clones, and emits EMP disruption rings.',
+        hp: 260,
+        speed: 0.085,
+        size: 70,
+        color: '#ff00ff',
+        scoreValue: 1500,
+        renderType: 'shape',
+        isSuicidal: false,
+        bossConfig: {
+            skillCooldown: 2900,
+            blinkDelay: 850,
+            empRadius: 2.8,
+            empDuration: 2500
+        }
+    },
+    BOSS_OVERMIND: {
+        type: 'CIRCLE',
+        specialType: 'BOSS_OVERMIND',
+        isBoss: true,
+        codexName: 'Apex Overmind',
+        codexTier: 'boss',
+        codexDescription: 'Core boss that unleashes rotating dual-spiral barrages, AoE overload rings, and Dasher/Virus swarms.',
+        hp: 380,
+        speed: 0.05,
+        size: 84,
+        color: '#ffcc00',
+        scoreValue: 2500,
+        renderType: 'shape',
+        isSuicidal: false,
+        bossConfig: {
+            skillCooldown: 2700,
+            overloadRadius: 2.2,
+            overloadDelay: 1200
         }
     }
 };
 
-export const ENEMY_CODEX_IDS = Object.keys(ENEMY_TYPES).filter(id => id !== 'MINI_SHARD');
+export const ENEMY_CODEX_IDS = Object.keys(ENEMY_TYPES).filter(id => id !== 'MINI_SHARD' && !ENEMY_TYPES[id].isBoss);
+export const BOSS_CODEX_IDS = Object.keys(ENEMY_TYPES).filter(id => ENEMY_TYPES[id].isBoss);
+export const BOSS_MILESTONES = [
+    { timeSec: 180, bossId: 'BOSS_WARDEN', hpScale: 1.0 },
+    { timeSec: 360, bossId: 'BOSS_PHANTOM', hpScale: 1.0 },
+    { timeSec: 540, bossId: 'BOSS_OVERMIND', hpScale: 1.0 },
+    { timeSec: 720, bossId: 'BOSS_OVERMIND', hpScale: 1.5 }
+];

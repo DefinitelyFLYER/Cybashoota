@@ -10,6 +10,7 @@ export default class Player {
         this.ghostTimer = 0;
         this.overloadBarrageTimer = 0;
         this.empDisruptedTimer = 0;
+        this.godMode = false;
         this.empDisruptedTimer = 0;
         this.level = 1;
         this.xp = 0;
@@ -145,6 +146,7 @@ export default class Player {
         this.ghostTimer = 0;
         this.overloadBarrageTimer = 0;
         this.empDisruptedTimer = 0;
+        this.godMode = false;
         this.empDisruptedTimer = 0;
         this.level = 1;
         this.xp = 0;
@@ -287,7 +289,7 @@ export default class Player {
             if (synergyMgr) {
                 synergyMgr.onArmorBroken(this);
                 if (synergyMgr.hasSynergy('titan_thorns')) {
-                    this.triggerShockwave({ maxRadius: 180, duration: 500, damage: 8, color: '#4488ff' });
+                    this.triggerShockwave({ maxRadius: 1.8 * (this.game?.UNIT_SIZE || 100), duration: 500, damage: 8, color: '#4488ff' });
                 }
             }
             if (augmentMgr) augmentMgr.onPlayerDamagedOrDodged(false);
@@ -295,6 +297,10 @@ export default class Player {
         }
 
         this.armorRechargeTimer = 0;
+        if (this.godMode) {
+            this.invulnerable = 200;
+            return;
+        }
         const finalDamage = Math.max(1, amount);
         
         this.stats.hp -= finalDamage;
@@ -302,7 +308,7 @@ export default class Player {
         if (audio) audio.play('playerHit');
         const synergyMgr = this.game?.getModule('synergies');
         if (synergyMgr && synergyMgr.hasSynergy('titan_thorns')) {
-            this.triggerShockwave({ maxRadius: 180, duration: 500, damage: 8, color: '#4488ff' });
+            this.triggerShockwave({ maxRadius: 1.8 * (this.game?.UNIT_SIZE || 100), duration: 500, damage: 8, color: '#4488ff' });
         }
         
         this.invulnerable = 1500;
@@ -395,8 +401,9 @@ export default class Player {
         const juggernautSpeed = synergyMgr && synergyMgr.juggernautBuffTimer > 0 ? 1.25 : 1;
         const ghostwireSpeed = synergyMgr && synergyMgr.ghostwireTimer > 0 ? 1.2 : 1;
         const speedMultiplier = (this.ghostActive ? HACK_DATA.GHOST_PROTOCOL.speedBoostMultiplier : 1) * juggernautSpeed * ghostwireSpeed;
-        this.pos.x += moveX * this.getStat('moveSpeed') * speedMultiplier * deltaTime;
-        this.pos.y += moveY * this.getStat('moveSpeed') * speedMultiplier * deltaTime;
+        const unitScale = this.game?.getUnitScale ? this.game.getUnitScale() : 1;
+        this.pos.x += moveX * this.getStat('moveSpeed') * speedMultiplier * unitScale * deltaTime;
+        this.pos.y += moveY * this.getStat('moveSpeed') * speedMultiplier * unitScale * deltaTime;
     }
 
     _handleWeaponAim(projMgr) {

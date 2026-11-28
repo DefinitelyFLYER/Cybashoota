@@ -255,6 +255,55 @@
         ctx.restore();
     }
 
+    _drawBossHud(ctx, virtualW) {
+        const enemyMgr = this.game.getModule('enemies');
+        if (!enemyMgr) return;
+
+        if ((enemyMgr.bossWarningTimer || 0) > 0 && enemyMgr.bossWarningText) {
+            const pulse = 0.55 + 0.45 * Math.sin(enemyMgr.bossWarningTimer * 0.015);
+            ctx.save();
+            ctx.globalAlpha = pulse;
+            ctx.fillStyle = '#ff3300';
+            ctx.font = 'bold 28px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = '#ff3300';
+            ctx.fillText(`⚠ ${enemyMgr.bossWarningText} ⚠`, virtualW / 2, 108);
+            ctx.restore();
+        }
+
+        const boss = typeof enemyMgr.getActiveBoss === 'function' ? enemyMgr.getActiveBoss() : null;
+        if (!boss) return;
+
+        const barW = Math.min(440, virtualW - 160);
+        const barH = 14;
+        const barX = (virtualW - barW) / 2;
+        const barY = 58;
+        const hpRatio = Math.max(0, Math.min(1, boss.currentHp / Math.max(1, boss.maxHp)));
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 5, 10, 0.85)';
+        ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
+        ctx.strokeStyle = boss.color || '#ff4400';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(barX - 2, barY - 2, barW + 4, barH + 4);
+
+        ctx.fillStyle = boss.color || '#ff4400';
+        ctx.fillRect(barX, barY, barW * hpRatio, barH);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px "VT323", monospace';
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = boss.color || '#ff4400';
+        ctx.fillText(
+            `${(boss.codexName || boss.specialType || 'BOSS').toUpperCase()}  (${Math.ceil(boss.currentHp)} / ${boss.maxHp})`,
+            virtualW / 2,
+            barY - 8
+        );
+        ctx.restore();
+    }
+
     _drawEmpDisruptionHud(ctx, virtualW, virtualH) {
         const player = this.game.getModule('player');
         if (!player || (player.empDisruptedTimer || 0) <= 0) return;
@@ -505,6 +554,7 @@
         this._drawHackHud(ctx, virtualW, virtualH);
         this._drawUltimateHud(ctx, virtualW, virtualH);
         this._drawEmpDisruptionHud(ctx, virtualW, virtualH);
+        this._drawBossHud(ctx, virtualW);
         this._drawSynergyHud(ctx, virtualW);
         this._drawXpBar(ctx, virtualW);
         this._drawActiveBuffs(ctx, virtualW, virtualH);

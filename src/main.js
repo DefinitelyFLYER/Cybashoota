@@ -14,6 +14,7 @@ import ProjectileManager from './entities/ProjectileManager.js';
 import AudioManager from './systems/AudioManager.js';
 import AugmentManager from './systems/AugmentManager.js';
 import CodexManager from './systems/CodexManager.js';
+import DebugManager from './systems/DebugManager.js';
 import ExperienceManager from './systems/ExperienceManager.js';
 import PowerUpManager from './systems/PowerUpManager.js';
 import SpawnDirector from './systems/SpawnDirector.js';
@@ -49,5 +50,6 @@ game.addModule('augments', new AugmentManager());
 game.addModule('synergies', new SynergyManager());
 game.addModule('codex', new CodexManager());
 game.addModule('audio', new AudioManager());
+game.addModule('debug', new DebugManager());
 
 game.start();

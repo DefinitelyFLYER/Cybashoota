@@ -63,6 +63,7 @@ export default class Game {
         this.pauseResumeCooldownDuration = 3000;
         this._resumeGraceTimer = 0;
         this.isSignalJammed = false;
+        this.timeScale = 1;
 
         this._loadPersistentSettings();
         this._resizeCanvas();
@@ -109,6 +110,12 @@ export default class Game {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
         this.center = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
+        const scale = Math.max(0.5, Math.min(2.5, Math.min(this.canvas.width / 1920, this.canvas.height / 1080)));
+        this.UNIT_SIZE = 100 * scale;
+    }
+
+    getUnitScale() {
+        return (this.UNIT_SIZE || 100) / 100;
     }
 
     start() {
@@ -216,7 +223,7 @@ export default class Game {
         const isMenuOpen = upgrades && upgrades.isSelectionActive;
 
         if (this.gameState === 'PLAYING' && !isMenuOpen && !this.isPaused && !this.isGameOver) {
-            this._update(deltaTime);
+            this._update(deltaTime * (this.timeScale || 1));
         }
 
         if (this.gameState === 'MENU' || isMenuOpen || this.isPaused || this.isGameOver || this.settingsOpen || this.augmentsOpen) {
@@ -294,6 +301,11 @@ export default class Game {
             menu.draw(this.ctx);
         }
 
+        const debug = this.getModule('debug');
+        if (debug && typeof debug.draw === 'function') {
+            debug.draw(this.ctx);
+        }
+
         const ui = this.getModule('ui');
         const input = this.getModule('input');
         const projectiles = this.getModule('projectiles');
@@ -303,6 +315,14 @@ export default class Game {
     }
 
     _handleGlobalKeydown(e) {
+        if (e.code === 'F9') {
+            const debug = this.getModule('debug');
+            if (debug && debug.unlocked) {
+                e.preventDefault();
+                debug.togglePanel();
+                return;
+            }
+        }
         const menu = this.getModule('menu');
         if (menu && menu.isWaitingForKey) return;
 

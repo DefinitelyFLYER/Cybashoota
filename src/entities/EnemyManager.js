@@ -10,6 +10,10 @@ export default class EnemyManager {
         this.spawnRate = 1500;
         this.sprites = new Map();
         this.outlineWidth = 3;
+        this.bossWarningTimer = 0;
+        this.bossWarningText = '';
+        this.bossArenaCenter = null;
+        this.freezeSpawns = false;
     }
 
     init(game) {
@@ -24,6 +28,18 @@ export default class EnemyManager {
         this.spawnTimer = 0;
         this.spawnRate = 1500;
         this.activePhase = null;
+        this.bossWarningTimer = 0;
+        this.bossWarningText = '';
+        this.bossArenaCenter = null;
+        this.freezeSpawns = false;
+    }
+
+    getActiveBoss() {
+        return this.enemies.find(e => e.isBoss && e.currentHp > 0) || null;
+    }
+
+    hasActiveBoss() {
+        return Boolean(this.getActiveBoss());
     }
 
     _preloadSprites() {
@@ -43,18 +59,48 @@ export default class EnemyManager {
 
         const augmentMgr = this.game.getModule('augments');
         const enemyDt = deltaTime * (augmentMgr ? augmentMgr.timeSlowFactor : 1);
+        if (this.bossWarningTimer > 0) {
+            this.bossWarningTimer = Math.max(0, this.bossWarningTimer - deltaTime);
+        }
 
         this._handleSpawning(deltaTime);
         this._updateEmpWaves(enemyDt);
         this._updateVirusProjectiles(enemyDt);
+        const activeBoss = this.getActiveBoss();
+        const bossActive = Boolean(activeBoss);
+        if (bossActive) {
+            const unitSize = this.game.UNIT_SIZE || 100;
+            const arenaRadius = 7.0 * unitSize;
+            if (!this.bossArenaCenter) {
+                this.bossArenaCenter = { x: player.pos.x, y: player.pos.y };
+            } else {
+                const midX = (player.pos.x + activeBoss.x) * 0.5;
+                const midY = (player.pos.y + activeBoss.y) * 0.5;
+                const playerDist = Math.hypot(player.pos.x - this.bossArenaCenter.x, player.pos.y - this.bossArenaCenter.y);
+                const outsideArena = playerDist > arenaRadius;
+                const targetX = outsideArena ? player.pos.x : midX;
+                const targetY = outsideArena ? player.pos.y : midY;
+                const slideRate = outsideArena ? 0.0022 : 0.00022;
+                const t = Math.min(1, slideRate * enemyDt);
+                this.bossArenaCenter.x += (targetX - this.bossArenaCenter.x) * t;
+                this.bossArenaCenter.y += (targetY - this.bossArenaCenter.y) * t;
+            }
+        } else if (this.bossArenaCenter) {
+            this.bossArenaCenter = null;
+        }
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const e = this.enemies[i];
+            const isSpectator = bossActive && !e.isBoss && !e.isBossMinion;
 
             this._updateEnemyTimers(e, enemyDt);
-            this._handleSpecialEnemyBehavior(e, player, enemyDt);
-            this._applyPhysics(e, player, enemyDt);
-            this._handleRangedAttack(e, player, enemyDt);
+            if (!isSpectator) {
+                this._handleSpecialEnemyBehavior(e, player, enemyDt);
+            }
+            this._applyPhysics(e, player, enemyDt, isSpectator);
+            if (!isSpectator) {
+                this._handleRangedAttack(e, player, enemyDt);
+            }
             this._checkPlayerCollision(e, player);
             
             this._checkDroneCollisions(e, player);
@@ -84,14 +130,69 @@ export default class EnemyManager {
         }
     }
 
-    _applyPhysics(e, player, deltaTime) {
-        const stopMargin = 80;
+    _applyPhysics(e, player, deltaTime, isSpectator = false) {
+        const unitSize = this.game.UNIT_SIZE || 100;
+        const unitScale = this.game.getUnitScale ? this.game.getUnitScale() : 1;
+        const scaledDt = deltaTime * unitScale;
+
+        if (isSpectator) {
+            const center = this.bossArenaCenter || player.pos;
+            const arenaRadius = 7.0 * unitSize;
+            const dxC = center.x - e.x;
+            const dyC = center.y - e.y;
+            const distC = Math.hypot(dxC, dyC) || 1;
+            const inX = dxC / distC;
+            const inY = dyC / distC;
+
+            // Strong inward pull toward the arena
+            let moveX = inX * e.speed * 1.15;
+            let moveY = inY * e.speed * 1.15;
+
+            // Sideways-biased crowd repulsion so layers stack and slide around gaps
+            let repX = 0;
+            let repY = 0;
+            for (const other of this.enemies) {
+                if (other === e || other.currentHp <= 0 || other.isBoss || other.isBossMinion) continue;
+                const ox = e.x - other.x;
+                const oy = e.y - other.y;
+                const minSep = (e.size + other.size) * 0.56;
+                const dSq = ox * ox + oy * oy;
+                if (dSq > 0 && dSq < minSep * minSep) {
+                    const d = Math.sqrt(dSq);
+                    const strength = ((minSep - d) / minSep) * 0.22;
+                    repX += (ox / d) * strength;
+                    repY += (oy / d) * strength;
+                }
+            }
+            // Dampen outward push so back rows don't get shoved away, preserving tangential slide
+            const radialDot = repX * inX + repY * inY;
+            if (radialDot < 0) {
+                repX -= inX * radialDot * 0.72;
+                repY -= inY * radialDot * 0.72;
+            }
+            moveX += repX;
+            moveY += repY;
+
+            e.x += moveX * scaledDt;
+            e.y += moveY * scaledDt;
+
+            // Hard no-entry circular barrier at 7.0 units
+            const postDx = e.x - center.x;
+            const postDy = e.y - center.y;
+            const postDist = Math.hypot(postDx, postDy) || 1;
+            if (postDist < arenaRadius) {
+                e.x = center.x + (postDx / postDist) * arenaRadius;
+                e.y = center.y + (postDy / postDist) * arenaRadius;
+            }
+            return;
+        }
+        const stopMargin = 0.8 * unitSize;
         const innerW = (this.game.canvas.width / 2) - stopMargin;
         const innerH = (this.game.canvas.height / 2) - stopMargin;
         const turboMultiplier = 3;
         const COOLDOWN_TIME = 5000;
         
-        const TELEPORT_THRESHOLD = 200; 
+        const TELEPORT_THRESHOLD = 2.0 * unitSize; 
 
         const hackMgr = this.game.getModule('hack');
         const decoy = hackMgr?.activeDecoy;
@@ -136,16 +237,22 @@ export default class EnemyManager {
         const sep = this._calculateSeparation(e);
         const soft = this._calculateSoftPlayerCollision(e, player);
 
-        // Dasher override movement
-        if (e.dashState === 'charging') {
+        // Dasher or Boss charge override movement
+        if (e.dashState === 'charging' || e.bossChargeState === 'charging' || e.bossOverloadTimer > 0) {
             e.x += sep.x * deltaTime;
             e.y += sep.y * deltaTime;
             return;
         }
         if (e.dashState === 'dashing') {
             const dSpeed = e.dasher.dashSpeed;
-            e.x += e.dashDirX * dSpeed * deltaTime;
-            e.y += e.dashDirY * dSpeed * deltaTime;
+            e.x += e.dashDirX * dSpeed * scaledDt;
+            e.y += e.dashDirY * dSpeed * scaledDt;
+            return;
+        }
+        if (e.bossChargeState === 'dashing') {
+            const bSpeed = e.bossConfig?.dashSpeed || 0.78;
+            e.x += e.bossChargeDirX * bSpeed * scaledDt;
+            e.y += e.bossChargeDirY * bSpeed * scaledDt;
             return;
         }
 
@@ -154,8 +261,8 @@ export default class EnemyManager {
             if (e.wanderAngle === undefined) e.wanderAngle = Math.random() * Math.PI * 2;
             const moveX = Math.cos(e.wanderAngle) * e.speed + sep.x + soft.x;
             const moveY = Math.sin(e.wanderAngle) * e.speed + sep.y + soft.y;
-            e.x += moveX * deltaTime;
-            e.y += moveY * deltaTime;
+            e.x += moveX * scaledDt;
+            e.y += moveY * scaledDt;
             return;
         }
 
@@ -164,7 +271,7 @@ export default class EnemyManager {
             
             if (isOutsideView && e.turboCooldown <= 0) {
                 if (isDeepInFog && Math.random() < 0.5) {
-                    const margin = 100;
+                    const margin = 1.0 * unitSize;
                     const distXP = Math.abs(dxP);
                     const distYP = Math.abs(dyP);
 
@@ -191,11 +298,11 @@ export default class EnemyManager {
             const moveX = (dxP / distP) * finalSpeed + sep.x + soft.x;
             const moveY = (dyP / distP) * finalSpeed + sep.y + soft.y;
             
-            e.x += moveX * deltaTime;
-            e.y += moveY * deltaTime;
+            e.x += moveX * scaledDt;
+            e.y += moveY * scaledDt;
         } else {
-            e.x += sep.x * deltaTime;
-            e.y += sep.y * deltaTime;
+            e.x += sep.x * scaledDt;
+            e.y += sep.y * scaledDt;
         }
     }
 
@@ -429,10 +536,12 @@ export default class EnemyManager {
 
         // Shield Bearer protective aura reduces damage to nearby non-Shield-Bearer enemies
         if (e.specialType !== 'SHIELD_BEARER') {
+            const unitSize = this.game.UNIT_SIZE || 100;
             for (const other of this.enemies) {
                 if (other.specialType === 'SHIELD_BEARER' && other.currentHp > 0 && other.shieldAura) {
+                    const auraR = other.shieldAura.radius * unitSize;
                     const dSq = (other.x - e.x) ** 2 + (other.y - e.y) ** 2;
-                    if (dSq <= other.shieldAura.radius ** 2) {
+                    if (dSq <= auraR * auraR) {
                         damage *= (1 - other.shieldAura.damageReduction);
                         break;
                     }
@@ -447,8 +556,9 @@ export default class EnemyManager {
         const triggerExplosiveRound = playerMod && (playerMod.stats.explosiveChance || 0) > 0 && Math.random() < playerMod.stats.explosiveChance;
         const triggerPyroRicochet = Boolean(p.hasBounced && p.bounces === 0 && synergyMgr && synergyMgr.hasSynergy('pyro_ricochet'));
         if (triggerExplosiveCrit || triggerExplosiveRound || triggerPyroRicochet) {
+            const unitSize = this.game.UNIT_SIZE || 100;
             const hasCluster = synergyMgr && synergyMgr.hasSynergy('cluster_munitions');
-            const explosionRadius = (triggerExplosiveCrit ? 120 : 105) + (hasCluster ? 35 : 0);
+            const explosionRadius = ((triggerExplosiveCrit ? 1.2 : 1.05) + (hasCluster ? 0.35 : 0)) * unitSize;
             const aoeDamage = damage * (triggerExplosiveCrit ? 0.5 : 0.6) * (hasCluster ? 1.6 : 1.0);
             const particles = this.game.getModule('particles');
             if (particles) {
@@ -549,11 +659,110 @@ export default class EnemyManager {
     }
 
     _handleSpawning(deltaTime) {
+        if (this.freezeSpawns) return;
+        if (this.hasActiveBoss() && this.enemies.length >= 90) return;
         this.spawnTimer += deltaTime;
         if (this.spawnTimer > this.spawnRate) {
             this.spawnEnemy();
             this.spawnTimer = 0;
         }
+    }
+
+    spawnBoss(bossId, extraHpScale = 1) {
+        const baseConfig = ENEMY_TYPES[bossId];
+        if (!baseConfig) return null;
+        const player = this.game.getModule('player');
+        const director = this.game.getModule('director');
+        const center = this.game.center;
+        if (!player) return null;
+
+        const phaseHpMult = director?.currentPhase?.hpMultiplier || 1;
+        const phaseSpdMult = director?.currentPhase?.speedMultiplier || 1;
+        const margin = 120;
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.max(this.game.canvas.width, this.game.canvas.height) * 0.55 + margin;
+        const worldX = player.pos.x + Math.cos(angle) * dist;
+        const worldY = player.pos.y + Math.sin(angle) * dist;
+
+        const bossHp = Math.ceil(baseConfig.hp * Math.max(1, phaseHpMult * 0.65) * extraHpScale);
+        const boss = {
+            ...baseConfig,
+            codexId: bossId,
+            x: worldX,
+            y: worldY,
+            maxHp: bossHp,
+            currentHp: bossHp,
+            speed: baseConfig.speed * Math.min(1.5, Math.max(1, phaseSpdMult * 0.8)),
+            glitchPhase: GLITCH_PHASES.NORMAL,
+            skillTimer: 1600,
+            skillIndex: 0
+        };
+        this.enemies.push(boss);
+
+        this.bossWarningTimer = 3500;
+        this.bossWarningText = `WARNING: ${(baseConfig.codexName || bossId).toUpperCase()} DETECTED`;
+        const audio = this.game.getModule('audio');
+        if (audio) audio.play('bossAlert');
+        const ui = this.game.getModule('ui');
+        if (ui && ui.showNotification) {
+            ui.showNotification(this.bossWarningText, baseConfig.color || '#ff4400');
+        }
+        return boss;
+    }
+
+    _spawnEscort(typeKey, nearX, nearY, hpScale = 0.8) {
+        const cfg = ENEMY_TYPES[typeKey];
+        if (!cfg) return;
+        const director = this.game.getModule('director');
+        const phaseHpMult = director?.currentPhase?.hpMultiplier || 1;
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 65 + Math.random() * 45;
+        const spawned = {
+            ...cfg,
+            codexId: typeKey,
+            isBossMinion: true,
+            x: nearX + Math.cos(angle) * dist,
+            y: nearY + Math.sin(angle) * dist,
+            maxHp: Math.ceil(cfg.hp * phaseHpMult * hpScale),
+            currentHp: Math.ceil(cfg.hp * phaseHpMult * hpScale),
+            speed: cfg.speed,
+            glitchPhase: GLITCH_PHASES.NORMAL
+        };
+        if (spawned.isVirusGlitched) {
+            this._applyVirusGlitch(spawned, false);
+        }
+        this.enemies.push(spawned);
+    }
+
+    spawnSpecificEnemy(typeKey, count = 1) {
+        const cfg = ENEMY_TYPES[typeKey];
+        if (!cfg) return 0;
+        if (cfg.isBoss) {
+            for (let i = 0; i < count; i++) this.spawnBoss(typeKey, 1);
+            return count;
+        }
+        const player = this.game?.getModule('player');
+        if (!player) return 0;
+        const director = this.game?.getModule('director');
+        const hpMult = director?.currentPhase?.hpMultiplier || 1;
+        const spdMult = director?.currentPhase?.speedMultiplier || 1;
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 / Math.max(1, count)) * i + Math.random() * 0.4;
+            const dist = 210 + Math.random() * 60;
+            const spawned = {
+                ...cfg,
+                codexId: typeKey === 'MINI_SHARD' ? null : typeKey,
+                x: player.pos.x + Math.cos(angle) * dist,
+                y: player.pos.y + Math.sin(angle) * dist,
+                maxHp: Math.ceil(cfg.hp * hpMult),
+                currentHp: Math.ceil(cfg.hp * hpMult),
+                speed: cfg.speed * spdMult,
+                glitchPhase: GLITCH_PHASES.NORMAL
+            };
+            if (spawned.isVirusGlitched) this._applyVirusGlitch(spawned, false);
+            this.enemies.push(spawned);
+        }
+        return count;
     }
 
     _handleEnemyDeath(e, index) {
@@ -630,7 +839,7 @@ export default class EnemyManager {
                 }
             }
             if ((playerMod.stats.deathBlastDamage || 0) > 0) {
-                const blastR = 95;
+                const blastR = 0.95 * (this.game.UNIT_SIZE || 100);
                 if (particles) particles.emit(e.x, e.y, '#ff7722', 12);
                 for (const other of this.enemies) {
                     if (other === e || other.currentHp <= 0) continue;
@@ -640,6 +849,22 @@ export default class EnemyManager {
                         other.currentHp -= playerMod.stats.deathBlastDamage;
                     }
                 }
+            }
+        }
+        if (e.isBoss) {
+            if (particles) particles.emit(e.x, e.y, e.color || '#ffcc00', 40);
+            if (audio) audio.play('synergy');
+            if (xpMgr) xpMgr.spawnOrb(e.x, e.y, 400, '#ffcc00');
+            if (playerMod) playerMod.stats.rerolls = (playerMod.stats.rerolls || 0) + 1;
+            if (augmentMgr) {
+                for (let s = 0; s < 5; s++) {
+                    augmentMgr.spawnScrapDrop(e.x + (Math.random() - 0.5) * 50, e.y + (Math.random() - 0.5) * 50, 1);
+                }
+                const bossAug = augmentMgr._rollRandomAugment(2.5);
+                if (bossAug) augmentMgr.spawnPod(bossAug, e.x, e.y);
+            }
+            if (ui && ui.showNotification) {
+                ui.showNotification(`${(e.codexName || 'BOSS').toUpperCase()} DEFEATED! +1 REROLL & LOOT`, '#ffcc00');
             }
         }
         if (ui) ui.addScore(e.scoreValue);
@@ -751,9 +976,160 @@ export default class EnemyManager {
         }
     }
 
+    _updateBossBehavior(e, player, deltaTime) {
+        if (this.game.isSignalJammed) return;
+        const cfg = e.bossConfig || {};
+        const pm = this.game.getModule('projectiles');
+        const particles = this.game.getModule('particles');
+        const dx = player.pos.x - e.x;
+        const dy = player.pos.y - e.y;
+        const dist = Math.hypot(dx, dy) || 1;
+
+        // Active Siege Charge (Warden)
+        if (e.bossChargeState === 'charging') {
+            e.bossChargeTimer -= deltaTime;
+            if (e.bossChargeTimer <= 0) {
+                e.bossChargeState = 'dashing';
+                e.bossChargeTimer = cfg.dashTime || 650;
+            }
+            return;
+        }
+        if (e.bossChargeState === 'dashing') {
+            e.bossChargeTimer -= deltaTime;
+            if (e.bossChargeTimer <= 0) {
+                e.bossChargeState = 'idle';
+            }
+            return;
+        }
+
+        // Active Blink Strike (Null-Pointer)
+        if (e.bossBlinkTarget) {
+            e.bossBlinkTarget.timer -= deltaTime;
+            if (e.bossBlinkTarget.timer <= 0) {
+                if (particles) particles.emit(e.x, e.y, '#ff00ff', 18);
+                e.x = e.bossBlinkTarget.x;
+                e.y = e.bossBlinkTarget.y;
+                if (particles) particles.emit(e.x, e.y, '#ff00ff', 22);
+                if (pm) {
+                    const baseAngle = e.bossBlinkTarget.angle ?? Math.atan2(player.pos.y - e.y, player.pos.x - e.x);
+                    for (let i = -2; i <= 2; i++) {
+                        const a = baseAngle + i * 0.22;
+                        pm.spawnEnemyProjectile({
+                            x: e.x, y: e.y,
+                            vx: Math.cos(a) * 0.48, vy: Math.sin(a) * 0.48,
+                            size: 13, color: '#ff00ff', damage: 1
+                        });
+                    }
+                }
+                e.bossBlinkTarget = null;
+            }
+            return;
+        }
+
+        // Active Spiral Barrage (Overmind)
+        if (e.bossSpiralTimer > 0) {
+            e.bossSpiralTimer -= deltaTime;
+            e.bossSpiralTick = (e.bossSpiralTick || 0) + deltaTime;
+            e.bossSpiralAngle = (e.bossSpiralAngle || 0) + deltaTime * 0.0045;
+            if (e.bossSpiralTick >= 130 && pm) {
+                e.bossSpiralTick = 0;
+                for (let arm = 0; arm < 2; arm++) {
+                    const a = e.bossSpiralAngle + arm * Math.PI;
+                    pm.spawnEnemyProjectile({
+                        x: e.x, y: e.y,
+                        vx: Math.cos(a) * 0.4, vy: Math.sin(a) * 0.4,
+                        size: 12, color: '#ffcc00', damage: 1
+                    });
+                }
+            }
+        }
+
+        // Active Overload Ring (Overmind)
+        if (e.bossOverloadTimer > 0) {
+            e.bossOverloadTimer -= deltaTime;
+            if (e.bossOverloadTimer <= 0) {
+                const rad = (cfg.overloadRadius || 2.2) * (this.game.UNIT_SIZE || 100);
+                if (particles) particles.emit(e.x, e.y, '#ff3300', 30);
+                if (dist <= rad && !player.ghostActive) {
+                    player.takeDamage(1);
+                }
+            }
+            return;
+        }
+
+        e.skillTimer = (e.skillTimer ?? 2000) - deltaTime;
+        if (e.skillTimer > 0) return;
+        e.skillTimer = cfg.skillCooldown || 3000;
+        const skill = (e.skillIndex || 0) % 3;
+        e.skillIndex = (e.skillIndex || 0) + 1;
+
+        if (e.specialType === 'BOSS_WARDEN') {
+            if (skill === 0 && pm) {
+                const count = cfg.novaCount || 14;
+                const spd = cfg.novaSpeed || 0.42;
+                for (let i = 0; i < count; i++) {
+                    const a = (Math.PI * 2 / count) * i;
+                    pm.spawnEnemyProjectile({
+                        x: e.x, y: e.y,
+                        vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+                        size: 13, color: '#ff5500', damage: 1
+                    });
+                }
+            } else if (skill === 1) {
+                e.bossChargeState = 'charging';
+                e.bossChargeTimer = cfg.chargeTime || 900;
+                e.bossChargeDirX = dx / dist;
+                e.bossChargeDirY = dy / dist;
+            } else {
+                this._spawnEscort('SENTRY', e.x, e.y, 0.7);
+                this._spawnEscort('SHIELD_BEARER', e.x, e.y, 0.7);
+            }
+        } else if (e.specialType === 'BOSS_PHANTOM') {
+            const unitSize = this.game.UNIT_SIZE || 100;
+            if (skill === 0) {
+                const offA = Math.random() * Math.PI * 2;
+                const tx = player.pos.x + Math.cos(offA) * (1.6 * unitSize);
+                const ty = player.pos.y + Math.sin(offA) * (1.6 * unitSize);
+                e.bossBlinkTarget = {
+                    x: tx,
+                    y: ty,
+                    angle: Math.atan2(player.pos.y - ty, player.pos.x - tx),
+                    timer: cfg.blinkDelay || 850
+                };
+            } else if (skill === 1) {
+                this._spawnEscort('GLITCHED', e.x, e.y, 0.55);
+                this._spawnEscort('GLITCHED', e.x, e.y, 0.55);
+            } else {
+                const empRad = (cfg.empRadius || 2.8) * unitSize;
+                this.empWaves.push({ x: e.x, y: e.y, radius: 10, maxRadius: empRad, life: 450, maxLife: 450 });
+                if (dist <= empRad && !player.ghostActive) {
+                    player.empDisruptedTimer = Math.max(player.empDisruptedTimer || 0, cfg.empDuration || 2500);
+                    const audio = this.game.getModule('audio');
+                    if (audio) audio.play('emp');
+                }
+            }
+        } else if (e.specialType === 'BOSS_OVERMIND') {
+            if (skill === 0) {
+                e.bossSpiralTimer = 1600;
+                e.bossSpiralTick = 0;
+            } else if (skill === 1) {
+                e.bossOverloadTimer = cfg.overloadDelay || 1200;
+            } else {
+                this._spawnEscort('DASHER', e.x, e.y, 0.75);
+                this._spawnEscort('DASHER', e.x, e.y, 0.75);
+                this._spawnEscort('VIRUS', e.x, e.y, 0.75);
+            }
+        }
+    }
+
     _handleSpecialEnemyBehavior(e, player, deltaTime) {
+        if (e.isBoss) {
+            this._updateBossBehavior(e, player, deltaTime);
+            return;
+        }
         // 1. EMP Disrupter
         if (e.emp) {
+            const empRadiusPx = e.emp.radius * (this.game.UNIT_SIZE || 100);
             if (e.empTimer === undefined) e.empTimer = Math.random() * 2000;
             e.empTimer += deltaTime;
             if (e.empTimer >= e.emp.cooldown) {
@@ -762,13 +1138,13 @@ export default class EnemyManager {
                     x: e.x,
                     y: e.y,
                     radius: 10,
-                    maxRadius: e.emp.radius,
+                    maxRadius: empRadiusPx,
                     life: 450,
                     maxLife: 450
                 });
 
                 const distToPlayer = Math.hypot(player.pos.x - e.x, player.pos.y - e.y);
-                if (distToPlayer <= e.emp.radius && !player.ghostActive) {
+                if (distToPlayer <= empRadiusPx && !player.ghostActive) {
                     player.empDisruptedTimer = Math.max(player.empDisruptedTimer || 0, e.emp.disableDuration);
                     const audio = this.game.getModule('audio');
                     if (audio) audio.play('emp');
@@ -800,7 +1176,8 @@ export default class EnemyManager {
                 const dx = player.pos.x - e.x;
                 const dy = player.pos.y - e.y;
                 const dist = Math.hypot(dx, dy);
-                if (e.dashCooldown <= 0 && dist > 30 && dist <= e.dasher.triggerRange) {
+                const triggerPx = e.dasher.triggerRange * (this.game.UNIT_SIZE || 100);
+                if (e.dashCooldown <= 0 && dist > 30 && dist <= triggerPx) {
                     e.dashState = 'charging';
                     e.dashTimer = e.dasher.chargeDuration;
                     e.dashDirX = dx / dist;
@@ -820,7 +1197,7 @@ export default class EnemyManager {
             e.virusShootTimer = (e.virusShootTimer || 0) + deltaTime;
             if (e.virusShootTimer >= e.virus.fireRate) {
                 let target = null;
-                let minDist = e.virus.range;
+                let minDist = e.virus.range * (this.game.UNIT_SIZE || 100);
                 for (const other of this.enemies) {
                     if (other === e || other.currentHp <= 0 || other.specialType === 'VIRUS') continue;
                     const d = Math.hypot(other.x - e.x, other.y - e.y);
@@ -946,6 +1323,89 @@ export default class EnemyManager {
         const player = this.game.getModule('player');
         if (!player) return;
 
+        // Draw Boss telegraphs & off-screen indicator
+        for (const e of this.enemies) {
+            if (!e.isBoss) continue;
+            const drawX = e.x - player.pos.x + this.game.center.x;
+            const drawY = e.y - player.pos.y + this.game.center.y;
+
+            if (e.bossChargeState === 'charging') {
+                const laneLen = 6.5 * (this.game.UNIT_SIZE || 100);
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255, 68, 0, 0.65)';
+                ctx.lineWidth = e.size * 0.85;
+                ctx.setLineDash([14, 10]);
+                ctx.beginPath();
+                ctx.moveTo(drawX, drawY);
+                ctx.lineTo(drawX + (e.bossChargeDirX || 0) * laneLen, drawY + (e.bossChargeDirY || 0) * laneLen);
+                ctx.stroke();
+                ctx.restore();
+            }
+            if (e.bossBlinkTarget) {
+                const bx = e.bossBlinkTarget.x - player.pos.x + this.game.center.x;
+                const by = e.bossBlinkTarget.y - player.pos.y + this.game.center.y;
+                const aimAngle = e.bossBlinkTarget.angle ?? Math.atan2(this.game.center.y - by, this.game.center.x - bx);
+                const sightLen = 2.6 * (this.game.UNIT_SIZE || 100);
+                ctx.save();
+                ctx.strokeStyle = '#ff00ff';
+                ctx.fillStyle = 'rgba(255, 0, 255, 0.16)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(bx, by, 44, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // 5-way shot direction telegraph lines
+                ctx.strokeStyle = 'rgba(255, 0, 255, 0.65)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 6]);
+                for (let i = -2; i <= 2; i++) {
+                    const a = aimAngle + i * 0.22;
+                    ctx.beginPath();
+                    ctx.moveTo(bx, by);
+                    ctx.lineTo(bx + Math.cos(a) * sightLen, by + Math.sin(a) * sightLen);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+            if (e.bossOverloadTimer > 0) {
+                const rad = (e.bossConfig?.overloadRadius || 2.2) * (this.game.UNIT_SIZE || 100);
+                const pct = 1 - Math.max(0, e.bossOverloadTimer / (e.bossConfig?.overloadDelay || 1200));
+                ctx.save();
+                ctx.strokeStyle = '#ff3300';
+                ctx.fillStyle = 'rgba(255, 51, 0, 0.15)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, rad, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, rad * pct, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Off-screen boss arrow
+            const w = this.game.canvas.width;
+            const h = this.game.canvas.height;
+            if (drawX < 0 || drawX > w || drawY < 0 || drawY > h) {
+                const ang = Math.atan2(drawY - this.game.center.y, drawX - this.game.center.x);
+                const pad = 34;
+                const ax = Math.max(pad, Math.min(w - pad, drawX));
+                const ay = Math.max(pad, Math.min(h - pad, drawY));
+                ctx.save();
+                ctx.translate(ax, ay);
+                ctx.rotate(ang);
+                ctx.fillStyle = e.color || '#ff4400';
+                ctx.beginPath();
+                ctx.moveTo(14, 0);
+                ctx.lineTo(-10, -9);
+                ctx.lineTo(-10, 9);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
         // Draw Shield Bearer protective auras underneath enemies
         for (const e of this.enemies) {
             if (e.specialType === 'SHIELD_BEARER' && e.shieldAura) {
@@ -957,7 +1417,7 @@ export default class EnemyManager {
                 ctx.lineWidth = 2;
                 ctx.setLineDash([10, 8]);
                 ctx.beginPath();
-                ctx.arc(drawX, drawY, e.shieldAura.radius, 0, Math.PI * 2);
+                ctx.arc(drawX, drawY, e.shieldAura.radius * (this.game.UNIT_SIZE || 100), 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
                 ctx.restore();
@@ -1020,7 +1480,7 @@ export default class EnemyManager {
                 ctx.lineWidth = 2;
                 ctx.setLineDash([8, 6]);
                 ctx.beginPath();
-                ctx.arc(drawX, drawY, e.emp.radius * chargeProg, 0, Math.PI * 2);
+                ctx.arc(drawX, drawY, e.emp.radius * (this.game.UNIT_SIZE || 100) * chargeProg, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.restore();
             }

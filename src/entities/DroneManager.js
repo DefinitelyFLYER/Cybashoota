@@ -559,8 +559,9 @@ export default class DroneManager {
                     hitAny = true;
                     if (particles) particles.emit(e.x, e.y, '#ff2244', 4);
                     if (synergyMgr && synergyMgr.hasSynergy('tesla_saw')) {
+                        const arcRange = 1.8 * (this.game.UNIT_SIZE || 100);
                         let arcTarget = null;
-                        let bestArcD = 180 * 180;
+                        let bestArcD = arcRange * arcRange;
                         for (const other of enemyMgr.enemies) {
                             if (other === e || other.currentHp <= 0) continue;
                             const dSq = (other.x - e.x) ** 2 + (other.y - e.y) ** 2;

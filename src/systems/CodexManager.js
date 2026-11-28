@@ -4,7 +4,9 @@ import { UPGRADES } from '../data/UpgradeData.js';
 import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
 import { DRONE_TYPES } from '../data/DroneTypes.js';
 import { HACK_DATA } from '../data/HackData.js';
-import { ENEMY_TYPES, ENEMY_CODEX_IDS } from '../data/EnemyTypes.js';
+import { ENEMY_TYPES, ENEMY_CODEX_IDS, BOSS_CODEX_IDS } from '../data/EnemyTypes.js';
+
+const ALL_CODEX_ENEMY_IDS = [...ENEMY_CODEX_IDS, ...BOSS_CODEX_IDS];
 
 export default class CodexManager {
     constructor() {
@@ -93,6 +95,7 @@ export default class CodexManager {
 
     getEnemyThresholds(enemyId) {
         const cfg = ENEMY_TYPES[enemyId];
+        if (cfg && cfg.codexTier === 'boss') return [1, 3, 10];
         return cfg && cfg.codexTier === 'elite' ? [1, 50, 150] : [1, 100, 250];
     }
 
@@ -119,9 +122,45 @@ export default class CodexManager {
     }
 
     recordEnemyKill(enemyId) {
-        if (!enemyId || !ENEMY_CODEX_IDS.includes(enemyId)) return;
+        if (!enemyId || !ALL_CODEX_ENEMY_IDS.includes(enemyId)) return;
         this.enemyKills[enemyId] = (this.enemyKills[enemyId] || 0) + 1;
         this.discovered.enemies.add(enemyId);
+        this._save();
+    }
+
+    setDebugStorage(enabled) {
+        this.storageKey = enabled ? 'cyberpunk_codex_discovered_debug' : 'cyberpunk_codex_discovered';
+        for (const set of Object.values(this.discovered)) set.clear();
+        this.enemyKills = {};
+        this._load();
+    }
+
+    addKillsToAll(amount = 50) {
+        for (const id of ALL_CODEX_ENEMY_IDS) {
+            this.enemyKills[id] = (this.enemyKills[id] || 0) + amount;
+            this.discovered.enemies.add(id);
+        }
+        this._save();
+    }
+
+    unlockAll() {
+        SYNERGIES.forEach(s => this.discovered.synergies.add(s.id));
+        AUGMENTS.forEach(a => this.discovered.augments.add(a.id));
+        UPGRADES.filter(u => !u.unlockHackId).forEach(u => this.discovered.playerCards.add(u.id));
+        DRONE_UPGRADES.forEach(u => this.discovered.droneCards.add(u.id));
+        Object.keys(DRONE_TYPES).forEach(id => this.discovered.drones.add(id));
+        Object.keys(HACK_DATA).forEach(id => this.discovered.hacks.add(id));
+        for (const id of ALL_CODEX_ENEMY_IDS) {
+            const [, , t3] = this.getEnemyThresholds(id);
+            this.enemyKills[id] = Math.max(this.enemyKills[id] || 0, t3);
+            this.discovered.enemies.add(id);
+        }
+        this._save();
+    }
+
+    resetCodex() {
+        for (const set of Object.values(this.discovered)) set.clear();
+        this.enemyKills = {};
         this._save();
     }
 
@@ -149,8 +188,8 @@ export default class CodexManager {
                 total: Object.keys(DRONE_TYPES).length + Object.keys(HACK_DATA).length
             },
             enemies: {
-                found: ENEMY_CODEX_IDS.filter(id => this.getEnemyTier(id) >= 1).length,
-                total: ENEMY_CODEX_IDS.length
+                found: ALL_CODEX_ENEMY_IDS.filter(id => this.getEnemyTier(id) >= 1).length,
+                total: ALL_CODEX_ENEMY_IDS.length
             }
         };
     }

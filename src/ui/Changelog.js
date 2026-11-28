@@ -1,6 +1,18 @@
-export const CURRENT_VERSION = 'v0.6.0';
+export const CURRENT_VERSION = 'v0.7.0';
 
 const CHANGELOG = [
+    {
+        version: 'v0.7.0',
+        title: 'WE GOT BOSSES NOW!!',
+        date: '28-11-2026',
+        notes: [
+            'Added 3 bosses: Firewall Warden, Null-Pointer & Apex Overmind.',
+            'Added Boss HP bar, warning alerts, and guaranteed boss loot drops.',
+            'Added an Enemy Boss Arena during boss fights.',
+            'Added Bosses into the Enemies Codex.',
+            'Unified game distances to units across all screen resolutions.'
+        ]
+    },
     {
         version: 'v0.6.0',
         title: 'SOUNDTRACK & SFX!',

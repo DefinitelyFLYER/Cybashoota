@@ -322,7 +322,8 @@ export default class ProjectileManager {
 
         const count = player.getStat('projectileCount'); 
         const spread = player.getStat('projectileSpread') * (Math.PI / 180);
-        const bulletSpeed = player.getStat('bulletSpeed');
+        const unitScale = this.game?.getUnitScale ? this.game.getUnitScale() : 1;
+        const bulletSpeed = player.getStat('bulletSpeed') * unitScale;
         const projectileSize = player.getStat('projectileSize');
 
         const synergyMgr = this.game?.getModule('synergies');

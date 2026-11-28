@@ -7,7 +7,7 @@ import { DRONE_UPGRADES } from '../data/DroneUpgradeData.js';
 import { DRONE_TYPES } from '../data/DroneTypes.js';
 import { HACK_DATA } from '../data/HackData.js';
 import { SYNERGIES } from '../data/SynergyData.js';
-import { ENEMY_TYPES, ENEMY_CODEX_IDS } from '../data/EnemyTypes.js';
+import { ENEMY_TYPES, ENEMY_CODEX_IDS, BOSS_CODEX_IDS } from '../data/EnemyTypes.js';
 
 export default class MenuManager {
     constructor() {
@@ -1389,7 +1389,7 @@ export default class MenuManager {
                 playerCards: { found: 0, total: UPGRADES.filter(u => !u.unlockHackId).length },
                 droneCards: { found: 0, total: DRONE_UPGRADES.length },
                 dronesAndHacks: { found: 0, total: Object.keys(DRONE_TYPES).length + Object.keys(HACK_DATA).length },
-                enemies: { found: 0, total: ENEMY_CODEX_IDS.length }
+                enemies: { found: 0, total: ENEMY_CODEX_IDS.length + BOSS_CODEX_IDS.length }
             };
             const codexTabs = [
                 { id: 'synergies', label: `SYNERGIES (${counts.synergies.found}/${counts.synergies.total})` },
@@ -2668,22 +2668,27 @@ export default class MenuManager {
             entries = [...droneEntries, ...hackEntries];
         } else if (this.codexTab === 'enemies') {
             title = 'ENEMIES BESTIARY CODEX';
-            entries = ENEMY_CODEX_IDS.map(id => {
+            const combinedIds = [...ENEMY_CODEX_IDS, ...BOSS_CODEX_IDS];
+            entries = combinedIds.map(id => {
                 const cfg = ENEMY_TYPES[id];
                 const kills = codexMgr ? codexMgr.getEnemyKills(id) : 0;
                 const tier = codexMgr ? codexMgr.getEnemyTier(id) : 0;
                 const nextThreshold = codexMgr ? codexMgr.getNextEnemyThreshold(id) : 1;
+                const isBoss = Boolean(cfg.isBoss);
                 return {
                     id,
                     category: 'enemies',
                     isEnemy: true,
+                    isBoss,
                     enemyConfig: cfg,
                     codexTier: cfg.codexTier || 'common',
                     kills,
                     tier,
                     nextThreshold,
                     name: cfg.codexName || id,
-                    tag: tier >= 3 ? 'TIER 3/3 (MAX)' : `TIER ${tier}/3`,
+                    tag: isBoss
+                        ? (tier >= 3 ? 'BOSS • MAX' : `BOSS • TIER ${tier}/3`)
+                        : (tier >= 3 ? 'TIER 3/3 (MAX)' : `TIER ${tier}/3`),
                     subtitle: `KILLS: ${kills}${nextThreshold ? ` • NEXT TIER AT ${nextThreshold}` : ' • MAX INTEL UNLOCKED'}`,
                     color: cfg.color || '#ff5555',
                     description: cfg.codexDescription || '',
@@ -2710,7 +2715,8 @@ export default class MenuManager {
         const cardW = Math.floor((innerW - gap * (cols - 1)) / cols);
         const cardH = 82;
         const totalRows = Math.ceil(entries.length / cols);
-        const contentH = totalRows * (cardH + gap);
+        const bossHeaderGap = this.codexTab === 'enemies' ? 40 : 0;
+        const contentH = totalRows * (cardH + gap) + bossHeaderGap;
 
         this.maxLoadoutScrollOffset = Math.max(0, contentH - gridH);
         this.loadoutScrollOffset = Math.max(0, Math.min(this.loadoutScrollOffset, this.maxLoadoutScrollOffset));
@@ -2720,11 +2726,34 @@ export default class MenuManager {
         ctx.rect(innerX, gridTopY, innerW, gridH);
         ctx.clip();
 
+        if (this.codexTab === 'enemies') {
+            const regularRows = Math.ceil(ENEMY_CODEX_IDS.length / cols);
+            const bossHeaderY = gridTopY + regularRows * (cardH + gap) - this.loadoutScrollOffset + 22;
+            const bossesFound = entries.filter(e => e.isBoss && e.tier >= 1).length;
+            if (bossHeaderY >= gridTopY - 10 && bossHeaderY <= gridTopY + gridH + 20) {
+                ctx.save();
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = 'bold 20px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(`BOSSES (${bossesFound}/${BOSS_CODEX_IDS.length})`, innerX, bossHeaderY);
+                ctx.strokeStyle = 'rgba(255, 204, 0, 0.35)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(innerX + 125, bossHeaderY - 5);
+                ctx.lineTo(innerX + innerW, bossHeaderY - 5);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
         entries.forEach((entry, idx) => {
-            const col = idx % cols;
-            const row = Math.floor(idx / cols);
+            const isBossSection = this.codexTab === 'enemies' && entry.isBoss;
+            const localIdx = isBossSection ? (idx - ENEMY_CODEX_IDS.length) : idx;
+            const baseRowOffset = isBossSection ? Math.ceil(ENEMY_CODEX_IDS.length / cols) : 0;
+            const col = localIdx % cols;
+            const row = baseRowOffset + Math.floor(localIdx / cols);
             const cx = innerX + col * (cardW + gap);
-            const cy = gridTopY + row * (cardH + gap) - this.loadoutScrollOffset;
+            const cy = gridTopY + row * (cardH + gap) + (isBossSection ? bossHeaderGap : 0) - this.loadoutScrollOffset;
 
             if (cy + cardH < gridTopY || cy > gridTopY + gridH) return;
 
@@ -3195,22 +3224,27 @@ export default class MenuManager {
             entries = [...droneEntries, ...hackEntries];
         } else if (this.codexTab === 'enemies') {
             title = 'ENEMIES BESTIARY CODEX';
-            entries = ENEMY_CODEX_IDS.map(id => {
+            const combinedIds = [...ENEMY_CODEX_IDS, ...BOSS_CODEX_IDS];
+            entries = combinedIds.map(id => {
                 const cfg = ENEMY_TYPES[id];
                 const kills = codexMgr ? codexMgr.getEnemyKills(id) : 0;
                 const tier = codexMgr ? codexMgr.getEnemyTier(id) : 0;
                 const nextThreshold = codexMgr ? codexMgr.getNextEnemyThreshold(id) : 1;
+                const isBoss = Boolean(cfg.isBoss);
                 return {
                     id,
                     category: 'enemies',
                     isEnemy: true,
+                    isBoss,
                     enemyConfig: cfg,
                     codexTier: cfg.codexTier || 'common',
                     kills,
                     tier,
                     nextThreshold,
                     name: cfg.codexName || id,
-                    tag: tier >= 3 ? 'TIER 3/3 (MAX)' : `TIER ${tier}/3`,
+                    tag: isBoss
+                        ? (tier >= 3 ? 'BOSS • MAX' : `BOSS • TIER ${tier}/3`)
+                        : (tier >= 3 ? 'TIER 3/3 (MAX)' : `TIER ${tier}/3`),
                     subtitle: `KILLS: ${kills}${nextThreshold ? ` • NEXT TIER AT ${nextThreshold}` : ' • MAX INTEL UNLOCKED'}`,
                     color: cfg.color || '#ff5555',
                     description: cfg.codexDescription || '',
@@ -3237,7 +3271,8 @@ export default class MenuManager {
         const cardW = Math.floor((innerW - gap * (cols - 1)) / cols);
         const cardH = 82;
         const totalRows = Math.ceil(entries.length / cols);
-        const contentH = totalRows * (cardH + gap);
+        const bossHeaderGap = this.codexTab === 'enemies' ? 40 : 0;
+        const contentH = totalRows * (cardH + gap) + bossHeaderGap;
 
         this.maxLoadoutScrollOffset = Math.max(0, contentH - gridH);
         this.loadoutScrollOffset = Math.max(0, Math.min(this.loadoutScrollOffset, this.maxLoadoutScrollOffset));
@@ -3247,11 +3282,34 @@ export default class MenuManager {
         ctx.rect(innerX, gridTopY, innerW, gridH);
         ctx.clip();
 
+        if (this.codexTab === 'enemies') {
+            const regularRows = Math.ceil(ENEMY_CODEX_IDS.length / cols);
+            const bossHeaderY = gridTopY + regularRows * (cardH + gap) - this.loadoutScrollOffset + 22;
+            const bossesFound = entries.filter(e => e.isBoss && e.tier >= 1).length;
+            if (bossHeaderY >= gridTopY - 10 && bossHeaderY <= gridTopY + gridH + 20) {
+                ctx.save();
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = 'bold 20px "VT323", monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(`BOSSES (${bossesFound}/${BOSS_CODEX_IDS.length})`, innerX, bossHeaderY);
+                ctx.strokeStyle = 'rgba(255, 204, 0, 0.35)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(innerX + 125, bossHeaderY - 5);
+                ctx.lineTo(innerX + innerW, bossHeaderY - 5);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
         entries.forEach((entry, idx) => {
-            const col = idx % cols;
-            const row = Math.floor(idx / cols);
+            const isBossSection = this.codexTab === 'enemies' && entry.isBoss;
+            const localIdx = isBossSection ? (idx - ENEMY_CODEX_IDS.length) : idx;
+            const baseRowOffset = isBossSection ? Math.ceil(ENEMY_CODEX_IDS.length / cols) : 0;
+            const col = localIdx % cols;
+            const row = baseRowOffset + Math.floor(localIdx / cols);
             const cx = innerX + col * (cardW + gap);
-            const cy = gridTopY + row * (cardH + gap) - this.loadoutScrollOffset;
+            const cy = gridTopY + row * (cardH + gap) + (isBossSection ? bossHeaderGap : 0) - this.loadoutScrollOffset;
 
             if (cy + cardH < gridTopY || cy > gridTopY + gridH) return;
 
@@ -3662,6 +3720,12 @@ export default class MenuManager {
             ctx.lineTo(radius * 0.5, 0);
             ctx.moveTo(0, -radius * 0.5);
             ctx.lineTo(0, radius * 0.5);
+            ctx.stroke();
+        } else if (cfg.isBoss) {
+            ctx.beginPath();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.arc(0, 0, radius + 4, 0, Math.PI * 2);
             ctx.stroke();
         }
 

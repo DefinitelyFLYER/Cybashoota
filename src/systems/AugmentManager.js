@@ -313,17 +313,18 @@ export default class AugmentManager {
         }
     }
 
-    spawnForgeTerminal(player) {
+    spawnForgeTerminal(player, customDistUnits = null) {
         if (!player) return;
+        const unitSize = this.game?.UNIT_SIZE || 100;
         const angle = Math.random() * Math.PI * 2;
-        const dist = 480 + Math.random() * 180;
+        const dist = (customDistUnits !== null ? customDistUnits : (4.8 + Math.random() * 1.8)) * unitSize;
         const x = player.pos.x + Math.cos(angle) * dist;
         const y = player.pos.y + Math.sin(angle) * dist;
 
         this.activeForgeTerminal = {
             x,
             y,
-            radius: 65,
+            radius: 0.65 * unitSize,
             remaining: this.forgeLifetime,
             duration: this.forgeLifetime,
             rotation: 0,
